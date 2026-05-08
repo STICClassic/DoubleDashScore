@@ -1,10 +1,16 @@
-﻿namespace DoubleDashScore
+using DoubleDashScore.Views;
+
+namespace DoubleDashScore;
+
+public partial class AppShell : Shell
 {
-    public partial class AppShell : Shell
+    public AppShell()
     {
-        public AppShell()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
+
+        Routing.RegisterRoute("NewNightPage", typeof(NewNightPage));
+        Routing.RegisterRoute("NightDetailPage", typeof(NightDetailPage));
+        Routing.RegisterRoute("RoundEntryPage", typeof(RoundEntryPage));
+        Routing.RegisterRoute("PlayerEditPage", typeof(PlayerEditPage));
     }
 }

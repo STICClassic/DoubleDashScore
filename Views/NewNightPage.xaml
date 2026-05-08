@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             x:Class="DoubleDashScore.Views.NewNightPage"
+             x:DataType="vm:NewNightViewModel"
+             Title="Ny kväll">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="Datum" />
+            <DatePicker Date="{Binding PlayedOn}" Format="yyyy-MM-dd" />
+
+            <Label Text="Anteckning (valfritt)" />
+            <Editor Text="{Binding Note}" AutoSize="TextChanges" HeightRequest="100" Placeholder="t.ex. Hos Anna" />
+
+            <HorizontalStackLayout Spacing="12" HorizontalOptions="End">
+                <Button Text="Avbryt" Command="{Binding CancelCommand}" />
+                <Button Text="Skapa" Command="{Binding SaveCommand}" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
