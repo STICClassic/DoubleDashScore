@@ -71,6 +71,58 @@ public class GameNightRepository
         }).ToList();
     }
 
+    public async Task<IReadOnlyList<NightWithRounds>> GetAllNightsWithRoundsAsync(CancellationToken ct = default)
+    {
+        var conn = await _db.GetConnectionAsync(ct).ConfigureAwait(false);
+
+        var nights = await conn.Table<GameNight>()
+            .Where(n => n.DeletedAt == null)
+            .OrderBy(n => n.PlayedOn)
+            .ToListAsync()
+            .ConfigureAwait(false);
+
+        if (nights.Count == 0)
+        {
+            return Array.Empty<NightWithRounds>();
+        }
+
+        var rounds = await conn.Table<Round>()
+            .Where(r => r.DeletedAt == null)
+            .ToListAsync()
+            .ConfigureAwait(false);
+
+        var roundIds = rounds.Select(r => r.Id).ToHashSet();
+        var allResults = roundIds.Count == 0
+            ? new List<RoundResult>()
+            : await conn.Table<RoundResult>()
+                .Where(rr => rr.DeletedAt == null)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+        var resultsByRound = allResults
+            .Where(rr => roundIds.Contains(rr.RoundId))
+            .GroupBy(rr => rr.RoundId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<RoundResult>)g.ToList());
+
+        var roundsByNight = rounds
+            .OrderBy(r => r.RoundNumber)
+            .GroupBy(r => r.GameNightId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        return nights.Select(n =>
+        {
+            roundsByNight.TryGetValue(n.Id, out var nightRounds);
+            var details = (nightRounds ?? new List<Round>())
+                .Select(r =>
+                {
+                    resultsByRound.TryGetValue(r.Id, out var rs);
+                    return new RoundDetail(r, rs ?? Array.Empty<RoundResult>());
+                })
+                .ToList();
+            return new NightWithRounds(n, details);
+        }).ToList();
+    }
+
     public async Task SoftDeleteAsync(int id, CancellationToken ct = default)
     {
         var conn = await _db.GetConnectionAsync(ct).ConfigureAwait(false);

@@ -3,18 +3,6 @@ using SQLite;
 
 namespace DoubleDashScore.Data;
 
-public sealed record RoundResultInput(
-    int PlayerId,
-    int FirstPlaces,
-    int SecondPlaces,
-    int ThirdPlaces,
-    int FourthPlaces);
-
-public sealed record RoundDetail(Round Round, IReadOnlyList<RoundResult> Results)
-{
-    public bool IsComplete => Round.TrackCount == 16 && Results.Count == 4;
-}
-
 public class RoundRepository
 {
     private readonly DatabaseService _db;
