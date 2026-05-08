@@ -38,6 +38,24 @@ Svenska termer i UI, engelska i kod.
 - **Totalscore-lista** (`PositionTotals`) — ackumulerad räknare per spelare över
   hur många gånger hen hamnat på 1:a, 2:a, 3:e, 4:e plats. Uppdateras med +1
   per **komplett** omgång. Partiella omgångar räknas inte.
+- **Karriärsnitt** (`CareerAverage`) — total banpoäng spelaren samlat på sig
+  över alla kvällar (kompletta + partiella omgångar) delat med totalt antal
+  banor spelaren spelat. Samma formel som kvällssnitt fast över hela historiken.
+
+## Antaganden
+
+Dessa hålls som invarianter i hela appen. Bryts något av dem är det
+datakorruption, inte ett vanligt körningsfel — koden ska kasta tydligt
+fel istället för att tyst returnera defaultvärden.
+
+- **Alltid 4 spelare per omgång.** En giltig omgång (komplett eller partiell)
+  har exakt 4 `RoundResults`-rader, en per aktiv spelare. Skiva 1:s inmatning
+  enforce:ar detta. Statistikkoden förutsätter samma sak — saknas en spelare
+  i en omgång räknas det som korruption (t.ex. en mjukraderad `RoundResult`
+  vars `Round` inte mjukraderats) och `StatsCalculator` ska kasta `InvalidOperationException`
+  med tydligt meddelande.
+- Konsekvens: alla 4 spelare har en datapunkt per kväll i grafen. Inga gaps,
+  inga "spelade inte"-undantag att visualisera.
 
 ## Poängsystem och formler
 
@@ -54,6 +72,13 @@ spelaren spelat den kvällen.
 Exempel: spelare vann 7 banor, blev 2:a på 5, 3:a på 3, 4:a på 1 bana. Totalt 16 banor.
 `(7×4) + (5×3) + (3×2) + (1×1) = 28 + 15 + 6 + 1 = 50 poäng.`
 `50 / 16 = 3,125 ≈ 3,13 i kvällssnitt.`
+
+**Karriärsnitt-formel:** samma som kvällssnitt fast över alla kvällar:
+total banpoäng över historiken / totalt antal banor spelade. Räknas på **alla**
+banor, även från partiella omgångar (samma policy som kvällssnitt).
+
+**Visning av decimaltal:** `CultureInfo.GetCultureInfo("sv-SE")` — komma som
+decimaltecken, 2 decimaler (`3,13`).
 
 **Omgångsplacering** beräknas inom en komplett omgång genom att rangordna
 spelarna efter total banpoäng inom de 16 banorna.
@@ -107,11 +132,26 @@ Commit:a efter varje skiva.
 > (`FirstPlaces`/`SecondPlaces`/`ThirdPlaces`/`FourthPlaces` per spelare).
 
 ### Skiva 2 — Statistik och grafer
-- Vy: kvällssnitt per spelare (för aktuell kväll och historiskt).
-- Vy: kvällsplacering (lista av omgångsplaceringar).
-- Vy: totalscore-lista (ackumulerad).
-- Graf över kvällssnitt över tid per spelare. Använd
-  **OxyPlot.Maui.Skia** eller **Microcharts**.
+- All statistikberäkning i `/Services/StatsCalculator.cs` som **rena funktioner**
+  (ingen DI, ingen DB-access). ViewModels laddar via repositories och skickar
+  in domänobjekt; calculator returnerar DTO:er.
+- Tied ranking införs här (standard competition ranking, "1-2-2-4"). Påverkar
+  bara omgångsplacering och totalscore-listan — inmatningsvalideringen från
+  Skiva 1 förblir oförändrad eftersom ties uppstår på *omgångsnivå* (samma
+  totalpoäng), inte på *banenivå*.
+- `NightStatsPage` (per kväll, nås via toolbar på `NightDetailPage`):
+  kvällssnitt per spelare, kvällsplacering per spelare, samt en per-omgång-tabell
+  som visar varje spelares placering och total banpoäng per komplett omgång.
+- `HistoryStatsPage` (alla kvällar, nås via toolbar på `NightsListPage`):
+  totalscore-tabell med kolumnerna `1:or`, `2:or`, `3:or`, `4:or`, `Karriärsnitt`,
+  plus en linjegraf med kvällssnitt över tid (en linje per spelare, sorterat
+  stigande på `PlayedOn`, en datapunkt per spelare per kväll — inga gaps).
+- Graf-bibliotek: **OxyPlot.Maui.Skia** (multi-line `LineSeries` på datum-x-axel).
+  Microcharts.Maui som dokumenterad fallback om OxyPlot inte bygger för
+  net10.0-android.
+- Tester (XUnit) för `StatsCalculator` minst för: tied ranking-varianter,
+  kvällssnitt med blandade kompletta/partiella omgångar, totalscore-räkning
+  vid ties, karriärsnitt över flera kvällar.
 
 ### Skiva 3 — Excel/CSV-export + mailbackup
 - Generera CSV (enkelt) eller XLSX (`ClosedXML`) med kvällens data.
