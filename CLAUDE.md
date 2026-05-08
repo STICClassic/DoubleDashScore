@@ -80,10 +80,31 @@ Commit:a efter varje skiva.
 
 ### Skiva 1 — Datamodell + manuell inmatning
 - SQLite-databas via `sqlite-net-pcl`.
-- Tabeller: `Players`, `GameNights`, `Rounds`, `TrackResults`. Alla rader
+- Tabeller: `Players`, `GameNights`, `Rounds`, `RoundResults`. Alla rader
   har `CreatedAt` (UTC) och `DeletedAt` (nullable).
-- UI: skapa kväll, lägg till omgång, mata in fyra spelares position per bana.
+- Inmatning sker **per omgång**, inte per bana. För varje omgång anger
+  användaren `TrackCount` (default 16, partiell omgång < 16) och fyra
+  räknare per spelare: hur många 1:or, 2:or, 3:or, 4:or hen tagit i den
+  omgången. En `RoundResult`-rad per spelare per omgång (4 rader per omgång).
+- `IsComplete` på `Round` härleds som `TrackCount == 16 && exakt 4
+  RoundResults-rader finns`. Lagras inte som flagga.
+- Validering vid spara av omgång (atomärt i `RunInTransaction`,
+  strikt — inga delade placeringar i Skiva 1):
+  - Exakt fyra `RoundResults`-rader skapas, en per spelare.
+  - Per spelare: `FirstPlaces + SecondPlaces + ThirdPlaces + FourthPlaces == TrackCount`.
+  - Per position över alla spelare: summan av `FirstPlaces` == `TrackCount`
+    (en 1:a per bana). Samma för `SecondPlaces`, `ThirdPlaces`, `FourthPlaces`.
+- UI: skapa kväll, lägg till omgång, fyll i 4×4-matris (spelare som kolumner,
+  positioner 1–4 som rader) plus fält för antal banor. Live-validering visar
+  fel om summorna inte stämmer; spara-knappen är inaktiv tills validering
+  passerar.
+- Tied ranking (delade placeringar) införs i Skiva 2 — inte i Skiva 1.
 - Soft delete: ingen rad raderas hårt. Allt filtreras på `DeletedAt IS NULL`.
+
+> **Notering inför Skiva 5:** poängtavlans bildformat är en matris med
+> banorna på rader och spelarna i kolumner. OCR-resultatet ska räknas
+> ihop till samma räknare som matrisinmatningen producerar
+> (`FirstPlaces`/`SecondPlaces`/`ThirdPlaces`/`FourthPlaces` per spelare).
 
 ### Skiva 2 — Statistik och grafer
 - Vy: kvällssnitt per spelare (för aktuell kväll och historiskt).
@@ -139,7 +160,7 @@ Commit:a efter varje skiva.
 
 ## Projektstruktur
 
-/Models          — POCO + SQLite-attribut (Player, GameNight, Round, TrackResult)
+/Models          — POCO + SQLite-attribut (Player, GameNight, Round, RoundResult)
 /Data            — DatabaseService, repositories
 /Services        — OcrService, ExportService, MailService, StatsCalculator
 /ViewModels      — en per vy, ärver ObservableObject
