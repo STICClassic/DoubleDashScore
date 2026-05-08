@@ -189,3 +189,50 @@ Lös innan kod skrivs som beror på dem:
    OCR-parser.
 2. Mailbackup: SMTP via Gmail (kräver app-lösenord) eller plattformens
    dela-intent? Bestäm i Skiva 3.
+   
+## Git-arbetsflöde
+
+- Allt arbete som Claude Code gör ska ske på en branch som börjar med `claude/`.
+- Branchnamn: `claude/skiva-N-kort-beskrivning`, t.ex. `claude/skiva-1-datamodell`
+  eller `claude/skiva-2-statistik-grafer`. För mindre delsteg inom en skiva:
+  `claude/skiva-1-data-models`, `claude/skiva-1-manual-entry-ui`.
+- Skapa branchen *innan* några filer ändras. Använd `git checkout -b claude/...`
+  från `main`.
+- Commit:a på branchen löpande med beskrivande commit-meddelanden.
+- När arbetet är klart, branchen bygger felfritt och uppfyller "definition of
+  done" för skivan: pusha branchen och **öppna en Pull Request på GitHub**.
+- **Merga aldrig till `main` själv.** Användaren granskar och mergar PR:en
+  manuellt via GitHubs UI.
+
+### PR-krav
+
+Varje PR ska innehålla:
+
+- **Titel:** kort och beskrivande, t.ex. `Skiva 1: Datamodell och SQLite-setup`.
+- **Beskrivning** (PR-body) med dessa avsnitt:
+  - **Vad:** punktlista över vad som ändrats.
+  - **Varför:** vilken del av PRD:n / vilken skiva detta uppfyller.
+  - **Hur testat:** vilka manuella tester som körts (t.ex. "byggt utan
+    varningar för Android, startar appen, skapar en kväll, lägger till en
+    omgång, statistik filtrerar på DeletedAt").
+  - **Avvikelser från PRD:** om något medvetet gjorts annorlunda än PRD:n
+    säger — förklara varför. Om inga avvikelser, skriv "Inga".
+  - **Öppna frågor / följdarbete:** saker som upptäcktes men inte ingår i
+    denna PR.
+- **Liten diff:** håll PR:en fokuserad på en skiva eller ett tydligt delsteg.
+  Om PR:en växer till över ~500 rader ändrad kod, överväg att dela upp den.
+- **Ren historik:** commit-meddelanden i imperativ form ("Add Player model",
+  inte "added player model" eller "stuff").
+
+### Verktyg för PR
+
+- Använd antingen `gh` (GitHub CLI) om det är installerat, eller skriv ut
+  PR-URL:en till terminalen så användaren kan klicka.
+- Om `gh` saknas: pusha branchen och skriv en färdig PR-titel + beskrivning
+  som användaren kan kopiera in på GitHub.
+
+### Om en PR underkänns
+
+- Användaren kan begära ändringar i PR:en. Gör då commits på samma branch
+  och pusha igen — PR:en uppdateras automatiskt.
+- Skapa inte en ny PR om den ursprungliga bara behöver justeras.
