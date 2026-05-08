@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             x:Class="DoubleDashScore.Views.NightsListPage"
+             x:Name="PageRoot"
+             x:DataType="vm:NightsListViewModel"
+             Title="Kvällar">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Spelare" Command="{Binding EditPlayersCommand}" />
+        <ToolbarItem Text="Ny kväll" Command="{Binding NewNightCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto,*">
+        <ActivityIndicator Grid.Row="0"
+                           IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           HorizontalOptions="Center"
+                           Margin="0,8" />
+
+        <Label Grid.Row="1"
+               Text="Inga kvällar än. Tryck på 'Ny kväll' för att börja."
+               IsVisible="{Binding IsEmpty}"
+               HorizontalOptions="Center"
+               VerticalOptions="Center"
+               Padding="20" />
+
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding Items}"
+                        SelectionMode="None"
+                        IsVisible="{Binding IsEmpty, Converter={StaticResource InvertedBoolConverter}}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:NightListItem">
+                    <Grid Padding="16,12" ColumnDefinitions="*,Auto">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.OpenNightCommand}"
+                                CommandParameter="{Binding .}" />
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout Grid.Column="0" Spacing="2">
+                            <Label Text="{Binding Date}" FontAttributes="Bold" FontSize="16" />
+                            <Label Text="{Binding RoundsSummary}" FontSize="13" Opacity="0.8" />
+                            <Label Text="{Binding Note}"
+                                   FontSize="12"
+                                   Opacity="0.6"
+                                   IsVisible="{Binding Note, Converter={StaticResource StringNotEmptyConverter}}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1"
+                                Text="Ta bort"
+                                FontSize="11"
+                                VerticalOptions="Center"
+                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteNightCommand}"
+                                CommandParameter="{Binding .}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

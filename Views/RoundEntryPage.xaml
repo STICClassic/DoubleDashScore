@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             x:Class="DoubleDashScore.Views.RoundEntryPage"
+             x:DataType="vm:RoundEntryViewModel"
+             Title="{Binding Title}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="14">
+
+            <Grid ColumnDefinitions="*,120" ColumnSpacing="12" VerticalOptions="Center">
+                <Label Grid.Column="0" Text="Antal banor" VerticalOptions="Center" />
+                <Entry Grid.Column="1"
+                       Text="{Binding TrackCountText}"
+                       Keyboard="Numeric"
+                       HorizontalTextAlignment="Center" />
+            </Grid>
+
+            <Label Text="Räknare per spelare" FontAttributes="Bold" Margin="0,8,0,0" />
+
+            <Grid ColumnDefinitions="64,*,*,*,*"
+                  RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                  RowSpacing="6"
+                  ColumnSpacing="8">
+
+                <Label Grid.Row="0" Grid.Column="0" Text="" />
+                <Label Grid.Row="0" Grid.Column="1" Text="{Binding Players[0].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                <Label Grid.Row="0" Grid.Column="2" Text="{Binding Players[1].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                <Label Grid.Row="0" Grid.Column="3" Text="{Binding Players[2].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                <Label Grid.Row="0" Grid.Column="4" Text="{Binding Players[3].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+
+                <Label Grid.Row="1" Grid.Column="0" Text="1:or" VerticalOptions="Center" />
+                <Entry Grid.Row="1" Grid.Column="1" Text="{Binding Players[0].FirstPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="1" Grid.Column="2" Text="{Binding Players[1].FirstPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="1" Grid.Column="3" Text="{Binding Players[2].FirstPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="1" Grid.Column="4" Text="{Binding Players[3].FirstPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+
+                <Label Grid.Row="2" Grid.Column="0" Text="2:or" VerticalOptions="Center" />
+                <Entry Grid.Row="2" Grid.Column="1" Text="{Binding Players[0].SecondPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="2" Grid.Column="2" Text="{Binding Players[1].SecondPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="2" Grid.Column="3" Text="{Binding Players[2].SecondPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="2" Grid.Column="4" Text="{Binding Players[3].SecondPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+
+                <Label Grid.Row="3" Grid.Column="0" Text="3:or" VerticalOptions="Center" />
+                <Entry Grid.Row="3" Grid.Column="1" Text="{Binding Players[0].ThirdPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="3" Grid.Column="2" Text="{Binding Players[1].ThirdPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="3" Grid.Column="3" Text="{Binding Players[2].ThirdPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="3" Grid.Column="4" Text="{Binding Players[3].ThirdPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+
+                <Label Grid.Row="4" Grid.Column="0" Text="4:or" VerticalOptions="Center" />
+                <Entry Grid.Row="4" Grid.Column="1" Text="{Binding Players[0].FourthPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="4" Grid.Column="2" Text="{Binding Players[1].FourthPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="4" Grid.Column="3" Text="{Binding Players[2].FourthPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+                <Entry Grid.Row="4" Grid.Column="4" Text="{Binding Players[3].FourthPlacesText}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            </Grid>
+
+            <Label Text="{Binding ValidationMessage}" FontSize="13" TextColor="{AppThemeBinding Light=#B45309, Dark=#FBBF24}" />
+
+            <HorizontalStackLayout Spacing="12" HorizontalOptions="End" Margin="0,8,0,0">
+                <Button Text="Avbryt" Command="{Binding CancelCommand}" />
+                <Button Text="Spara" Command="{Binding SaveCommand}" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             x:Class="DoubleDashScore.Views.NightDetailPage"
+             x:Name="PageRoot"
+             x:DataType="vm:NightDetailViewModel"
+             Title="{Binding Title}">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Lägg till omgång" Command="{Binding AddRoundCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto,Auto,*">
+        <Label Grid.Row="0"
+               Text="{Binding Note}"
+               Padding="16,12,16,0"
+               IsVisible="{Binding Note, Converter={StaticResource StringNotEmptyConverter}}" />
+
+        <ActivityIndicator Grid.Row="1"
+                           IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           HorizontalOptions="Center"
+                           Margin="0,8" />
+
+        <CollectionView Grid.Row="2"
+                        ItemsSource="{Binding Rounds}"
+                        SelectionMode="None">
+            <CollectionView.EmptyView>
+                <Label Text="Inga omgångar än. Lägg till en via knappen i toppen."
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"
+                       Padding="20" />
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:RoundListItem">
+                    <Grid Padding="16,14" ColumnDefinitions="*,Auto">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.OpenRoundCommand}"
+                                CommandParameter="{Binding .}" />
+                        </Grid.GestureRecognizers>
+                        <Label Grid.Column="0" Text="{Binding Label}" FontSize="15" VerticalOptions="Center" />
+                        <Button Grid.Column="1"
+                                Text="Ta bort"
+                                FontSize="12"
+                                VerticalOptions="Center"
+                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteRoundCommand}"
+                                CommandParameter="{Binding .}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>
