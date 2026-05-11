@@ -1,4 +1,5 @@
 using DoubleDashScore.Data;
+using DoubleDashScore.Services;
 using DoubleDashScore.ViewModels;
 using DoubleDashScore.Views;
 using Microsoft.Extensions.Logging;
@@ -26,6 +27,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<PlayerRepository>();
         builder.Services.AddSingleton<GameNightRepository>();
         builder.Services.AddSingleton<RoundRepository>();
+        builder.Services.AddSingleton<ExportService>();
 
         builder.Services.AddTransient<NightsListViewModel>();
         builder.Services.AddTransient<NewNightViewModel>();

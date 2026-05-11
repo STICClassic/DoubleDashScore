@@ -2,16 +2,19 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Data;
+using DoubleDashScore.Services;
 
 namespace DoubleDashScore.ViewModels;
 
 public partial class NightsListViewModel : ObservableObject
 {
     private readonly GameNightRepository _nights;
+    private readonly ExportService _export;
 
-    public NightsListViewModel(GameNightRepository nights)
+    public NightsListViewModel(GameNightRepository nights, ExportService export)
     {
         _nights = nights;
+        _export = export;
     }
 
     public ObservableCollection<NightListItem> Items { get; } = new();
@@ -83,6 +86,25 @@ public partial class NightsListViewModel : ObservableObject
     private static async Task OpenStatsAsync()
     {
         await Shell.Current.GoToAsync("HistoryStatsPage").ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private async Task ExportAsync()
+    {
+        var page = Shell.Current.CurrentPage;
+        try
+        {
+            var path = await _export.ExportAllNightsToCsvAsync().ConfigureAwait(true);
+            await Share.Default.RequestAsync(new ShareFileRequest
+            {
+                Title = "DoubleDash-Statistik",
+                File = new ShareFile(path),
+            }).ConfigureAwait(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await page.DisplayAlertAsync("Kan inte exportera", ex.Message, "OK").ConfigureAwait(true);
+        }
     }
 
     private static string FormatRoundCount(int total, int complete)
