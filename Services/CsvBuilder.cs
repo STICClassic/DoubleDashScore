@@ -59,10 +59,12 @@ public static class CsvBuilder
         var totalTracks = roundsByNumber.Sum(r => r.Round.TrackCount);
         var date = night.Night.PlayedOn.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-        var header = new List<string> { $"Kväll {nightNumber}", date };
-        header.AddRange(players.Select(p => p.Name));
-        header.Add(totalTracks.ToString(CultureInfo.InvariantCulture));
-        WriteRow(sb, header);
+        WriteRow(sb, new List<string> { $"Kväll {nightNumber}", date });
+
+        var nameRow = new List<string> { string.Empty };
+        nameRow.AddRange(players.Select(p => p.Name));
+        nameRow.Add(totalTracks.ToString(CultureInfo.InvariantCulture));
+        WriteRow(sb, nameRow);
 
         var sumFirsts = playerIds.ToDictionary(id => id, _ => 0);
         var sumSeconds = playerIds.ToDictionary(id => id, _ => 0);

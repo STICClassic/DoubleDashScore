@@ -16,7 +16,7 @@ public class CsvBuilderTests
     };
 
     [Fact]
-    public void Section1_HeaderHasNightNumberDatePlayerNamesAndTotalTracks()
+    public void Section1_HeaderHasNightNumberOnFirstRowAndNamesPlusTotalOnSecond()
     {
         var night = new NightWithRounds(MakeNight(1, "2026-01-15"), new[]
         {
@@ -29,7 +29,8 @@ public class CsvBuilderTests
 
         var lines = CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers).Split('\n');
 
-        Assert.Equal("Kväll 1;2026-01-15;Claes;Robin;Aleksi;Jonas;16", lines[0]);
+        Assert.Equal("Kväll 1;2026-01-15", lines[0]);
+        Assert.Equal(";Claes;Robin;Aleksi;Jonas;16", lines[1]);
     }
 
     [Fact]
@@ -48,9 +49,9 @@ public class CsvBuilderTests
             (4, 0, 0, 0, 4));
         var night = new NightWithRounds(MakeNight(1, "2026-01-15"), new[] { complete, partial });
 
-        var header = CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers).Split('\n')[0];
+        var nameRow = CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers).Split('\n')[1];
 
-        Assert.EndsWith(";20", header);
+        Assert.EndsWith(";20", nameRow);
     }
 
     [Fact]
@@ -71,13 +72,13 @@ public class CsvBuilderTests
         var lines = CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers).Split('\n');
 
         // 1:or per spelare: 7+4=11, 5+0=5, 3+0=3, 1+0=1
-        Assert.Equal("1;11;5;3;1", lines[1]);
+        Assert.Equal("1;11;5;3;1", lines[2]);
         // 2:or: 5+0=5, 7+4=11, 3+0=3, 1+0=1
-        Assert.Equal("2;5;11;3;1", lines[2]);
+        Assert.Equal("2;5;11;3;1", lines[3]);
         // 3:or: 3+0=3, 3+0=3, 7+4=11, 3+0=3
-        Assert.Equal("3;3;3;11;3", lines[3]);
+        Assert.Equal("3;3;3;11;3", lines[4]);
         // 4:or: 1+0=1, 1+0=1, 3+0=3, 11+4=15
-        Assert.Equal("4;1;1;3;15", lines[4]);
+        Assert.Equal("4;1;1;3;15", lines[5]);
     }
 
     [Fact]
@@ -99,8 +100,8 @@ public class CsvBuilderTests
 
         var lines = CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers).Split('\n');
 
-        Assert.StartsWith("Poäng;66;", lines[5]); // Claes
-        Assert.StartsWith("Snitt;3,30;", lines[6]); // sv-SE komma, 2 decimaler
+        Assert.StartsWith("Poäng;66;", lines[6]); // Claes
+        Assert.StartsWith("Snitt;3,30;", lines[7]); // sv-SE komma, 2 decimaler
     }
 
     [Fact]
@@ -121,9 +122,9 @@ public class CsvBuilderTests
         var csv = CsvBuilder.BuildHistoryCsv(new[] { feb, jan }, FourPlayers);
         var lines = csv.Split('\n');
 
-        Assert.StartsWith("Kväll 1;2026-01-15;", lines[0]);
-        // Kvällsblock 1 = 7 rader (header + 4 + Poäng + Snitt) + 1 blank = 8 rader → nästa block börjar på index 8.
-        Assert.StartsWith("Kväll 2;2026-02-15;", lines[8]);
+        Assert.StartsWith("Kväll 1;2026-01-15", lines[0]);
+        // Kvällsblock 1 = 8 rader (Kväll-rad + namnrad + 4 + Poäng + Snitt) + 1 blank = 9 rader → nästa block börjar på index 9.
+        Assert.StartsWith("Kväll 2;2026-02-15", lines[9]);
     }
 
     [Fact]
@@ -142,8 +143,8 @@ public class CsvBuilderTests
 
         var lines = CsvBuilder.BuildHistoryCsv(new[] { n1, n2 }, FourPlayers).Split('\n');
 
-        // Block 1: rader 0–6. Blank rad: 7. Block 2: rader 8–14.
-        Assert.Equal(string.Empty, lines[7]);
+        // Block 1: rader 0–7 (Kväll-rad, namnrad, 4 räknarrader, Poäng, Snitt). Blank rad: 8. Block 2: rader 9–16.
+        Assert.Equal(string.Empty, lines[8]);
     }
 
     [Fact]
@@ -274,8 +275,9 @@ public class CsvBuilderTests
         var lines = csv.Split('\n');
 
         // Sektion 1 – kvällsblock finns.
-        Assert.Equal("Kväll 1;2026-01-15;Claes;Robin;Aleksi;Jonas;4", lines[0]);
-        Assert.Equal("Snitt;4,00;3,00;2,00;1,00", lines[6]);
+        Assert.Equal("Kväll 1;2026-01-15", lines[0]);
+        Assert.Equal(";Claes;Robin;Aleksi;Jonas;4", lines[1]);
+        Assert.Equal("Snitt;4,00;3,00;2,00;1,00", lines[7]);
 
         // Sektion 2 – alla celler tomma.
         var section2 = ExtractPlacements(csv);
