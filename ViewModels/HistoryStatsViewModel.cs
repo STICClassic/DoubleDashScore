@@ -120,8 +120,6 @@ public partial class HistoryStatsViewModel : ObservableObject
         var xAxis = new LinearAxis
         {
             Position = AxisPosition.Bottom,
-            Title = "Kväll:",
-            TitlePosition = 0,
             Minimum = 0.5,
             Maximum = nightCount + 0.5,
             MajorStep = 1,
@@ -129,9 +127,8 @@ public partial class HistoryStatsViewModel : ObservableObject
             LabelFormatter = v =>
             {
                 var n = (int)Math.Round(v);
-                return Math.Abs(v - n) < 0.0001 && n >= 1 && n <= nightCount
-                    ? n.ToString(SvSe)
-                    : string.Empty;
+                if (Math.Abs(v - n) > 0.0001 || n < 1 || n > nightCount) return string.Empty;
+                return n == 1 ? $"Kväll: {n}" : n.ToString(SvSe);
             },
             MajorGridlineStyle = LineStyle.Dot,
             MajorGridlineColor = theme.Gridline,
