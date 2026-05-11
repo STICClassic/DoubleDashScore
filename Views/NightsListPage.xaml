@@ -8,6 +8,7 @@
              Title="Kvällar">
 
     <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Statistik" Command="{Binding OpenStatsCommand}" />
         <ToolbarItem Text="Spelare" Command="{Binding EditPlayersCommand}" />
         <ToolbarItem Text="Ny kväll" Command="{Binding NewNightCommand}" />
     </ContentPage.ToolbarItems>

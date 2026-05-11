@@ -70,6 +70,12 @@ public partial class NightDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task OpenStatsAsync()
+    {
+        await Shell.Current.GoToAsync($"NightStatsPage?nightId={NightId}").ConfigureAwait(true);
+    }
+
+    [RelayCommand]
     private async Task OpenRoundAsync(RoundListItem? item)
     {
         if (item is null) return;

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             x:Class="DoubleDashScore.Views.NightStatsPage"
+             x:DataType="vm:NightStatsViewModel"
+             Title="{Binding Title}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="20">
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}"
+                               IsVisible="{Binding IsBusy}"
+                               HorizontalOptions="Center" />
+
+            <Label Text="{Binding StatusMessage}"
+                   IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotEmptyConverter}}"
+                   FontSize="14"
+                   Opacity="0.8" />
+
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasData}">
+                <Label Text="Översikt" FontAttributes="Bold" FontSize="18" />
+
+                <Grid ColumnDefinitions="*,Auto,Auto"
+                      Padding="0,4"
+                      ColumnSpacing="16">
+                    <Label Grid.Column="0" Text="Spelare" FontAttributes="Bold" />
+                    <Label Grid.Column="1" Text="Kvällssnitt" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                    <Label Grid.Column="2" Text="Placeringar" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                </Grid>
+                <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
+
+                <CollectionView ItemsSource="{Binding Overview}"
+                                SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PlayerNightOverviewRow">
+                            <Grid ColumnDefinitions="*,Auto,Auto"
+                                  Padding="0,6"
+                                  ColumnSpacing="16">
+                                <Label Grid.Column="0" Text="{Binding PlayerName}" />
+                                <Label Grid.Column="1" Text="{Binding AverageText}" HorizontalTextAlignment="End" />
+                                <Label Grid.Column="2" Text="{Binding PlacementsText}" HorizontalTextAlignment="End" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding HasData}">
+                <Label Text="Per omgång" FontAttributes="Bold" FontSize="18" />
+
+                <CollectionView ItemsSource="{Binding RoundSections}"
+                                SelectionMode="None">
+                    <CollectionView.EmptyView>
+                        <Label Text="Inga kompletta omgångar än."
+                               Opacity="0.7"
+                               HorizontalOptions="Start" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:RoundStatsSection">
+                            <VerticalStackLayout Spacing="4" Padding="0,8">
+                                <Label Text="{Binding Heading}" FontAttributes="Bold" FontSize="15" />
+
+                                <Grid ColumnDefinitions="*,Auto,Auto"
+                                      Padding="0,4"
+                                      ColumnSpacing="16">
+                                    <Label Grid.Column="0" Text="Spelare" FontSize="12" Opacity="0.7" />
+                                    <Label Grid.Column="1" Text="Placering" FontSize="12" Opacity="0.7" HorizontalTextAlignment="End" />
+                                    <Label Grid.Column="2" Text="Poäng" FontSize="12" Opacity="0.7" HorizontalTextAlignment="End" />
+                                </Grid>
+                                <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#EEEEEE, Dark=#333333}" />
+
+                                <CollectionView ItemsSource="{Binding Rows}"
+                                                SelectionMode="None">
+                                    <CollectionView.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:RoundPlayerRow">
+                                            <Grid ColumnDefinitions="*,Auto,Auto"
+                                                  Padding="0,4"
+                                                  ColumnSpacing="16">
+                                                <Label Grid.Column="0" Text="{Binding PlayerName}" />
+                                                <Label Grid.Column="1" Text="{Binding PositionText}" HorizontalTextAlignment="End" />
+                                                <Label Grid.Column="2" Text="{Binding PointsText}" HorizontalTextAlignment="End" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
+                            </VerticalStackLayout>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
