@@ -3,6 +3,7 @@ using DoubleDashScore.ViewModels;
 using DoubleDashScore.Views;
 using Microsoft.Extensions.Logging;
 using OxyPlot.Maui.Skia;
+using SkiaSharp.Views.Maui.Controls.Hosting;
 
 namespace DoubleDashScore;
 
@@ -13,6 +14,7 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
+            .UseSkiaSharp()
             .UseOxyPlotSkia()
             .ConfigureFonts(fonts =>
             {
