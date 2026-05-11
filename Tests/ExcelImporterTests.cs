@@ -7,6 +7,8 @@ namespace DoubleDashScore.Tests;
 
 public class ExcelImporterTests
 {
+    private static readonly IReadOnlyList<string> DefaultExcelNames = new[] { "Claes", "Robin", "Aleksi", "Jonas" };
+
     private static readonly IReadOnlyList<Player> FourPlayers = new[]
     {
         new Player { Id = 1, Name = "Claes", DisplayOrder = 0, CreatedAt = DateTime.UtcNow },
@@ -20,7 +22,8 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlock(ws, blockRow: 1, nightNumber: 1, totalTracks: 16,
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
                 firsts: (16, 0, 0, 0),
                 seconds: (0, 16, 0, 0),
                 thirds: (0, 0, 16, 0),
@@ -54,11 +57,13 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlock(ws, blockRow: 1, nightNumber: 1, totalTracks: 16,
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
                 firsts: (16, 0, 0, 0),
                 seconds: (0, 16, 0, 0),
                 thirds: (0, 0, 16, 0),
                 fourths: (0, 0, 0, 16));
+            // Stride 8 → andra blocket på rad 2 + 8 = 10.
             WriteNightBlock(ws, blockRow: 10, nightNumber: 2, totalTracks: 16,
                 firsts: (0, 16, 0, 0),
                 seconds: (16, 0, 0, 0),
@@ -82,12 +87,12 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlock(ws, blockRow: 1, nightNumber: 35, totalTracks: 16,
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 35, totalTracks: 16,
                 firsts: (16, 0, 0, 0),
                 seconds: (0, 16, 0, 0),
                 thirds: (0, 0, 16, 0),
                 fourths: (0, 0, 0, 16));
-            // Section 2 — kväll 35 på rad 55, en komplett omgång där alla har distinkta placeringar.
             ws.Cell(55, "V").Value = 1;
             ws.Cell(55, "W").Value = 2;
             ws.Cell(55, "X").Value = 3;
@@ -113,10 +118,11 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
+            WriteGlobalHeader(ws, DefaultExcelNames);
             // Två kompletta omgångar. Placeringar:
             //   Claes 1,3   Robin 2,4   Aleksi 3,2   Jonas 4,1
             // Räknare = 16 per omgång × 2 omgångar = 32 per spelare.
-            WriteNightBlock(ws, blockRow: 1, nightNumber: 35, totalTracks: 32,
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 35, totalTracks: 32,
                 firsts:  (16,  0,  0, 16),
                 seconds: ( 0, 16, 16,  0),
                 thirds:  (16,  0, 16,  0),
@@ -154,12 +160,12 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlock(ws, blockRow: 1, nightNumber: 35, totalTracks: 16,
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 35, totalTracks: 16,
                 firsts: (8, 8, 0, 0),
                 seconds: (8, 8, 0, 0),
                 thirds: (0, 0, 16, 0),
                 fourths: (0, 0, 0, 16));
-            // Claes och Robin delar 1:a → båda 1, Aleksi 3, Jonas 4.
             ws.Cell(55, "V").Value = 1;
             ws.Cell(55, "W").Value = 1;
             ws.Cell(55, "X").Value = 3;
@@ -184,12 +190,13 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlock(ws, blockRow: 1, nightNumber: 35, totalTracks: 16,
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 35, totalTracks: 16,
                 firsts: (16, 0, 0, 0),
                 seconds: (0, 16, 0, 0),
                 thirds: (0, 0, 16, 0),
                 fourths: (0, 0, 0, 16));
-            ws.Cell(55, "V").Value = 1.5; // 5 är utanför 1-4
+            ws.Cell(55, "V").Value = 1.5;
             WriteSection3Header(ws);
             WriteSection3Row(ws, 1, (0, 0, 0, 0));
             WriteSection3Row(ws, 2, (0, 0, 0, 0));
@@ -206,12 +213,12 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlock(ws, blockRow: 1, nightNumber: 35, totalTracks: 16,
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 35, totalTracks: 16,
                 firsts: (16, 0, 0, 0),
                 seconds: (0, 16, 0, 0),
                 thirds: (0, 0, 16, 0),
                 fourths: (0, 0, 0, 16));
-            // Bara två av fyra spelare har placering — datakorruption.
             ws.Cell(55, "V").Value = 1;
             ws.Cell(55, "W").Value = 2;
             // X och Y lämnas tomma.
@@ -231,8 +238,9 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlock(ws, blockRow: 1, nightNumber: 1, totalTracks: 16,
-                firsts: (15, 0, 0, 0),  // Claes har 15+0+0+0 = 15, ej 16
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
+                firsts: (15, 0, 0, 0),
                 seconds: (0, 16, 0, 0),
                 thirds: (0, 0, 16, 0),
                 fourths: (0, 0, 0, 16));
@@ -252,13 +260,13 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlockWithNames(ws, blockRow: 1, nightNumber: 1, totalTracks: 16,
-                playerNames: new[] { "Claes", "Robin", "Aleksi", "Pelle" }, // Pelle finns inte
+            WriteGlobalHeader(ws, new[] { "Claes", "Robin", "Aleksi", "Pelle" });
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
                 firsts: (16, 0, 0, 0),
                 seconds: (0, 16, 0, 0),
                 thirds: (0, 0, 16, 0),
                 fourths: (0, 0, 0, 16));
-            WriteSection3Header(ws);
+            WriteSection3HeaderWithNames(ws, new[] { "Claes", "Robin", "Aleksi", "Pelle" });
             WriteSection3Row(ws, 1, (0, 0, 0, 0));
             WriteSection3Row(ws, 2, (0, 0, 0, 0));
             WriteSection3Row(ws, 3, (0, 0, 0, 0));
@@ -275,13 +283,13 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlockWithNames(ws, blockRow: 1, nightNumber: 1, totalTracks: 16,
-                playerNames: new[] { "claes", "ROBIN", "Aleksi", "jonas" },
+            WriteGlobalHeader(ws, new[] { "claes", "ROBIN", "Aleksi", "jonas" });
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
                 firsts: (16, 0, 0, 0),
                 seconds: (0, 16, 0, 0),
                 thirds: (0, 0, 16, 0),
                 fourths: (0, 0, 0, 16));
-            WriteSection3Header(ws);
+            WriteSection3HeaderWithNames(ws, new[] { "claes", "ROBIN", "Aleksi", "jonas" });
             WriteSection3Row(ws, 1, (0, 0, 0, 0));
             WriteSection3Row(ws, 2, (0, 0, 0, 0));
             WriteSection3Row(ws, 3, (0, 0, 0, 0));
@@ -297,12 +305,11 @@ public class ExcelImporterTests
     [Fact]
     public void Parse_ExcelColumnOrderDifferentFromAppDisplayOrder_MapsByName()
     {
-        // Excel ordningen: Robin, Claes, Aleksi, Jonas (kolumn B-E).
-        // Claes är fortfarande spelare med Id=1 i appen.
+        // Excel-ordningen: Robin, Claes, Aleksi, Jonas (kolumn B-E i globala headern).
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlockWithNames(ws, blockRow: 1, nightNumber: 1, totalTracks: 16,
-                playerNames: new[] { "Robin", "Claes", "Aleksi", "Jonas" },
+            WriteGlobalHeader(ws, new[] { "Robin", "Claes", "Aleksi", "Jonas" });
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
                 firsts: (16, 0, 0, 0),    // Robin vann alla
                 seconds: (0, 16, 0, 0),   // Claes 2:a
                 thirds: (0, 0, 16, 0),
@@ -337,7 +344,8 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlock(ws, blockRow: 1, nightNumber: 1, totalTracks: 16,
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
                 firsts: (16, 0, 0, 0),
                 seconds: (0, 16, 0, 0),
                 thirds: (0, 0, 16, 0),
@@ -368,7 +376,8 @@ public class ExcelImporterTests
     {
         using var stream = BuildWorkbook(ws =>
         {
-            WriteNightBlock(ws, blockRow: 1, nightNumber: 1, totalTracks: 16,
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
                 firsts: (16, 0, 0, 0),
                 seconds: (0, 16, 0, 0),
                 thirds: (0, 0, 16, 0),
@@ -397,21 +406,18 @@ public class ExcelImporterTests
         return stream;
     }
 
-    private static void WriteNightBlock(
-        IXLWorksheet ws, int blockRow, int nightNumber, int totalTracks,
-        (int, int, int, int) firsts,
-        (int, int, int, int) seconds,
-        (int, int, int, int) thirds,
-        (int, int, int, int) fourths)
+    private static void WriteGlobalHeader(IXLWorksheet ws, IReadOnlyList<string> playerNames)
     {
-        WriteNightBlockWithNames(ws, blockRow, nightNumber, totalTracks,
-            new[] { "Claes", "Robin", "Aleksi", "Jonas" },
-            firsts, seconds, thirds, fourths);
+        ws.Cell(1, "A").Value = "Position";
+        ws.Cell(1, "B").Value = playerNames[0];
+        ws.Cell(1, "C").Value = playerNames[1];
+        ws.Cell(1, "D").Value = playerNames[2];
+        ws.Cell(1, "E").Value = playerNames[3];
+        ws.Cell(1, "F").Value = "Antal banor:";
     }
 
-    private static void WriteNightBlockWithNames(
+    private static void WriteNightBlock(
         IXLWorksheet ws, int blockRow, int nightNumber, int totalTracks,
-        IReadOnlyList<string> playerNames,
         (int, int, int, int) firsts,
         (int, int, int, int) seconds,
         (int, int, int, int) thirds,
@@ -420,28 +426,22 @@ public class ExcelImporterTests
         ws.Cell(blockRow, "A").Value = $"Kväll {nightNumber}";
         ws.Cell(blockRow, "F").Value = totalTracks;
 
-        var nameCols = new[] { "B", "C", "D", "E" };
-        for (int i = 0; i < 4; i++)
-        {
-            ws.Cell(blockRow + 1, nameCols[i]).Value = playerNames[i];
-        }
-
-        WriteCountRow(ws, blockRow + 2, "1", firsts);
-        WriteCountRow(ws, blockRow + 3, "2", seconds);
-        WriteCountRow(ws, blockRow + 4, "3", thirds);
-        WriteCountRow(ws, blockRow + 5, "4", fourths);
+        WriteCountRow(ws, blockRow + 1, "1", firsts);
+        WriteCountRow(ws, blockRow + 2, "2", seconds);
+        WriteCountRow(ws, blockRow + 3, "3", thirds);
+        WriteCountRow(ws, blockRow + 4, "4", fourths);
 
         var (f1, f2, f3, f4) = firsts;
         var (s1, s2, s3, s4) = seconds;
         var (t1, t2, t3, t4) = thirds;
         var (fo1, fo2, fo3, fo4) = fourths;
-        ws.Cell(blockRow + 6, "A").Value = "Poäng";
-        ws.Cell(blockRow + 6, "B").Value = 4 * f1 + 3 * s1 + 2 * t1 + fo1;
-        ws.Cell(blockRow + 6, "C").Value = 4 * f2 + 3 * s2 + 2 * t2 + fo2;
-        ws.Cell(blockRow + 6, "D").Value = 4 * f3 + 3 * s3 + 2 * t3 + fo3;
-        ws.Cell(blockRow + 6, "E").Value = 4 * f4 + 3 * s4 + 2 * t4 + fo4;
+        ws.Cell(blockRow + 5, "A").Value = "Poäng";
+        ws.Cell(blockRow + 5, "B").Value = 4 * f1 + 3 * s1 + 2 * t1 + fo1;
+        ws.Cell(blockRow + 5, "C").Value = 4 * f2 + 3 * s2 + 2 * t2 + fo2;
+        ws.Cell(blockRow + 5, "D").Value = 4 * f3 + 3 * s3 + 2 * t3 + fo3;
+        ws.Cell(blockRow + 5, "E").Value = 4 * f4 + 3 * s4 + 2 * t4 + fo4;
 
-        ws.Cell(blockRow + 7, "A").Value = "Snitt";
+        ws.Cell(blockRow + 6, "A").Value = "Snitt";
     }
 
     private static void WriteCountRow(IXLWorksheet ws, int row, string label, (int, int, int, int) counts)
@@ -456,7 +456,7 @@ public class ExcelImporterTests
 
     private static void WriteSection3Header(IXLWorksheet ws)
     {
-        WriteSection3HeaderWithNames(ws, new[] { "Claes", "Robin", "Aleksi", "Jonas" });
+        WriteSection3HeaderWithNames(ws, DefaultExcelNames);
     }
 
     private static void WriteSection3HeaderWithNames(IXLWorksheet ws, IReadOnlyList<string> names)

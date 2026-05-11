@@ -7,8 +7,9 @@ namespace DoubleDashScore.Services;
 
 public static class ExcelImporter
 {
-    private const int BlockStrideRows = 9;
-    private const int NightBlockFirstRow = 1;
+    private const int BlockStrideRows = 8;
+    private const int NightBlockFirstRow = 2;
+    private const int GlobalHeaderRow = 1;
 
     private const string Section1ColLabel = "A";
     private const string Section1ColTotalTracks = "F";
@@ -71,15 +72,14 @@ public static class ExcelImporter
 
     private static IReadOnlyList<string> ReadExcelPlayerNames(IXLWorksheet ws)
     {
-        var namesRow = NightBlockFirstRow + 1;
         var names = new string[4];
         for (int i = 0; i < 4; i++)
         {
-            names[i] = ws.Cell(namesRow, Section1PlayerCols[i]).GetString().Trim();
+            names[i] = ws.Cell(GlobalHeaderRow, Section1PlayerCols[i]).GetString().Trim();
             if (string.IsNullOrWhiteSpace(names[i]))
             {
                 throw new InvalidDataException(
-                    $"Spelarnamn saknas i cell {Section1PlayerCols[i]}{namesRow}.");
+                    $"Spelarnamn saknas i cell {Section1PlayerCols[i]}{GlobalHeaderRow}.");
             }
         }
         return names;
@@ -142,7 +142,7 @@ public static class ExcelImporter
 
         for (int pos = 1; pos <= 4; pos++)
         {
-            var row = blockRow + 1 + pos; // blockRow+2 .. blockRow+5
+            var row = blockRow + pos; // blockRow+1 .. blockRow+4
             var labelText = ws.Cell(row, Section1ColLabel).GetString().Trim();
             if (labelText != pos.ToString(CultureInfo.InvariantCulture))
             {
