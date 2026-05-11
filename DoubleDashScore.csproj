@@ -83,6 +83,7 @@
 		<PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.android" Version="2.1.11" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 		<PackageReference Include="OxyPlot.Maui.Skia" Version="1.2.0" />
+		<PackageReference Include="ClosedXML" Version="0.105.0" />
 	</ItemGroup>
 
 </Project>

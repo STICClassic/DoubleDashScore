@@ -27,6 +27,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<PlayerRepository>();
         builder.Services.AddSingleton<GameNightRepository>();
         builder.Services.AddSingleton<RoundRepository>();
+        builder.Services.AddSingleton<HistoricalDataRepository>();
         builder.Services.AddSingleton<ExportService>();
 
         builder.Services.AddTransient<NightsListViewModel>();
