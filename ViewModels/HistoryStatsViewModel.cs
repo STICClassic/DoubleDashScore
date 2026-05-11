@@ -15,10 +15,10 @@ public partial class HistoryStatsViewModel : ObservableObject
 
     private static readonly OxyColor[] PlayerColors =
     {
-        OxyColor.FromRgb(0x1F, 0x77, 0xB4),
-        OxyColor.FromRgb(0xD6, 0x27, 0x28),
-        OxyColor.FromRgb(0x2C, 0xA0, 0x2C),
-        OxyColor.FromRgb(0xFF, 0x7F, 0x0E),
+        OxyColor.FromRgb(0x4E, 0x9C, 0xFF),
+        OxyColor.FromRgb(0xE6, 0x46, 0x46),
+        OxyColor.FromRgb(0x4C, 0xAF, 0x50),
+        OxyColor.FromRgb(0xFF, 0x98, 0x00),
     };
 
     private readonly GameNightRepository _nights;
@@ -104,24 +104,42 @@ public partial class HistoryStatsViewModel : ObservableObject
         IReadOnlyList<int> orderedIds,
         IReadOnlyDictionary<int, string> nameById)
     {
+        var theme = GetThemeColors();
+
         var model = new PlotModel
         {
             Title = "Kvällssnitt över tid",
             TitleFontSize = 14,
-            PlotAreaBorderColor = OxyColor.FromArgb(80, 0, 0, 0),
+            TitleColor = theme.Foreground,
+            TextColor = theme.Foreground,
+            PlotAreaBorderColor = theme.Border,
             Culture = SvSe,
         };
 
-        var dateAxis = new DateTimeAxis
+        var nightCount = series.Count;
+        var xAxis = new LinearAxis
         {
             Position = AxisPosition.Bottom,
-            StringFormat = "yyyy-MM-dd",
-            IntervalType = DateTimeIntervalType.Auto,
+            Minimum = 0.5,
+            Maximum = nightCount + 0.5,
+            MajorStep = 1,
+            MinorStep = 1,
+            LabelFormatter = v =>
+            {
+                var n = (int)Math.Round(v);
+                return Math.Abs(v - n) < 0.0001 && n >= 1 && n <= nightCount
+                    ? $"Kväll {n}"
+                    : string.Empty;
+            },
             MajorGridlineStyle = LineStyle.Dot,
-            MajorGridlineColor = OxyColor.FromArgb(40, 0, 0, 0),
-            Angle = -45,
+            MajorGridlineColor = theme.Gridline,
+            MinorTickSize = 0,
+            TextColor = theme.Foreground,
+            TicklineColor = theme.Foreground,
+            AxislineColor = theme.Foreground,
+            TitleColor = theme.Foreground,
         };
-        var valueAxis = new LinearAxis
+        var yAxis = new LinearAxis
         {
             Position = AxisPosition.Left,
             Minimum = 1,
@@ -129,36 +147,54 @@ public partial class HistoryStatsViewModel : ObservableObject
             MajorStep = 1,
             MinorStep = 0.5,
             MajorGridlineStyle = LineStyle.Dot,
-            MajorGridlineColor = OxyColor.FromArgb(40, 0, 0, 0),
+            MajorGridlineColor = theme.Gridline,
             StringFormat = "0.00",
+            TextColor = theme.Foreground,
+            TicklineColor = theme.Foreground,
+            AxislineColor = theme.Foreground,
+            TitleColor = theme.Foreground,
         };
-        model.Axes.Add(dateAxis);
-        model.Axes.Add(valueAxis);
+        model.Axes.Add(xAxis);
+        model.Axes.Add(yAxis);
+
+        var pointsByPlayer = orderedIds.ToDictionary(id => id, _ => new List<NightSeriesPoint>());
+        for (int n = 0; n < series.Count; n++)
+        {
+            var point = series[n];
+            var nightNumber = n + 1;
+            foreach (var id in orderedIds)
+            {
+                if (!point.AverageByPlayer.TryGetValue(id, out var avg)) continue;
+                pointsByPlayer[id].Add(new NightSeriesPoint(
+                    nightNumber,
+                    point.PlayedOnUtc.ToLocalTime(),
+                    (double)avg));
+            }
+        }
 
         for (int i = 0; i < orderedIds.Count; i++)
         {
             var id = orderedIds[i];
+            var items = pointsByPlayer[id];
+            if (items.Count == 0) continue;
+
+            var color = PlayerColors[i % PlayerColors.Length];
             var line = new LineSeries
             {
                 Title = nameById[id],
+                ItemsSource = items,
+                DataFieldX = nameof(NightSeriesPoint.NightNumber),
+                DataFieldY = nameof(NightSeriesPoint.Average),
                 MarkerType = MarkerType.Circle,
-                MarkerSize = 4,
+                MarkerSize = 5,
                 StrokeThickness = 2,
-                Color = PlayerColors[i % PlayerColors.Length],
-                MarkerFill = PlayerColors[i % PlayerColors.Length],
-                TrackerFormatString = "{0}\n{1}: {2:yyyy-MM-dd}\n{3}: {4:0.00}",
+                Color = color,
+                MarkerFill = color,
+                MarkerStroke = theme.Foreground,
+                MarkerStrokeThickness = 1,
+                TrackerFormatString = "{0}\nKväll {NightNumber}\n{PlayedOn:yyyy-MM-dd}\nKvällssnitt: {Average:0.00}",
             };
-            foreach (var point in series)
-            {
-                if (!point.AverageByPlayer.TryGetValue(id, out var avg)) continue;
-                line.Points.Add(new DataPoint(
-                    DateTimeAxis.ToDouble(point.PlayedOnUtc.ToLocalTime()),
-                    (double)avg));
-            }
-            if (line.Points.Count > 0)
-            {
-                model.Series.Add(line);
-            }
+            model.Series.Add(line);
         }
 
         model.Legends.Add(new OxyPlot.Legends.Legend
@@ -166,10 +202,28 @@ public partial class HistoryStatsViewModel : ObservableObject
             LegendPlacement = OxyPlot.Legends.LegendPlacement.Outside,
             LegendPosition = OxyPlot.Legends.LegendPosition.BottomCenter,
             LegendOrientation = OxyPlot.Legends.LegendOrientation.Horizontal,
+            LegendTextColor = theme.Foreground,
         });
 
         return model;
     }
+
+    private static ThemeColors GetThemeColors()
+    {
+        var theme = Application.Current?.RequestedTheme ?? AppTheme.Light;
+        if (theme == AppTheme.Unspecified) theme = AppTheme.Light;
+        return theme == AppTheme.Dark
+            ? new ThemeColors(
+                Foreground: OxyColor.FromRgb(0xE6, 0xE6, 0xE6),
+                Gridline: OxyColor.FromArgb(80, 0xCC, 0xCC, 0xCC),
+                Border: OxyColor.FromArgb(160, 0xCC, 0xCC, 0xCC))
+            : new ThemeColors(
+                Foreground: OxyColor.FromRgb(0x22, 0x22, 0x22),
+                Gridline: OxyColor.FromArgb(60, 0x00, 0x00, 0x00),
+                Border: OxyColor.FromArgb(140, 0x00, 0x00, 0x00));
+    }
+
+    private sealed record ThemeColors(OxyColor Foreground, OxyColor Gridline, OxyColor Border);
 }
 
 public sealed record TotalsRow(
@@ -179,3 +233,5 @@ public sealed record TotalsRow(
     string Thirds,
     string Fourths,
     string CareerAverage);
+
+public sealed record NightSeriesPoint(int NightNumber, DateTime PlayedOn, double Average);
