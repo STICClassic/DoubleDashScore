@@ -21,7 +21,7 @@
             <VerticalStackLayout Spacing="8" IsVisible="{Binding HasData}">
                 <Label Text="Översikt" FontAttributes="Bold" FontSize="18" />
 
-                <Grid ColumnDefinitions="*,Auto,Auto"
+                <Grid ColumnDefinitions="*,90,110"
                       Padding="0,4"
                       ColumnSpacing="16">
                     <Label Grid.Column="0" Text="Spelare" FontAttributes="Bold" />
@@ -34,7 +34,7 @@
                                 SelectionMode="None">
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="vm:PlayerNightOverviewRow">
-                            <Grid ColumnDefinitions="*,Auto,Auto"
+                            <Grid ColumnDefinitions="*,90,110"
                                   Padding="0,6"
                                   ColumnSpacing="16">
                                 <Label Grid.Column="0" Text="{Binding PlayerName}" />
@@ -61,7 +61,7 @@
                             <VerticalStackLayout Spacing="4" Padding="0,8">
                                 <Label Text="{Binding Heading}" FontAttributes="Bold" FontSize="15" />
 
-                                <Grid ColumnDefinitions="*,Auto,Auto"
+                                <Grid ColumnDefinitions="*,80,70"
                                       Padding="0,4"
                                       ColumnSpacing="16">
                                     <Label Grid.Column="0" Text="Spelare" FontSize="12" Opacity="0.7" />
@@ -74,7 +74,7 @@
                                                 SelectionMode="None">
                                     <CollectionView.ItemTemplate>
                                         <DataTemplate x:DataType="vm:RoundPlayerRow">
-                                            <Grid ColumnDefinitions="*,Auto,Auto"
+                                            <Grid ColumnDefinitions="*,80,70"
                                                   Padding="0,4"
                                                   ColumnSpacing="16">
                                                 <Label Grid.Column="0" Text="{Binding PlayerName}" />

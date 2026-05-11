@@ -127,8 +127,9 @@ public partial class HistoryStatsViewModel : ObservableObject
             LabelFormatter = v =>
             {
                 var n = (int)Math.Round(v);
-                if (Math.Abs(v - n) > 0.0001 || n < 1 || n > nightCount) return string.Empty;
-                return n == 1 ? $"Kväll: {n}" : n.ToString(SvSe);
+                return Math.Abs(v - n) < 0.0001 && n >= 1 && n <= nightCount
+                    ? n.ToString(SvSe)
+                    : string.Empty;
             },
             MajorGridlineStyle = LineStyle.Dot,
             MajorGridlineColor = theme.Gridline,
