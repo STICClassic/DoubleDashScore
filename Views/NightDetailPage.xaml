@@ -8,6 +8,7 @@
              Title="{Binding Title}">
 
     <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Statistik" Command="{Binding OpenStatsCommand}" />
         <ToolbarItem Text="Lägg till omgång" Command="{Binding AddRoundCommand}" />
     </ContentPage.ToolbarItems>
 

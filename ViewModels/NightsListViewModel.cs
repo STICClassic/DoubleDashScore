@@ -79,6 +79,12 @@ public partial class NightsListViewModel : ObservableObject
         await Shell.Current.GoToAsync("PlayerEditPage").ConfigureAwait(true);
     }
 
+    [RelayCommand]
+    private static async Task OpenStatsAsync()
+    {
+        await Shell.Current.GoToAsync("HistoryStatsPage").ConfigureAwait(true);
+    }
+
     private static string FormatRoundCount(int total, int complete)
     {
         if (total == 0) return "Inga omgångar";
