@@ -37,7 +37,12 @@ public static class CsvBuilder
         }
 
         var playerIds = orderedPlayers.Select(p => p.Id).ToList();
-        var totalRows = ordered.Count * 9 - 1;
+        // Layout per section (0-indexed):
+        //   Row 0:  titles (KVÄLLSBLOCK, KVÄLLSPLACERINGAR, TOTALSCORE)
+        //   Row 1:  section 1 blank, section 2/3 column headers
+        //   Row 2+: data
+        // Section 1 dominates höjden: 2 (title + blank) + 8*N + (N-1) gap = 9*N + 1.
+        var totalRows = ordered.Count * 9 + 1;
         var grid = CreateGrid(totalRows, TotalColumns);
 
         FillSection1(grid, ordered, orderedPlayers, playerIds);
@@ -64,9 +69,11 @@ public static class CsvBuilder
         IReadOnlyList<Player> players,
         IReadOnlyList<int> playerIds)
     {
+        grid[0][Section1Start + 0] = "KVÄLLSBLOCK";
+        // Row 1 lämnas tom i sektion 1-kolumnerna (separator under titeln).
         for (int i = 0; i < nights.Count; i++)
         {
-            FillNightBlock(grid, i * 9, i + 1, nights[i], players, playerIds);
+            FillNightBlock(grid, 2 + i * 9, i + 1, nights[i], players, playerIds);
         }
     }
 
@@ -157,15 +164,17 @@ public static class CsvBuilder
         IReadOnlyList<Player> players,
         IReadOnlyList<int> playerIds)
     {
-        grid[0][Section2Start + 0] = "Kväll";
+        grid[0][Section2Start + 0] = "KVÄLLSPLACERINGAR";
+
+        grid[1][Section2Start + 0] = "Kväll";
         for (int p = 0; p < players.Count; p++)
         {
-            grid[0][Section2Start + 1 + p] = players[p].Name;
+            grid[1][Section2Start + 1 + p] = players[p].Name;
         }
 
         for (int n = 0; n < nights.Count; n++)
         {
-            var row = n + 1;
+            var row = 2 + n;
             grid[row][Section2Start + 0] = (n + 1).ToString(CultureInfo.InvariantCulture);
 
             var perPlayer = playerIds.ToDictionary(id => id, _ => new List<int>());
@@ -196,15 +205,18 @@ public static class CsvBuilder
     {
         var history = StatsCalculator.CalculateHistory(nights, playerIds);
 
-        grid[0][Section3Start + 0] = "Tot placeringar:";
+        grid[0][Section3Start + 0] = "TOTALSCORE";
+
+        grid[1][Section3Start + 0] = "Tot placeringar:";
         for (int p = 0; p < players.Count; p++)
         {
-            grid[0][Section3Start + 1 + p] = players[p].Name;
+            grid[1][Section3Start + 1 + p] = players[p].Name;
         }
 
         for (int position = 1; position <= 4; position++)
         {
-            grid[position][Section3Start + 0] = position.ToString(CultureInfo.InvariantCulture);
+            var row = 1 + position;
+            grid[row][Section3Start + 0] = position.ToString(CultureInfo.InvariantCulture);
             for (int p = 0; p < playerIds.Count; p++)
             {
                 var counts = history.PositionTotals.ByPlayer[playerIds[p]];
@@ -216,7 +228,7 @@ public static class CsvBuilder
                     4 => counts.Fourths,
                     _ => throw new InvalidOperationException(),
                 };
-                grid[position][Section3Start + 1 + p] = value.ToString(CultureInfo.InvariantCulture);
+                grid[row][Section3Start + 1 + p] = value.ToString(CultureInfo.InvariantCulture);
             }
         }
     }

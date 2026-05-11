@@ -26,29 +26,46 @@ public class CsvBuilderTests
     }
 
     [Fact]
-    public void Section1_HeaderRow_HasNightNumberInColumnAAndDateInColumnB()
+    public void Row0_HasSectionTitlesInColumnsAHAndN()
     {
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { OneCompleteNight("2026-01-15") }, FourPlayers));
 
-        Assert.Equal("Kväll 1", Cell(grid, 0, 'A'));
-        Assert.Equal("2026-01-15", Cell(grid, 0, 'B'));
-        Assert.Equal(string.Empty, Cell(grid, 0, 'C'));
-        Assert.Equal(string.Empty, Cell(grid, 0, 'D'));
-        Assert.Equal(string.Empty, Cell(grid, 0, 'E'));
-        Assert.Equal(string.Empty, Cell(grid, 0, 'F'));
+        Assert.Equal("KVÄLLSBLOCK", Cell(grid, 0, 'A'));
+        Assert.Equal("KVÄLLSPLACERINGAR", Cell(grid, 0, 'H'));
+        Assert.Equal("TOTALSCORE", Cell(grid, 0, 'N'));
     }
 
     [Fact]
-    public void Section1_PlayerNameRow_HasEmptyColumnAThenNamesInBToEAndTotalTracksInF()
+    public void Section1_Row1_IsEmptyInSection1Columns()
     {
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { OneCompleteNight("2026-01-15") }, FourPlayers));
 
-        Assert.Equal(string.Empty, Cell(grid, 1, 'A'));
-        Assert.Equal("Claes", Cell(grid, 1, 'B'));
-        Assert.Equal("Robin", Cell(grid, 1, 'C'));
-        Assert.Equal("Aleksi", Cell(grid, 1, 'D'));
-        Assert.Equal("Jonas", Cell(grid, 1, 'E'));
-        Assert.Equal("16", Cell(grid, 1, 'F'));
+        for (char c = 'A'; c <= 'F'; c++)
+        {
+            Assert.Equal(string.Empty, Cell(grid, 1, c));
+        }
+    }
+
+    [Fact]
+    public void Section1_NightBlock_StartsOnRow2_WithNightNumberAndDate()
+    {
+        var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { OneCompleteNight("2026-01-15") }, FourPlayers));
+
+        Assert.Equal("Kväll 1", Cell(grid, 2, 'A'));
+        Assert.Equal("2026-01-15", Cell(grid, 2, 'B'));
+    }
+
+    [Fact]
+    public void Section1_PlayerNameRow_OnRow3_EmptyAThenNamesThenTotalTracks()
+    {
+        var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { OneCompleteNight("2026-01-15") }, FourPlayers));
+
+        Assert.Equal(string.Empty, Cell(grid, 3, 'A'));
+        Assert.Equal("Claes", Cell(grid, 3, 'B'));
+        Assert.Equal("Robin", Cell(grid, 3, 'C'));
+        Assert.Equal("Aleksi", Cell(grid, 3, 'D'));
+        Assert.Equal("Jonas", Cell(grid, 3, 'E'));
+        Assert.Equal("16", Cell(grid, 3, 'F'));
     }
 
     [Fact]
@@ -62,7 +79,7 @@ public class CsvBuilderTests
 
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers));
 
-        Assert.Equal("20", Cell(grid, 1, 'F'));
+        Assert.Equal("20", Cell(grid, 3, 'F'));
     }
 
     [Fact]
@@ -82,26 +99,26 @@ public class CsvBuilderTests
 
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers));
 
-        // Row 2 = "1": 7+4=11, 5+0=5, 3+0=3, 1+0=1
-        Assert.Equal("1", Cell(grid, 2, 'A'));
-        Assert.Equal("11", Cell(grid, 2, 'B'));
-        Assert.Equal("5", Cell(grid, 2, 'C'));
-        Assert.Equal("3", Cell(grid, 2, 'D'));
-        Assert.Equal("1", Cell(grid, 2, 'E'));
+        // Rad 4 = "1": 7+4=11, 5+0=5, 3+0=3, 1+0=1
+        Assert.Equal("1", Cell(grid, 4, 'A'));
+        Assert.Equal("11", Cell(grid, 4, 'B'));
+        Assert.Equal("5", Cell(grid, 4, 'C'));
+        Assert.Equal("3", Cell(grid, 4, 'D'));
+        Assert.Equal("1", Cell(grid, 4, 'E'));
 
-        // Row 3 = "2": 5+0=5, 7+4=11, 3+0=3, 1+0=1
-        Assert.Equal("2", Cell(grid, 3, 'A'));
-        Assert.Equal("5", Cell(grid, 3, 'B'));
-        Assert.Equal("11", Cell(grid, 3, 'C'));
-        Assert.Equal("3", Cell(grid, 3, 'D'));
-        Assert.Equal("1", Cell(grid, 3, 'E'));
-
-        // Row 5 = "4": 1+0=1, 1+0=1, 3+0=3, 11+4=15
-        Assert.Equal("4", Cell(grid, 5, 'A'));
-        Assert.Equal("1", Cell(grid, 5, 'B'));
-        Assert.Equal("1", Cell(grid, 5, 'C'));
+        // Rad 5 = "2": 5+0=5, 7+4=11, 3+0=3, 1+0=1
+        Assert.Equal("2", Cell(grid, 5, 'A'));
+        Assert.Equal("5", Cell(grid, 5, 'B'));
+        Assert.Equal("11", Cell(grid, 5, 'C'));
         Assert.Equal("3", Cell(grid, 5, 'D'));
-        Assert.Equal("15", Cell(grid, 5, 'E'));
+        Assert.Equal("1", Cell(grid, 5, 'E'));
+
+        // Rad 7 = "4": 1+0=1, 1+0=1, 3+0=3, 11+4=15
+        Assert.Equal("4", Cell(grid, 7, 'A'));
+        Assert.Equal("1", Cell(grid, 7, 'B'));
+        Assert.Equal("1", Cell(grid, 7, 'C'));
+        Assert.Equal("3", Cell(grid, 7, 'D'));
+        Assert.Equal("15", Cell(grid, 7, 'E'));
     }
 
     [Fact]
@@ -116,11 +133,11 @@ public class CsvBuilderTests
 
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers));
 
-        Assert.Equal("Poäng", Cell(grid, 6, 'A'));
-        Assert.Equal("66", Cell(grid, 6, 'B'));
+        Assert.Equal("Poäng", Cell(grid, 8, 'A'));
+        Assert.Equal("66", Cell(grid, 8, 'B'));
 
-        Assert.Equal("Snitt", Cell(grid, 7, 'A'));
-        Assert.Equal("3,30", Cell(grid, 7, 'B')); // sv-SE komma, 2 decimaler
+        Assert.Equal("Snitt", Cell(grid, 9, 'A'));
+        Assert.Equal("3,30", Cell(grid, 9, 'B')); // sv-SE komma, 2 decimaler
     }
 
     [Fact]
@@ -132,44 +149,42 @@ public class CsvBuilderTests
         // Skickas i fel ordning — feb först.
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { feb, jan }, FourPlayers));
 
-        // Block 1 (jan) på rader 0–7, blank rad 8, block 2 (feb) på 9–16. Total 17 rader.
-        Assert.Equal(17, grid.Length);
-        Assert.Equal("Kväll 1", Cell(grid, 0, 'A'));
-        Assert.Equal("2026-01-15", Cell(grid, 0, 'B'));
-        Assert.Equal("Kväll 2", Cell(grid, 9, 'A'));
-        Assert.Equal("2026-02-15", Cell(grid, 9, 'B'));
+        // 2 titlrad+blank + 8 block 1 + 1 blank + 8 block 2 = 19 rader.
+        Assert.Equal(19, grid.Length);
+        Assert.Equal("Kväll 1", Cell(grid, 2, 'A'));
+        Assert.Equal("2026-01-15", Cell(grid, 2, 'B'));
+        Assert.Equal("Kväll 2", Cell(grid, 11, 'A'));
+        Assert.Equal("2026-02-15", Cell(grid, 11, 'B'));
 
-        // Section 1-kolumner (A–F) på rad 8 är tomma.
+        // Section 1-kolumner (A–F) på rad 10 är tomma (blank mellan blocken).
         for (char c = 'A'; c <= 'F'; c++)
         {
-            Assert.Equal(string.Empty, Cell(grid, 8, c));
+            Assert.Equal(string.Empty, Cell(grid, 10, c));
         }
     }
 
     [Fact]
-    public void Section2_Header_OnRowZeroInColumnsHThroughL()
+    public void Section2_Header_OnRow1_InColumnsHThroughL()
     {
-        var night = OneCompleteNight("2026-01-15");
+        var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { OneCompleteNight("2026-01-15") }, FourPlayers));
 
-        var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers));
-
-        Assert.Equal("Kväll", Cell(grid, 0, 'H'));
-        Assert.Equal("Claes", Cell(grid, 0, 'I'));
-        Assert.Equal("Robin", Cell(grid, 0, 'J'));
-        Assert.Equal("Aleksi", Cell(grid, 0, 'K'));
-        Assert.Equal("Jonas", Cell(grid, 0, 'L'));
+        Assert.Equal("Kväll", Cell(grid, 1, 'H'));
+        Assert.Equal("Claes", Cell(grid, 1, 'I'));
+        Assert.Equal("Robin", Cell(grid, 1, 'J'));
+        Assert.Equal("Aleksi", Cell(grid, 1, 'K'));
+        Assert.Equal("Jonas", Cell(grid, 1, 'L'));
     }
 
     [Fact]
-    public void Section2_NightRows_StartAtRowOneWithKvallNumberInH()
+    public void Section2_NightRows_StartAtRow2_WithKvallNumberInH()
     {
         var n1 = OneCompleteNight("2026-01-15");
         var n2 = OneCompleteNight("2026-02-15");
 
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { n1, n2 }, FourPlayers));
 
-        Assert.Equal("1", Cell(grid, 1, 'H'));
-        Assert.Equal("2", Cell(grid, 2, 'H'));
+        Assert.Equal("1", Cell(grid, 2, 'H'));
+        Assert.Equal("2", Cell(grid, 3, 'H'));
     }
 
     [Fact]
@@ -184,10 +199,10 @@ public class CsvBuilderTests
 
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers));
 
-        Assert.Equal("1,1", Cell(grid, 1, 'I')); // Claes
-        Assert.Equal("2,2", Cell(grid, 1, 'J')); // Robin
-        Assert.Equal("3,3", Cell(grid, 1, 'K')); // Aleksi
-        Assert.Equal("4,4", Cell(grid, 1, 'L')); // Jonas
+        Assert.Equal("1,1", Cell(grid, 2, 'I')); // Claes
+        Assert.Equal("2,2", Cell(grid, 2, 'J')); // Robin
+        Assert.Equal("3,3", Cell(grid, 2, 'K')); // Aleksi
+        Assert.Equal("4,4", Cell(grid, 2, 'L')); // Jonas
     }
 
     [Fact]
@@ -199,12 +214,10 @@ public class CsvBuilderTests
 
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers));
 
-        // Kvällsnumret skrivs ändå i kolumn H.
-        Assert.Equal("1", Cell(grid, 1, 'H'));
-        // Spelarcellerna I–L tomma eftersom inga kompletta omgångar fanns.
+        Assert.Equal("1", Cell(grid, 2, 'H'));
         for (char c = 'I'; c <= 'L'; c++)
         {
-            Assert.Equal(string.Empty, Cell(grid, 1, c));
+            Assert.Equal(string.Empty, Cell(grid, 2, c));
         }
     }
 
@@ -220,22 +233,22 @@ public class CsvBuilderTests
 
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers));
 
-        Assert.Equal("1", Cell(grid, 1, 'I')); // Claes
-        Assert.Equal("1", Cell(grid, 1, 'J')); // Robin (delad 1:a)
-        Assert.Equal("3", Cell(grid, 1, 'K')); // Aleksi
-        Assert.Equal("4", Cell(grid, 1, 'L')); // Jonas
+        Assert.Equal("1", Cell(grid, 2, 'I'));
+        Assert.Equal("1", Cell(grid, 2, 'J'));
+        Assert.Equal("3", Cell(grid, 2, 'K'));
+        Assert.Equal("4", Cell(grid, 2, 'L'));
     }
 
     [Fact]
-    public void Section3_Header_OnRowZeroInColumnsNThroughR()
+    public void Section3_Header_OnRow1_InColumnsNThroughR()
     {
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { OneCompleteNight("2026-01-15") }, FourPlayers));
 
-        Assert.Equal("Tot placeringar:", Cell(grid, 0, 'N'));
-        Assert.Equal("Claes", Cell(grid, 0, 'O'));
-        Assert.Equal("Robin", Cell(grid, 0, 'P'));
-        Assert.Equal("Aleksi", Cell(grid, 0, 'Q'));
-        Assert.Equal("Jonas", Cell(grid, 0, 'R'));
+        Assert.Equal("Tot placeringar:", Cell(grid, 1, 'N'));
+        Assert.Equal("Claes", Cell(grid, 1, 'O'));
+        Assert.Equal("Robin", Cell(grid, 1, 'P'));
+        Assert.Equal("Aleksi", Cell(grid, 1, 'Q'));
+        Assert.Equal("Jonas", Cell(grid, 1, 'R'));
     }
 
     [Fact]
@@ -249,11 +262,10 @@ public class CsvBuilderTests
 
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers));
 
-        // Endast en komplett omgång → en placering per spelare.
-        AssertSection3Row(grid, 1, "1", "1", "0", "0", "0");
-        AssertSection3Row(grid, 2, "2", "0", "1", "0", "0");
-        AssertSection3Row(grid, 3, "3", "0", "0", "1", "0");
-        AssertSection3Row(grid, 4, "4", "0", "0", "0", "1");
+        AssertSection3Row(grid, 2, "1", "1", "0", "0", "0");
+        AssertSection3Row(grid, 3, "2", "0", "1", "0", "0");
+        AssertSection3Row(grid, 4, "3", "0", "0", "1", "0");
+        AssertSection3Row(grid, 5, "4", "0", "0", "0", "1");
     }
 
     [Fact]
@@ -265,11 +277,10 @@ public class CsvBuilderTests
 
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers));
 
-        // Claes och Robin delar 1:a → båda får +1 på "1"-raden, ingen får på "2".
-        AssertSection3Row(grid, 1, "1", "1", "1", "0", "0");
-        AssertSection3Row(grid, 2, "2", "0", "0", "0", "0");
-        AssertSection3Row(grid, 3, "3", "0", "0", "1", "0");
-        AssertSection3Row(grid, 4, "4", "0", "0", "0", "1");
+        AssertSection3Row(grid, 2, "1", "1", "1", "0", "0");
+        AssertSection3Row(grid, 3, "2", "0", "0", "0", "0");
+        AssertSection3Row(grid, 4, "3", "0", "0", "1", "0");
+        AssertSection3Row(grid, 5, "4", "0", "0", "0", "1");
     }
 
     [Fact]
@@ -285,23 +296,23 @@ public class CsvBuilderTests
         var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers));
 
         // Sektion 1 – kvällsblock finns med korrekt Snitt.
-        Assert.Equal("Kväll 1", Cell(grid, 0, 'A'));
-        Assert.Equal("4", Cell(grid, 1, 'F'));
-        Assert.Equal("Snitt", Cell(grid, 7, 'A'));
-        Assert.Equal("4,00", Cell(grid, 7, 'B'));
-        Assert.Equal("3,00", Cell(grid, 7, 'C'));
-        Assert.Equal("2,00", Cell(grid, 7, 'D'));
-        Assert.Equal("1,00", Cell(grid, 7, 'E'));
+        Assert.Equal("Kväll 1", Cell(grid, 2, 'A'));
+        Assert.Equal("4", Cell(grid, 3, 'F'));
+        Assert.Equal("Snitt", Cell(grid, 9, 'A'));
+        Assert.Equal("4,00", Cell(grid, 9, 'B'));
+        Assert.Equal("3,00", Cell(grid, 9, 'C'));
+        Assert.Equal("2,00", Cell(grid, 9, 'D'));
+        Assert.Equal("1,00", Cell(grid, 9, 'E'));
 
-        // Sektion 2 – kvällens kolumn (rad 1) har spelarceller tomma.
+        // Sektion 2 – kvällens kolumner (rad 2) har spelarceller tomma.
         for (char c = 'I'; c <= 'L'; c++)
         {
-            Assert.Equal(string.Empty, Cell(grid, 1, c));
+            Assert.Equal(string.Empty, Cell(grid, 2, c));
         }
 
         // Sektion 3 – inga räknare ökade.
-        AssertSection3Row(grid, 1, "1", "0", "0", "0", "0");
-        AssertSection3Row(grid, 4, "4", "0", "0", "0", "0");
+        AssertSection3Row(grid, 2, "1", "0", "0", "0", "0");
+        AssertSection3Row(grid, 5, "4", "0", "0", "0", "0");
     }
 
     [Fact]
