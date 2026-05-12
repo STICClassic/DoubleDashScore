@@ -34,9 +34,36 @@ public static class ExcelImporter
                 $"Förväntade 4 aktiva spelare, hittade {activePlayers.Count}.");
         }
 
-        using var workbook = new XLWorkbook(xlsxStream);
-        var ws = workbook.Worksheets.First();
+        XLWorkbook workbook;
+        try
+        {
+            workbook = new XLWorkbook(xlsxStream);
+        }
+        catch (Exception ex) when (ex is not InvalidDataException && ex is not InvalidOperationException)
+        {
+            throw new InvalidDataException(
+                $"Kunde inte öppna Excel-filen ({ex.GetType().Name}): {ex.Message}", ex);
+        }
 
+        using (workbook)
+        {
+            IXLWorksheet ws;
+            try
+            {
+                ws = workbook.Worksheets.First();
+            }
+            catch (Exception ex) when (ex is not InvalidDataException && ex is not InvalidOperationException)
+            {
+                throw new InvalidDataException(
+                    $"Kunde inte öppna första arbetsbladet ({ex.GetType().Name}): {ex.Message}", ex);
+            }
+
+            return ParseWorksheet(ws, activePlayers);
+        }
+    }
+
+    private static ParsedExcelImport ParseWorksheet(IXLWorksheet ws, IReadOnlyList<Player> activePlayers)
+    {
         var excelNames = ReadExcelPlayerNames(ws);
         var colToPlayerId = MapColumnsToPlayers(excelNames, activePlayers);
 
@@ -118,8 +145,6 @@ public static class ExcelImporter
         nightNumber = 0;
 
         var headerCell = ws.Cell(blockRow, Section1ColLabel);
-        if (headerCell.IsEmpty()) return false;
-
         var headerText = ReadCachedString(headerCell).Trim();
         if (string.IsNullOrEmpty(headerText)) return false;
         if (!TryParseNightNumber(headerText, out nightNumber))
@@ -212,12 +237,13 @@ public static class ExcelImporter
             for (int col = 0; col < 4; col++)
             {
                 var cell = ws.Cell(row, Section2PlayerCols[col]);
-                if (cell.IsEmpty() || cell.CachedValue.IsBlank)
+                var cached = ReadCachedCellValue(cell);
+                if (cached.IsBlank)
                 {
                     perPlayerLists[col] = new List<int>();
                     continue;
                 }
-                var value = ReadCachedDouble(cell);
+                var value = ConvertCachedToDouble(cell, cached);
                 try
                 {
                     perPlayerLists[col] = ParsePlacements(value).ToList();
@@ -346,9 +372,35 @@ public static class ExcelImporter
     // Alla cellläsningar går via CachedValue så att ClosedXML aldrig försöker evaluera
     // en lagrad formel. Excel-källan innehåller R1C1-stilformler (t.ex. SUM(R[-4]C:R[-1]C))
     // som ClosedXML:s A1-parser inte hanterar — vi vill bara åt det senast beräknade värdet.
+    //
+    // Varje read wrappas i try/catch så att vi rapporterar exakt vilken cell som triggar
+    // ett ClosedXML-fel; annars är felmeddelandet bara "Unexpected token ..." utan kontext.
+    private static XLCellValue ReadCachedCellValue(IXLCell cell)
+    {
+        string address;
+        try
+        {
+            address = cell.Address.ToString() ?? "<okänd>";
+        }
+        catch
+        {
+            address = "<okänd>";
+        }
+
+        try
+        {
+            return cell.CachedValue;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidDataException(
+                $"Fel vid läsning av cell {address}: {ex.GetType().Name}: {ex.Message}", ex);
+        }
+    }
+
     private static int ReadCachedInt(IXLCell cell)
     {
-        var v = cell.CachedValue;
+        var v = ReadCachedCellValue(cell);
         if (v.IsBlank) return 0;
         if (v.IsNumber) return (int)Math.Round(v.GetNumber());
         if (v.IsText && int.TryParse(v.GetText(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n))
@@ -361,7 +413,12 @@ public static class ExcelImporter
 
     private static double ReadCachedDouble(IXLCell cell)
     {
-        var v = cell.CachedValue;
+        var v = ReadCachedCellValue(cell);
+        return ConvertCachedToDouble(cell, v);
+    }
+
+    private static double ConvertCachedToDouble(IXLCell cell, XLCellValue v)
+    {
         if (v.IsNumber) return v.GetNumber();
         if (v.IsText && double.TryParse(v.GetText(), NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
         {
@@ -373,7 +430,7 @@ public static class ExcelImporter
 
     private static string ReadCachedString(IXLCell cell)
     {
-        var v = cell.CachedValue;
+        var v = ReadCachedCellValue(cell);
         if (v.IsBlank) return string.Empty;
         if (v.IsText) return v.GetText();
         if (v.IsNumber) return v.GetNumber().ToString(CultureInfo.InvariantCulture);
