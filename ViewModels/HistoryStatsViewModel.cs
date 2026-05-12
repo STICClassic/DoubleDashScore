@@ -25,15 +25,18 @@ public partial class HistoryStatsViewModel : ObservableObject
     private readonly GameNightRepository _nights;
     private readonly PlayerRepository _players;
     private readonly HistoricalDataRepository _historical;
+    private readonly ChartTransferStore _chartStore;
 
     public HistoryStatsViewModel(
         GameNightRepository nights,
         PlayerRepository players,
-        HistoricalDataRepository historical)
+        HistoricalDataRepository historical,
+        ChartTransferStore chartStore)
     {
         _nights = nights;
         _players = players;
         _historical = historical;
+        _chartStore = chartStore;
     }
 
     [ObservableProperty]
@@ -72,6 +75,12 @@ public partial class HistoryStatsViewModel : ObservableObject
         {
             SelectedTabIndex = idx;
         }
+    }
+
+    [RelayCommand]
+    private static async Task OpenFullScreenChart()
+    {
+        await Shell.Current.GoToAsync("FullScreenChartPage").ConfigureAwait(true);
     }
 
     public async Task LoadAsync(CancellationToken ct = default)
@@ -134,6 +143,7 @@ public partial class HistoryStatsViewModel : ObservableObject
             }
 
             PlotModel = BuildPlotModel(stats.Series, orderedIds, nameById);
+            _chartStore.CurrentPlotModel = PlotModel;
             HasData = true;
         }
         catch (InvalidOperationException ex)

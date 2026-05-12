@@ -103,9 +103,17 @@
             </VerticalStackLayout>
 
             <!-- Kvällssnitt graf -->
-            <oxy:PlotView Model="{Binding PlotModel}"
-                          BackgroundColor="Transparent"
-                          IsVisible="{Binding IsGraphTab}" />
+            <Grid IsVisible="{Binding IsGraphTab}">
+                <oxy:PlotView Model="{Binding PlotModel}"
+                              BackgroundColor="Transparent" />
+                <Button Text="⛶ Helskärm"
+                        Command="{Binding OpenFullScreenChartCommand}"
+                        FontSize="12"
+                        Padding="10,4"
+                        HorizontalOptions="End"
+                        VerticalOptions="Start"
+                        Margin="0,4,4,0" />
+            </Grid>
 
             <!-- Placeringar -->
             <Grid RowDefinitions="Auto,Auto,*" IsVisible="{Binding IsPlacementsTab}">
@@ -121,6 +129,7 @@
                 </Grid>
                 <BoxView Grid.Row="1" HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
                 <CollectionView Grid.Row="2"
+                                x:Name="PlacementsCollectionView"
                                 ItemsSource="{Binding PlacementsRows}"
                                 SelectionMode="None">
                     <CollectionView.ItemTemplate>

@@ -14,5 +14,6 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("PlayerEditPage", typeof(PlayerEditPage));
         Routing.RegisterRoute("NightStatsPage", typeof(NightStatsPage));
         Routing.RegisterRoute("HistoryStatsPage", typeof(HistoryStatsPage));
+        Routing.RegisterRoute("FullScreenChartPage", typeof(FullScreenChartPage));
     }
 }
