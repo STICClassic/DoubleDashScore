@@ -21,4 +21,14 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     {
         await Shell.Current.GoToAsync("..").ConfigureAwait(true);
     }
+
+    [RelayCommand]
+    private void ResetZoom()
+    {
+        var model = _store.CurrentPlotModel;
+        if (model is null) return;
+        model.ResetAllAxes();
+        // false → behåll data, rita bara om med återställda axlar.
+        model.InvalidatePlot(false);
+    }
 }

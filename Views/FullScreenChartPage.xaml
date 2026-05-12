@@ -14,6 +14,20 @@
         <oxy:PlotView Model="{Binding PlotModel}"
                       BackgroundColor="Transparent" />
 
+        <Button Text="↺"
+                Command="{Binding ResetZoomCommand}"
+                FontSize="20"
+                FontAttributes="Bold"
+                TextColor="#222222"
+                BackgroundColor="#80FFFFFF"
+                WidthRequest="40"
+                HeightRequest="40"
+                Padding="0"
+                CornerRadius="20"
+                HorizontalOptions="Start"
+                VerticalOptions="Start"
+                Margin="16,16,0,0" />
+
         <Button Text="✕"
                 Command="{Binding CloseCommand}"
                 FontSize="18"
