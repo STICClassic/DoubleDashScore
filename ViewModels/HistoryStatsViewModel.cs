@@ -14,13 +14,44 @@ public partial class HistoryStatsViewModel : ObservableObject
 {
     private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
 
-    private static readonly OxyColor[] PlayerColors =
+    // Färger matchar Excel-originalets uppdelning. Bundna till spelarens namn så
+    // att en spelare alltid får sin egen färg oavsett DisplayOrder. Faller tillbaka
+    // till positionell färgmatchning om namnet är okänt.
+    //
+    // Valda mot ljusgrå plot-bakgrund (#E8E8E8). Jonas är medvetet mörkare än
+    // ren gul (#FFD700) eftersom ren gul har kontrast ~1.1:1 mot #E8E8E8 och blir
+    // i princip osynlig — #B8860B (DarkGoldenrod) har ~3.0:1 och läser
+    // fortfarande som gul/guld.
+    private static readonly Dictionary<string, OxyColor> PlayerColorsByName =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Claes"]  = OxyColor.FromRgb(0xE5, 0x5A, 0x1F),  // röd-orange
+            ["Robin"]  = OxyColor.FromRgb(0x1F, 0x77, 0xB4),  // blå
+            ["Aleksi"] = OxyColor.FromRgb(0x2C, 0xA0, 0x2C),  // grön
+            ["Jonas"]  = OxyColor.FromRgb(0xB8, 0x86, 0x0B),  // mörk gul/guld
+        };
+
+    private static readonly OxyColor[] FallbackPlayerColors =
     {
-        OxyColor.FromRgb(0x4E, 0x9C, 0xFF),
-        OxyColor.FromRgb(0xE6, 0x46, 0x46),
-        OxyColor.FromRgb(0x4C, 0xAF, 0x50),
-        OxyColor.FromRgb(0xFF, 0x98, 0x00),
+        OxyColor.FromRgb(0xE5, 0x5A, 0x1F),
+        OxyColor.FromRgb(0x1F, 0x77, 0xB4),
+        OxyColor.FromRgb(0x2C, 0xA0, 0x2C),
+        OxyColor.FromRgb(0xB8, 0x86, 0x0B),
     };
+
+    private static OxyColor ColorForPlayer(string playerName, int displayOrder)
+    {
+        return PlayerColorsByName.TryGetValue(playerName, out var c)
+            ? c
+            : FallbackPlayerColors[displayOrder % FallbackPlayerColors.Length];
+    }
+
+    // Fast palett för plot-elementen (axlar, text, gridlines) — vi växlar inte
+    // dark mode-färger längre eftersom bakgrunden är fast ljusgrå.
+    private static readonly OxyColor ChartBackground = OxyColor.FromRgb(0xE8, 0xE8, 0xE8);
+    private static readonly OxyColor ChartForeground = OxyColor.FromRgb(0x22, 0x22, 0x22);
+    private static readonly OxyColor ChartGridline   = OxyColor.FromArgb(0x60, 0x00, 0x00, 0x00);
+    private static readonly OxyColor ChartBorder     = OxyColor.FromArgb(0x8C, 0x00, 0x00, 0x00);
 
     private readonly GameNightRepository _nights;
     private readonly PlayerRepository _players;
@@ -161,15 +192,15 @@ public partial class HistoryStatsViewModel : ObservableObject
         IReadOnlyList<int> orderedIds,
         IReadOnlyDictionary<int, string> nameById)
     {
-        var theme = GetThemeColors();
-
         var model = new PlotModel
         {
             Title = "Kvällssnitt över tid",
             TitleFontSize = 14,
-            TitleColor = theme.Foreground,
-            TextColor = theme.Foreground,
-            PlotAreaBorderColor = theme.Border,
+            TitleColor = ChartForeground,
+            TextColor = ChartForeground,
+            PlotAreaBorderColor = ChartBorder,
+            Background = ChartBackground,
+            PlotAreaBackground = ChartBackground,
             Culture = SvSe,
         };
 
@@ -190,12 +221,12 @@ public partial class HistoryStatsViewModel : ObservableObject
                     : string.Empty;
             },
             MajorGridlineStyle = LineStyle.Dot,
-            MajorGridlineColor = theme.Gridline,
+            MajorGridlineColor = ChartGridline,
             MinorTickSize = 0,
-            TextColor = theme.Foreground,
-            TicklineColor = theme.Foreground,
-            AxislineColor = theme.Foreground,
-            TitleColor = theme.Foreground,
+            TextColor = ChartForeground,
+            TicklineColor = ChartForeground,
+            AxislineColor = ChartForeground,
+            TitleColor = ChartForeground,
         };
         var yAxis = new LinearAxis
         {
@@ -205,12 +236,12 @@ public partial class HistoryStatsViewModel : ObservableObject
             MajorStep = 1,
             MinorStep = 0.5,
             MajorGridlineStyle = LineStyle.Dot,
-            MajorGridlineColor = theme.Gridline,
+            MajorGridlineColor = ChartGridline,
             StringFormat = "0.00",
-            TextColor = theme.Foreground,
-            TicklineColor = theme.Foreground,
-            AxislineColor = theme.Foreground,
-            TitleColor = theme.Foreground,
+            TextColor = ChartForeground,
+            TicklineColor = ChartForeground,
+            AxislineColor = ChartForeground,
+            TitleColor = ChartForeground,
         };
         model.Axes.Add(xAxis);
         model.Axes.Add(yAxis);
@@ -235,10 +266,11 @@ public partial class HistoryStatsViewModel : ObservableObject
             var items = pointsByPlayer[id];
             if (items.Count == 0) continue;
 
-            var color = PlayerColors[i % PlayerColors.Length];
+            var name = nameById[id];
+            var color = ColorForPlayer(name, i);
             var line = new LineSeries
             {
-                Title = nameById[id],
+                Title = name,
                 ItemsSource = items,
                 DataFieldX = nameof(NightSeriesPoint.NightNumber),
                 DataFieldY = nameof(NightSeriesPoint.Average),
@@ -257,7 +289,7 @@ public partial class HistoryStatsViewModel : ObservableObject
             LegendPlacement = OxyPlot.Legends.LegendPlacement.Outside,
             LegendPosition = OxyPlot.Legends.LegendPosition.BottomCenter,
             LegendOrientation = OxyPlot.Legends.LegendOrientation.Horizontal,
-            LegendTextColor = theme.Foreground,
+            LegendTextColor = ChartForeground,
         });
 
         return model;
@@ -296,22 +328,6 @@ public partial class HistoryStatsViewModel : ObservableObject
             : p.Position.ToString(SvSe)));
     }
 
-    private static ThemeColors GetThemeColors()
-    {
-        var theme = Application.Current?.RequestedTheme ?? AppTheme.Light;
-        if (theme == AppTheme.Unspecified) theme = AppTheme.Light;
-        return theme == AppTheme.Dark
-            ? new ThemeColors(
-                Foreground: OxyColor.FromRgb(0xE6, 0xE6, 0xE6),
-                Gridline: OxyColor.FromArgb(80, 0xCC, 0xCC, 0xCC),
-                Border: OxyColor.FromArgb(160, 0xCC, 0xCC, 0xCC))
-            : new ThemeColors(
-                Foreground: OxyColor.FromRgb(0x22, 0x22, 0x22),
-                Gridline: OxyColor.FromArgb(60, 0x00, 0x00, 0x00),
-                Border: OxyColor.FromArgb(140, 0x00, 0x00, 0x00));
-    }
-
-    private sealed record ThemeColors(OxyColor Foreground, OxyColor Gridline, OxyColor Border);
 }
 
 public sealed record TotalsRow(

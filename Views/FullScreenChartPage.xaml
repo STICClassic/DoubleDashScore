@@ -5,9 +5,28 @@
              xmlns:oxy="clr-namespace:OxyPlot.Maui.Skia;assembly=OxyPlot.Maui.Skia"
              x:Class="DoubleDashScore.Views.FullScreenChartPage"
              x:DataType="vm:FullScreenChartViewModel"
-             Title="Kvällssnitt — helskärm">
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             Shell.FlyoutBehavior="Disabled"
+             BackgroundColor="#E8E8E8">
 
-    <oxy:PlotView Model="{Binding PlotModel}"
-                  BackgroundColor="Transparent" />
+    <Grid>
+        <oxy:PlotView Model="{Binding PlotModel}"
+                      BackgroundColor="Transparent" />
+
+        <Button Text="✕"
+                Command="{Binding CloseCommand}"
+                FontSize="18"
+                FontAttributes="Bold"
+                TextColor="#222222"
+                BackgroundColor="#80FFFFFF"
+                WidthRequest="40"
+                HeightRequest="40"
+                Padding="0"
+                CornerRadius="20"
+                HorizontalOptions="End"
+                VerticalOptions="Start"
+                Margin="0,16,16,0" />
+    </Grid>
 
 </ContentPage>
