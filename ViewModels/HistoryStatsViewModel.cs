@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Data;
 using DoubleDashScore.Services;
 using OxyPlot;
@@ -47,7 +48,31 @@ public partial class HistoryStatsViewModel : ObservableObject
     [ObservableProperty]
     private PlotModel? _plotModel;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTotalsTab))]
+    [NotifyPropertyChangedFor(nameof(IsGraphTab))]
+    [NotifyPropertyChangedFor(nameof(IsPlacementsTab))]
+    private int _selectedTabIndex;
+
+    public bool IsTotalsTab => SelectedTabIndex == 0;
+    public bool IsGraphTab => SelectedTabIndex == 1;
+    public bool IsPlacementsTab => SelectedTabIndex == 2;
+
+    [ObservableProperty]
+    private PlacementHeaders _placementsHeaders = new(string.Empty, string.Empty, string.Empty, string.Empty);
+
     public ObservableCollection<TotalsRow> Totals { get; } = new();
+
+    public ObservableCollection<PlacementsRow> PlacementsRows { get; } = new();
+
+    [RelayCommand]
+    private void SelectTab(string indexText)
+    {
+        if (int.TryParse(indexText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var idx))
+        {
+            SelectedTabIndex = idx;
+        }
+    }
 
     public async Task LoadAsync(CancellationToken ct = default)
     {
@@ -55,6 +80,7 @@ public partial class HistoryStatsViewModel : ObservableObject
         try
         {
             Totals.Clear();
+            PlacementsRows.Clear();
             HasData = false;
             StatusMessage = string.Empty;
             PlotModel = null;
@@ -90,6 +116,21 @@ public partial class HistoryStatsViewModel : ObservableObject
                     counts.Thirds.ToString(SvSe),
                     counts.Fourths.ToString(SvSe),
                     career.ToString("0.00", SvSe)));
+            }
+
+            PlacementsHeaders = new PlacementHeaders(
+                nameById[orderedIds[0]],
+                nameById[orderedIds[1]],
+                nameById[orderedIds[2]],
+                nameById[orderedIds[3]]);
+            foreach (var point in stats.Series)
+            {
+                PlacementsRows.Add(new PlacementsRow(
+                    BuildNightLabel(point),
+                    FormatPlacements(point, orderedIds[0]),
+                    FormatPlacements(point, orderedIds[1]),
+                    FormatPlacements(point, orderedIds[2]),
+                    FormatPlacements(point, orderedIds[3])));
             }
 
             PlotModel = BuildPlotModel(stats.Series, orderedIds, nameById);
@@ -128,7 +169,8 @@ public partial class HistoryStatsViewModel : ObservableObject
             Position = AxisPosition.Bottom,
             Minimum = 0.5,
             Maximum = nightCount + 0.5,
-            MajorStep = 1,
+            // Etiketter bara var 10:e kväll så att 91+ punkter inte fyller axeln helt.
+            MajorStep = 10,
             MinorStep = 1,
             LabelFormatter = v =>
             {
@@ -190,13 +232,11 @@ public partial class HistoryStatsViewModel : ObservableObject
                 ItemsSource = items,
                 DataFieldX = nameof(NightSeriesPoint.NightNumber),
                 DataFieldY = nameof(NightSeriesPoint.Average),
-                MarkerType = MarkerType.Circle,
-                MarkerSize = 5,
+                // Inga cirkelmarkörer — med 91+ punkter blir det helt grötigt.
+                // Tracker fungerar fortfarande utan synliga markörer.
+                MarkerType = MarkerType.None,
                 StrokeThickness = 2,
                 Color = color,
-                MarkerFill = color,
-                MarkerStroke = theme.Foreground,
-                MarkerStrokeThickness = 1,
                 TrackerFormatString = "{0}\n{Header}\nKvällssnitt: {Average:0.00}",
             };
             model.Series.Add(line);
@@ -227,6 +267,25 @@ public partial class HistoryStatsViewModel : ObservableObject
             $"Kvällspunkt {point.ChronologicalIndex} saknar både HistoricalNightNumber och PlayedOnUtc — datakorruption misstänks.");
     }
 
+    private static string BuildNightLabel(NightAveragePoint point)
+    {
+        // Placerings-tabellen vill ha kort etikett ("Kväll 35"). Använd historiens
+        // egna nummer när det finns, annars unified-index för app-kvällar.
+        var n = point.HistoricalNightNumber ?? point.ChronologicalIndex;
+        return $"Kväll {n.ToString(SvSe)}";
+    }
+
+    private static string FormatPlacements(NightAveragePoint point, int playerId)
+    {
+        if (!point.PlacementsByPlayer.TryGetValue(playerId, out var list) || list.Count == 0)
+        {
+            return string.Empty;
+        }
+        return string.Join(", ", list.Select(p => p.IsTied
+            ? $"{p.Position.ToString(SvSe)}*"
+            : p.Position.ToString(SvSe)));
+    }
+
     private static ThemeColors GetThemeColors()
     {
         var theme = Application.Current?.RequestedTheme ?? AppTheme.Light;
@@ -254,3 +313,16 @@ public sealed record TotalsRow(
     string CareerAverage);
 
 public sealed record NightSeriesPoint(int NightNumber, double Average, string Header);
+
+public sealed record PlacementsRow(
+    string NightLabel,
+    string Player1,
+    string Player2,
+    string Player3,
+    string Player4);
+
+public sealed record PlacementHeaders(
+    string Player1,
+    string Player2,
+    string Player3,
+    string Player4);

@@ -142,8 +142,11 @@ public static class StatsCalculator
 
             var nightPoints = activePlayerIds.ToDictionary(id => id, _ => 0);
             var nightTracks = activePlayerIds.ToDictionary(id => id, _ => 0);
+            var nightPlacements = activePlayerIds.ToDictionary(
+                id => id,
+                _ => new List<TiedPlacement>());
 
-            foreach (var round in night.Rounds)
+            foreach (var round in night.Rounds.OrderBy(r => r.Round.RoundNumber))
             {
                 foreach (var rr in round.Results)
                 {
@@ -154,10 +157,15 @@ public static class StatsCalculator
                 if (round.IsComplete)
                 {
                     var positions = CalculateRoundPositions(round, activePlayerIds);
+                    var positionFrequency = positions.PositionByPlayer.Values
+                        .GroupBy(p => p)
+                        .ToDictionary(g => g.Key, g => g.Count());
+
                     foreach (var id in activePlayerIds)
                     {
+                        var pos = positions.PositionByPlayer[id];
                         var (f, s, t, fo) = counts[id];
-                        switch (positions.PositionByPlayer[id])
+                        switch (pos)
                         {
                             case 1: f++; break;
                             case 2: s++; break;
@@ -165,9 +173,10 @@ public static class StatsCalculator
                             case 4: fo++; break;
                             default:
                                 throw new InvalidOperationException(
-                                    $"Unexpected position {positions.PositionByPlayer[id]} for player {id} in round {round.Round.Id}.");
+                                    $"Unexpected position {pos} for player {id} in round {round.Round.Id}.");
                         }
                         counts[id] = (f, s, t, fo);
+                        nightPlacements[id].Add(new TiedPlacement(pos, positionFrequency[pos] > 1));
                     }
                 }
             }
@@ -185,7 +194,12 @@ public static class StatsCalculator
                     return (decimal)nightPoints[id] / tracks;
                 });
 
-            series.Add(new NightAveragePoint(night.Night.PlayedOn, averageByPlayer));
+            series.Add(new NightAveragePoint(night.Night.PlayedOn, averageByPlayer)
+            {
+                PlacementsByPlayer = nightPlacements.ToDictionary(
+                    kv => kv.Key,
+                    kv => (IReadOnlyList<TiedPlacement>)kv.Value),
+            });
 
             foreach (var id in activePlayerIds)
             {
@@ -261,8 +275,13 @@ public static class StatsCalculator
             .GroupBy(a => a.NightNumber)
             .OrderBy(g => g.Key);
 
+        var placementsByNightAndRound = seed.RoundPlacements
+            .GroupBy(p => (p.NightNumber, p.RoundIndex))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         foreach (var nightGroup in aggsByNight)
         {
+            var nightNumber = nightGroup.Key;
             var aggsByPlayer = nightGroup.ToDictionary(a => a.PlayerId);
             var avgByPlayer = new Dictionary<int, decimal>(activePlayerIds.Count);
             foreach (var id in activePlayerIds)
@@ -270,19 +289,54 @@ public static class StatsCalculator
                 if (!aggsByPlayer.TryGetValue(id, out var agg))
                 {
                     throw new InvalidOperationException(
-                        $"Historisk kväll {nightGroup.Key} saknar aggregat för spelare {id} — datakorruption misstänks.");
+                        $"Historisk kväll {nightNumber} saknar aggregat för spelare {id} — datakorruption misstänks.");
                 }
                 var tracks = HistoricalTracksFor(agg);
                 if (tracks == 0)
                 {
                     throw new InvalidOperationException(
-                        $"Historisk kväll {nightGroup.Key}, spelare {id} har 0 banor — datakorruption misstänks.");
+                        $"Historisk kväll {nightNumber}, spelare {id} har 0 banor — datakorruption misstänks.");
                 }
                 avgByPlayer[id] = (decimal)HistoricalPointsFor(agg) / tracks;
             }
+
+            var placementsForNight = activePlayerIds.ToDictionary(
+                id => id,
+                _ => new List<TiedPlacement>());
+            var roundIndicesForNight = placementsByNightAndRound.Keys
+                .Where(k => k.NightNumber == nightNumber)
+                .Select(k => k.RoundIndex)
+                .Distinct()
+                .OrderBy(r => r);
+            foreach (var roundIndex in roundIndicesForNight)
+            {
+                var rowsForRound = placementsByNightAndRound[(nightNumber, roundIndex)];
+                var positionFrequency = rowsForRound
+                    .GroupBy(p => p.Position)
+                    .ToDictionary(g => g.Key, g => g.Count());
+                var byPlayer = rowsForRound.ToDictionary(p => p.PlayerId);
+                foreach (var id in activePlayerIds)
+                {
+                    if (!byPlayer.TryGetValue(id, out var placement))
+                    {
+                        // En spelare saknar placering i en omgång där andra har den
+                        // = halvifylld data (importern fångar normalt detta, men vi
+                        // är defensiva eftersom det skulle ge skev tied-detektion).
+                        throw new InvalidOperationException(
+                            $"Historisk kväll {nightNumber}, omgång {roundIndex} saknar placering för spelare {id} — datakorruption misstänks.");
+                    }
+                    placementsForNight[id].Add(new TiedPlacement(
+                        placement.Position,
+                        positionFrequency[placement.Position] > 1));
+                }
+            }
+
             series.Add(new NightAveragePoint(PlayedOnUtc: null, avgByPlayer)
             {
-                HistoricalNightNumber = nightGroup.Key,
+                HistoricalNightNumber = nightNumber,
+                PlacementsByPlayer = placementsForNight.ToDictionary(
+                    kv => kv.Key,
+                    kv => (IReadOnlyList<TiedPlacement>)kv.Value),
             });
         }
     }

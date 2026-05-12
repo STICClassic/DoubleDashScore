@@ -36,5 +36,16 @@ public sealed record NightAveragePoint(
     // tooltip labelling when there is no real date.
     public int ChronologicalIndex { get; init; }
 
+    // Per spelare: lista av placeringar för kvällens kompletta omgångar,
+    // i omgångsordning. Tom lista om kvällen saknar kompletta omgångar
+    // (t.ex. historiska kvällar 1–34 där Excel-källan bara hade aggregat).
+    public IReadOnlyDictionary<int, IReadOnlyList<TiedPlacement>> PlacementsByPlayer { get; init; }
+        = new Dictionary<int, IReadOnlyList<TiedPlacement>>();
+
     public bool IsHistorical => HistoricalNightNumber is not null;
 }
+
+// En placering (1–4) plus en flagga som markerar att den delades med
+// en eller flera andra spelare i samma omgång. Tied placeringar
+// renderas med asterisk i UI ("1*").
+public sealed record TiedPlacement(int Position, bool IsTied);

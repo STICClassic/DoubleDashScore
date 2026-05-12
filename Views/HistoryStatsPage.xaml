@@ -7,21 +7,67 @@
              x:DataType="vm:HistoryStatsViewModel"
              Title="Statistik">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="16" Spacing="20">
+    <Grid RowDefinitions="Auto,Auto,*" Padding="0">
 
+        <!-- Tab header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,*,*" Padding="0,8,0,0">
+            <VerticalStackLayout Grid.Column="0" Spacing="4">
+                <Label Text="Totalscore"
+                       HorizontalTextAlignment="Center"
+                       Padding="8"
+                       FontAttributes="Bold">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding SelectTabCommand}" CommandParameter="0" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <BoxView HeightRequest="2"
+                         Color="{AppThemeBinding Light=#4E9CFF, Dark=#4E9CFF}"
+                         IsVisible="{Binding IsTotalsTab}" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                <Label Text="Kvällssnitt"
+                       HorizontalTextAlignment="Center"
+                       Padding="8"
+                       FontAttributes="Bold">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding SelectTabCommand}" CommandParameter="1" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <BoxView HeightRequest="2"
+                         Color="{AppThemeBinding Light=#4E9CFF, Dark=#4E9CFF}"
+                         IsVisible="{Binding IsGraphTab}" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="2" Spacing="4">
+                <Label Text="Placeringar"
+                       HorizontalTextAlignment="Center"
+                       Padding="8"
+                       FontAttributes="Bold">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding SelectTabCommand}" CommandParameter="2" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <BoxView HeightRequest="2"
+                         Color="{AppThemeBinding Light=#4E9CFF, Dark=#4E9CFF}"
+                         IsVisible="{Binding IsPlacementsTab}" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- Busy + status -->
+        <VerticalStackLayout Grid.Row="1" Padding="16,8,16,0" Spacing="8">
             <ActivityIndicator IsRunning="{Binding IsBusy}"
                                IsVisible="{Binding IsBusy}"
                                HorizontalOptions="Center" />
-
             <Label Text="{Binding StatusMessage}"
                    IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotEmptyConverter}}"
                    FontSize="14"
                    Opacity="0.8" />
+        </VerticalStackLayout>
 
-            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasData}">
-                <Label Text="Totalscore" FontAttributes="Bold" FontSize="18" />
+        <!-- Tab content -->
+        <Grid Grid.Row="2" Padding="16,8" IsVisible="{Binding HasData}">
 
+            <!-- Totalscore -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding IsTotalsTab}">
                 <Grid ColumnDefinitions="*,40,40,40,40,72"
                       Padding="0,4"
                       ColumnSpacing="8">
@@ -37,7 +83,6 @@
                            LineBreakMode="WordWrap" />
                 </Grid>
                 <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
-
                 <CollectionView ItemsSource="{Binding Totals}"
                                 SelectionMode="None">
                     <CollectionView.ItemTemplate>
@@ -57,13 +102,42 @@
                 </CollectionView>
             </VerticalStackLayout>
 
-            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasData}">
-                <Label Text="Kvällssnitt per kväll" FontAttributes="Bold" FontSize="18" />
-                <oxy:PlotView Model="{Binding PlotModel}"
-                              HeightRequest="320"
-                              BackgroundColor="Transparent" />
-            </VerticalStackLayout>
+            <!-- Kvällssnitt graf -->
+            <oxy:PlotView Model="{Binding PlotModel}"
+                          BackgroundColor="Transparent"
+                          IsVisible="{Binding IsGraphTab}" />
 
-        </VerticalStackLayout>
-    </ScrollView>
+            <!-- Placeringar -->
+            <Grid RowDefinitions="Auto,Auto,*" IsVisible="{Binding IsPlacementsTab}">
+                <Grid Grid.Row="0"
+                      ColumnDefinitions="80,*,*,*,*"
+                      Padding="0,4"
+                      ColumnSpacing="8">
+                    <Label Grid.Column="0" Text="Kväll" FontAttributes="Bold" />
+                    <Label Grid.Column="1" Text="{Binding PlacementsHeaders.Player1}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                    <Label Grid.Column="2" Text="{Binding PlacementsHeaders.Player2}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                    <Label Grid.Column="3" Text="{Binding PlacementsHeaders.Player3}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                    <Label Grid.Column="4" Text="{Binding PlacementsHeaders.Player4}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                </Grid>
+                <BoxView Grid.Row="1" HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
+                <CollectionView Grid.Row="2"
+                                ItemsSource="{Binding PlacementsRows}"
+                                SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PlacementsRow">
+                            <Grid ColumnDefinitions="80,*,*,*,*"
+                                  Padding="0,6"
+                                  ColumnSpacing="8">
+                                <Label Grid.Column="0" Text="{Binding NightLabel}" />
+                                <Label Grid.Column="1" Text="{Binding Player1}" HorizontalTextAlignment="End" />
+                                <Label Grid.Column="2" Text="{Binding Player2}" HorizontalTextAlignment="End" />
+                                <Label Grid.Column="3" Text="{Binding Player3}" HorizontalTextAlignment="End" />
+                                <Label Grid.Column="4" Text="{Binding Player4}" HorizontalTextAlignment="End" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </Grid>
+    </Grid>
 </ContentPage>

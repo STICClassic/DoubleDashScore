@@ -578,6 +578,121 @@ public class StatsCalculatorTests
     }
 
     [Fact]
+    public void History_AppPlacements_NoTies_AllFlagsFalse()
+    {
+        var round = MakeRound(1, 1, 1, 16,
+            (1, 16, 0, 0, 0),
+            (2, 0, 16, 0, 0),
+            (3, 0, 0, 16, 0),
+            (4, 0, 0, 0, 16));
+        var night = new NightWithRounds(MakeNight(1, "2026-01-15"), new[] { round });
+
+        var history = StatsCalculator.CalculateHistory(new[] { night }, Players);
+
+        var point = history.Series.Single();
+        foreach (var id in Players)
+        {
+            var placements = point.PlacementsByPlayer[id];
+            Assert.Single(placements);
+            Assert.False(placements[0].IsTied);
+        }
+    }
+
+    [Fact]
+    public void History_AppPlacements_TwoTiedAtFirst_FlagsThoseTwoOnly()
+    {
+        var round = MakeRound(1, 1, 1, 16,
+            (1, 8, 8, 0, 0),     // 56 poäng
+            (2, 8, 8, 0, 0),     // 56 poäng
+            (3, 0, 0, 16, 0),    // 32 poäng
+            (4, 0, 0, 0, 16));   // 16 poäng
+        var night = new NightWithRounds(MakeNight(1, "2026-01-15"), new[] { round });
+
+        var history = StatsCalculator.CalculateHistory(new[] { night }, Players);
+
+        var point = history.Series.Single();
+        Assert.Equal(new TiedPlacement(1, true), point.PlacementsByPlayer[1][0]);
+        Assert.Equal(new TiedPlacement(1, true), point.PlacementsByPlayer[2][0]);
+        Assert.Equal(new TiedPlacement(3, false), point.PlacementsByPlayer[3][0]);
+        Assert.Equal(new TiedPlacement(4, false), point.PlacementsByPlayer[4][0]);
+    }
+
+    [Fact]
+    public void History_AppPlacements_AllFourTied_FlagsAll()
+    {
+        // Alla fyra spelare får lika många 1:or/2:or/3:or/4:or → samma poäng → alla tied på 1.
+        var round = MakeRound(1, 1, 1, 16,
+            (1, 4, 4, 4, 4),
+            (2, 4, 4, 4, 4),
+            (3, 4, 4, 4, 4),
+            (4, 4, 4, 4, 4));
+        var night = new NightWithRounds(MakeNight(1, "2026-01-15"), new[] { round });
+
+        var history = StatsCalculator.CalculateHistory(new[] { night }, Players);
+
+        var point = history.Series.Single();
+        foreach (var id in Players)
+        {
+            Assert.Equal(new TiedPlacement(1, true), point.PlacementsByPlayer[id][0]);
+        }
+    }
+
+    [Fact]
+    public void History_HistoricalPlacements_TiedDetectedFromSeed()
+    {
+        // Historisk kväll 1, omgång 1: Claes och Robin delar 1:a-platsen.
+        var seed = new HistoricalSeed(
+            NightAggregates: new[]
+            {
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 1, FirstPlaces = 8, SecondPlaces = 8, ThirdPlaces = 0, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 2, FirstPlaces = 8, SecondPlaces = 8, ThirdPlaces = 0, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 3, FirstPlaces = 0, SecondPlaces = 0, ThirdPlaces = 16, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 4, FirstPlaces = 0, SecondPlaces = 0, ThirdPlaces = 0, FourthPlaces = 16, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+            },
+            RoundPlacements: new[]
+            {
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 1, RoundIndex = 1, Position = 1, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 2, RoundIndex = 1, Position = 1, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 3, RoundIndex = 1, Position = 3, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 4, RoundIndex = 1, Position = 4, CreatedAt = DateTime.UtcNow },
+            },
+            PositionTotalsSnapshot: Array.Empty<HistoricalPositionTotalsSnapshot>());
+
+        var history = StatsCalculator.CalculateHistory(Array.Empty<NightWithRounds>(), Players, seed);
+
+        var point = history.Series.Single();
+        Assert.Equal(new TiedPlacement(1, true), point.PlacementsByPlayer[1][0]);
+        Assert.Equal(new TiedPlacement(1, true), point.PlacementsByPlayer[2][0]);
+        Assert.Equal(new TiedPlacement(3, false), point.PlacementsByPlayer[3][0]);
+        Assert.Equal(new TiedPlacement(4, false), point.PlacementsByPlayer[4][0]);
+    }
+
+    [Fact]
+    public void History_HistoricalNight_NoRoundPlacements_EmptyPlacementsList()
+    {
+        // Kvällar 1–34 i skarpa filen har aggregat men inga rad-för-rad-placeringar.
+        // Då ska placeringslistan vara tom (inte kasta, inte syntetisera).
+        var seed = new HistoricalSeed(
+            NightAggregates: new[]
+            {
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 1, FirstPlaces = 16, SecondPlaces = 0, ThirdPlaces = 0, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 2, FirstPlaces = 0, SecondPlaces = 16, ThirdPlaces = 0, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 3, FirstPlaces = 0, SecondPlaces = 0, ThirdPlaces = 16, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 4, FirstPlaces = 0, SecondPlaces = 0, ThirdPlaces = 0, FourthPlaces = 16, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+            },
+            RoundPlacements: Array.Empty<HistoricalRoundPlacement>(),
+            PositionTotalsSnapshot: Array.Empty<HistoricalPositionTotalsSnapshot>());
+
+        var history = StatsCalculator.CalculateHistory(Array.Empty<NightWithRounds>(), Players, seed);
+
+        var point = history.Series.Single();
+        foreach (var id in Players)
+        {
+            Assert.Empty(point.PlacementsByPlayer[id]);
+        }
+    }
+
+    [Fact]
     public void History_HistoricalNightMissingPlayerAggregate_Throws()
     {
         // Night 1 has only 3 of 4 players → corruption signal.
