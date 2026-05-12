@@ -501,6 +501,42 @@ public class StatsCalculatorTests
     }
 
     [Fact]
+    public void History_HistoricalPointsHaveNullPlayedOnAndAppPointsHaveDate_AndChronologicalIndexIsAssigned()
+    {
+        var seed = new HistoricalSeed(
+            NightAggregates: new[]
+            {
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 1, FirstPlaces = 16, SecondPlaces = 0, ThirdPlaces = 0, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 2, FirstPlaces = 0, SecondPlaces = 16, ThirdPlaces = 0, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 3, FirstPlaces = 0, SecondPlaces = 0, ThirdPlaces = 16, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 4, FirstPlaces = 0, SecondPlaces = 0, ThirdPlaces = 0, FourthPlaces = 16, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+            },
+            RoundPlacements: Array.Empty<HistoricalRoundPlacement>(),
+            PositionTotalsSnapshot: Array.Empty<HistoricalPositionTotalsSnapshot>());
+
+        var appRound = MakeRound(1, 1, 1, 16,
+            (1, 16, 0, 0, 0), (2, 0, 16, 0, 0), (3, 0, 0, 16, 0), (4, 0, 0, 0, 16));
+        var appNight = new NightWithRounds(MakeNight(1, "2026-05-01"), new[] { appRound });
+
+        var history = StatsCalculator.CalculateHistory(new[] { appNight }, Players, seed);
+
+        Assert.Equal(2, history.Series.Count);
+
+        var historical = history.Series[0];
+        Assert.Null(historical.PlayedOnUtc);
+        Assert.Equal(1, historical.HistoricalNightNumber);
+        Assert.Equal(1, historical.ChronologicalIndex);
+        Assert.True(historical.IsHistorical);
+
+        var app = history.Series[1];
+        Assert.NotNull(app.PlayedOnUtc);
+        Assert.Equal(appNight.Night.PlayedOn, app.PlayedOnUtc!.Value);
+        Assert.Null(app.HistoricalNightNumber);
+        Assert.Equal(2, app.ChronologicalIndex);
+        Assert.False(app.IsHistorical);
+    }
+
+    [Fact]
     public void History_HistoricalNightMissingPlayerAggregate_Throws()
     {
         // Night 1 has only 3 of 4 players → corruption signal.

@@ -206,7 +206,8 @@ public static class StatsCalculator
                 return new PositionCounts(f, s, t, fo);
             }));
 
-        return new HistoryStats(positionTotals, careerAverageByPlayer, series);
+        var indexedSeries = AssignChronologicalIndices(series);
+        return new HistoryStats(positionTotals, careerAverageByPlayer, indexedSeries);
     }
 
     internal static int PointsFor(RoundResult rr) =>
@@ -220,9 +221,6 @@ public static class StatsCalculator
 
     private static int HistoricalTracksFor(HistoricalNightAggregate a) =>
         a.FirstPlaces + a.SecondPlaces + a.ThirdPlaces + a.FourthPlaces;
-
-    internal static DateTime HistoricalSyntheticDate(int nightNumber) =>
-        new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(nightNumber);
 
     private static void ApplySeed(
         HistoricalSeed seed,
@@ -295,11 +293,22 @@ public static class StatsCalculator
                 }
                 avgByPlayer[id] = (decimal)HistoricalPointsFor(agg) / tracks;
             }
-            series.Add(new NightAveragePoint(HistoricalSyntheticDate(nightGroup.Key), avgByPlayer)
+            series.Add(new NightAveragePoint(PlayedOnUtc: null, avgByPlayer)
             {
                 HistoricalNightNumber = nightGroup.Key,
             });
         }
+    }
+
+    private static IReadOnlyList<NightAveragePoint> AssignChronologicalIndices(
+        IReadOnlyList<NightAveragePoint> series)
+    {
+        var indexed = new List<NightAveragePoint>(series.Count);
+        for (int i = 0; i < series.Count; i++)
+        {
+            indexed.Add(series[i] with { ChronologicalIndex = i + 1 });
+        }
+        return indexed;
     }
 
     private static void ValidateRoundsHaveAllPlayers(

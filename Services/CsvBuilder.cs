@@ -97,7 +97,6 @@ public static class CsvBuilder
             }
             unified.Add(new UnifiedNight(
                 DisplayNumber: displayNumber,
-                IsHistorical: true,
                 PlayedOnLocal: null,
                 TotalTracks: sharedTotalTracks,
                 PerPlayer: perPlayer));
@@ -139,7 +138,6 @@ public static class CsvBuilder
 
             unified.Add(new UnifiedNight(
                 DisplayNumber: displayNumber,
-                IsHistorical: false,
                 PlayedOnLocal: night.Night.PlayedOn.ToLocalTime(),
                 TotalTracks: totalTracks,
                 PerPlayer: perPlayer));
@@ -180,10 +178,11 @@ public static class CsvBuilder
         IReadOnlyList<int> playerIds)
     {
         grid[rowStart][Section1Start + 0] = $"Kväll {night.DisplayNumber}";
-        // Historiska kvällar har tom datumcell per spec; appkvällar har ISO-datum.
-        grid[rowStart][Section1Start + 1] = night.IsHistorical
-            ? string.Empty
-            : night.PlayedOnLocal!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        // Datumcellen är tom om kvällen saknar PlayedOn (historisk import-rad);
+        // appkvällar skriver alltid ISO-datum.
+        grid[rowStart][Section1Start + 1] = night.PlayedOnLocal is { } date
+            ? date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : string.Empty;
 
         for (int p = 0; p < players.Count; p++)
         {
@@ -203,7 +202,7 @@ public static class CsvBuilder
             var d = night.PerPlayer[playerIds[p]];
             if (d.Tracks == 0)
             {
-                var label = night.IsHistorical ? "historisk kväll" : "kväll";
+                var label = night.PlayedOnLocal is null ? "historisk kväll" : "kväll";
                 throw new InvalidOperationException(
                     $"Spelare {playerIds[p]} har 0 banor på {label} {night.DisplayNumber}. Datakorruption misstänks.");
             }
@@ -319,7 +318,6 @@ public static class CsvBuilder
 
     private sealed record UnifiedNight(
         int DisplayNumber,
-        bool IsHistorical,
         DateTime? PlayedOnLocal,
         int TotalTracks,
         IReadOnlyDictionary<int, UnifiedPlayerNight> PerPlayer);

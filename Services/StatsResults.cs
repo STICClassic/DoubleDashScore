@@ -24,13 +24,17 @@ public sealed record PositionCounts(int Firsts, int Seconds, int Thirds, int Fou
 }
 
 public sealed record NightAveragePoint(
-    DateTime PlayedOnUtc,
+    DateTime? PlayedOnUtc,
     IReadOnlyDictionary<int, decimal> AverageByPlayer)
 {
-    // Set when this point represents a historical (imported) night.
-    // Null for app-recorded nights. Consumers (graph, CSV) use this to
-    // decide whether to show a real date or a "historisk" indicator.
+    // Set for historical (imported) nights — null for app-recorded nights.
+    // Historical nights have no real date; consumers must NOT invent one.
     public int? HistoricalNightNumber { get; init; }
+
+    // 1-based position in the unified series (historical first by NightNumber,
+    // then app by PlayedOn). Used for x-axis placement and as fallback for
+    // tooltip labelling when there is no real date.
+    public int ChronologicalIndex { get; init; }
 
     public bool IsHistorical => HistoricalNightNumber is not null;
 }

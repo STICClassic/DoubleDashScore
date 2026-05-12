@@ -164,17 +164,16 @@ public partial class HistoryStatsViewModel : ObservableObject
         model.Axes.Add(yAxis);
 
         var pointsByPlayer = orderedIds.ToDictionary(id => id, _ => new List<NightSeriesPoint>());
-        for (int n = 0; n < series.Count; n++)
+        foreach (var point in series)
         {
-            var point = series[n];
-            var nightNumber = n + 1;
+            var header = BuildTooltipHeader(point);
             foreach (var id in orderedIds)
             {
                 if (!point.AverageByPlayer.TryGetValue(id, out var avg)) continue;
                 pointsByPlayer[id].Add(new NightSeriesPoint(
-                    nightNumber,
-                    point.PlayedOnUtc.ToLocalTime(),
-                    (double)avg));
+                    point.ChronologicalIndex,
+                    (double)avg,
+                    header));
             }
         }
 
@@ -198,7 +197,7 @@ public partial class HistoryStatsViewModel : ObservableObject
                 MarkerFill = color,
                 MarkerStroke = theme.Foreground,
                 MarkerStrokeThickness = 1,
-                TrackerFormatString = "{0}\nKväll {NightNumber}\n{PlayedOn:yyyy-MM-dd}\nKvällssnitt: {Average:0.00}",
+                TrackerFormatString = "{0}\n{Header}\nKvällssnitt: {Average:0.00}",
             };
             model.Series.Add(line);
         }
@@ -212,6 +211,20 @@ public partial class HistoryStatsViewModel : ObservableObject
         });
 
         return model;
+    }
+
+    private static string BuildTooltipHeader(NightAveragePoint point)
+    {
+        if (point.HistoricalNightNumber is { } histNumber)
+        {
+            return $"Kväll {histNumber.ToString(SvSe)}";
+        }
+        if (point.PlayedOnUtc is { } playedOn)
+        {
+            return $"Kväll {point.ChronologicalIndex.ToString(SvSe)} — {playedOn.ToLocalTime():yyyy-MM-dd}";
+        }
+        throw new InvalidOperationException(
+            $"Kvällspunkt {point.ChronologicalIndex} saknar både HistoricalNightNumber och PlayedOnUtc — datakorruption misstänks.");
     }
 
     private static ThemeColors GetThemeColors()
@@ -240,4 +253,4 @@ public sealed record TotalsRow(
     string Fourths,
     string CareerAverage);
 
-public sealed record NightSeriesPoint(int NightNumber, DateTime PlayedOn, double Average);
+public sealed record NightSeriesPoint(int NightNumber, double Average, string Header);
