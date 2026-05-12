@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Data;
 using DoubleDashScore.Services;
+using DoubleDashScore.Views;
 
 namespace DoubleDashScore.ViewModels;
 
@@ -148,14 +149,12 @@ public partial class NightsListViewModel : ObservableObject
                 }
 
                 var preview = await _historical.ComputePreviewAsync(parsed).ConfigureAwait(true);
-                var confirm = await page.DisplayAlertAsync(
-                    "Importera historik?",
-                    BuildPreviewMessage(preview),
-                    "Importera",
-                    "Avbryt").ConfigureAwait(true);
-                if (!confirm) return;
+                var previewPage = new ImportPreviewPage(preview);
+                await page.Navigation.PushModalAsync(previewPage).ConfigureAwait(true);
+                var choice = await previewPage.Result.ConfigureAwait(true);
+                if (choice is null) return;
 
-                var result = await _historical.ImportAsync(parsed).ConfigureAwait(true);
+                var result = await _historical.ImportAsync(parsed, choice.Overwrite).ConfigureAwait(true);
                 await page.DisplayAlertAsync(
                     "Import klar",
                     BuildResultMessage(result),
@@ -180,37 +179,19 @@ public partial class NightsListViewModel : ObservableObject
         }
     }
 
-    private static string BuildPreviewMessage(ImportPreview preview)
+    private static string BuildResultMessage(ImportResult result)
     {
         var lines = new List<string>
         {
-            $"Spelare i Excel-filen: {string.Join(", ", preview.PlayerNamesInExcelColumnOrder)}",
-            string.Empty,
-            $"Kvällar i filen: {preview.TotalNightsInFile}",
-            $"Nya kvällar att importera: {preview.NewNightsToImport}",
-            $"Nya placeringar att importera: {preview.NewPlacementsToImport}",
+            $"{result.NightsInserted} nya kvällar importerade.",
         };
-        if (preview.MissingNightNumbersInFile.Count > 0)
+        if (result.NightsOverwritten > 0)
         {
-            var sample = string.Join(", ", preview.MissingNightNumbersInFile.Take(10));
-            if (preview.MissingNightNumbersInFile.Count > 10) sample += ", …";
-            lines.Add($"Varning – hopp i numreringen: {sample}");
+            lines.Add($"{result.NightsOverwritten} befintliga kvällar uppdaterade.");
         }
-        if (preview.SnapshotWillBeReplaced)
-        {
-            lines.Add("Totalscore-snapshoten kommer att ersättas.");
-        }
-        lines.Add(string.Empty);
-        lines.Add("Fortsätta?");
+        lines.Add($"{result.PlacementsInserted} placeringar skrivna.");
+        lines.Add($"Totalscore ersatt: {(result.SnapshotReplaced ? "ja" : "nej")}.");
         return string.Join("\n", lines);
-    }
-
-    private static string BuildResultMessage(ImportResult result)
-    {
-        var snap = result.SnapshotReplaced ? "ja" : "nej";
-        return $"{result.NightsInserted} kvällar importerade.\n" +
-               $"{result.PlacementsInserted} placeringar importerade.\n" +
-               $"Totalscore ersatt: {snap}.";
     }
 
     private static string FormatRoundCount(int total, int complete)

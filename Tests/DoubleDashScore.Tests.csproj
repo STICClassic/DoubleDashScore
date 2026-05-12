@@ -22,6 +22,7 @@
 		<Compile Include="..\Services\CsvBuilder.cs" LinkBase="Services" />
 		<Compile Include="..\Services\ExcelImporter.cs" LinkBase="Services" />
 		<Compile Include="..\Data\HistoricalImportTypes.cs" LinkBase="Data" />
+		<Compile Include="..\Data\HistoricalImportPlanner.cs" LinkBase="Data" />
 	</ItemGroup>
 
 	<ItemGroup>

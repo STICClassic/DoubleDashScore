@@ -16,4 +16,8 @@ public sealed record ImportPreview(
     bool SnapshotWillBeReplaced,
     IReadOnlyList<string> PlayerNamesInExcelColumnOrder);
 
-public sealed record ImportResult(int NightsInserted, int PlacementsInserted, bool SnapshotReplaced);
+public sealed record ImportResult(
+    int NightsInserted,
+    int PlacementsInserted,
+    bool SnapshotReplaced,
+    int NightsOverwritten = 0);
