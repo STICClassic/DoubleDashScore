@@ -10,6 +10,7 @@
     <ContentPage.ToolbarItems>
         <ToolbarItem Text="Statistik" Command="{Binding OpenStatsCommand}" />
         <ToolbarItem Text="Spelare" Command="{Binding EditPlayersCommand}" />
+        <ToolbarItem Text="Importera" Command="{Binding ImportCommand}" />
         <ToolbarItem Text="Exportera" Command="{Binding ExportCommand}" />
         <ToolbarItem Text="Ny kväll" Command="{Binding NewNightCommand}" />
     </ContentPage.ToolbarItems>

@@ -19,6 +19,8 @@
 		<Compile Include="..\Services\StatsCalculator.cs" LinkBase="Services" />
 		<Compile Include="..\Services\StatsResults.cs" LinkBase="Services" />
 		<Compile Include="..\Services\CsvBuilder.cs" LinkBase="Services" />
+		<Compile Include="..\Services\ExcelImporter.cs" LinkBase="Services" />
+		<Compile Include="..\Data\HistoricalImportTypes.cs" LinkBase="Data" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -26,6 +28,7 @@
 		<PackageReference Include="xunit" Version="2.9.3" />
 		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
 		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
+		<PackageReference Include="ClosedXML" Version="0.105.0" />
 	</ItemGroup>
 
 </Project>

@@ -37,6 +37,9 @@ public class DatabaseService
             await _connection.CreateTableAsync<GameNight>().ConfigureAwait(false);
             await _connection.CreateTableAsync<Round>().ConfigureAwait(false);
             await _connection.CreateTableAsync<RoundResult>().ConfigureAwait(false);
+            await _connection.CreateTableAsync<HistoricalNightAggregate>().ConfigureAwait(false);
+            await _connection.CreateTableAsync<HistoricalRoundPlacement>().ConfigureAwait(false);
+            await _connection.CreateTableAsync<HistoricalPositionTotalsSnapshot>().ConfigureAwait(false);
 
             await SeedDefaultPlayersAsync(_connection).ConfigureAwait(false);
 
