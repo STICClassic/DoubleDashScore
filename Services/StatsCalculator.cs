@@ -105,9 +105,16 @@ public static class StatsCalculator
     public static HistoryStats CalculateHistory(
         IReadOnlyList<NightWithRounds> nights,
         IReadOnlyList<int> activePlayerIds)
+        => CalculateHistory(nights, activePlayerIds, HistoricalSeed.Empty);
+
+    public static HistoryStats CalculateHistory(
+        IReadOnlyList<NightWithRounds> nights,
+        IReadOnlyList<int> activePlayerIds,
+        HistoricalSeed seed)
     {
         ArgumentNullException.ThrowIfNull(nights);
         ArgumentNullException.ThrowIfNull(activePlayerIds);
+        ArgumentNullException.ThrowIfNull(seed);
         if (activePlayerIds.Count != 4)
         {
             throw new ArgumentException("Stats assume exactly 4 active players.", nameof(activePlayerIds));
@@ -119,6 +126,8 @@ public static class StatsCalculator
         var careerPoints = activePlayerIds.ToDictionary(id => id, _ => 0);
         var careerTracks = activePlayerIds.ToDictionary(id => id, _ => 0);
         var series = new List<NightAveragePoint>();
+
+        ApplySeed(seed, activePlayerIds, counts, careerPoints, careerTracks, series);
 
         var orderedNights = nights.OrderBy(n => n.Night.PlayedOn).ToList();
 
@@ -133,8 +142,11 @@ public static class StatsCalculator
 
             var nightPoints = activePlayerIds.ToDictionary(id => id, _ => 0);
             var nightTracks = activePlayerIds.ToDictionary(id => id, _ => 0);
+            var nightPlacements = activePlayerIds.ToDictionary(
+                id => id,
+                _ => new List<TiedPlacement>());
 
-            foreach (var round in night.Rounds)
+            foreach (var round in night.Rounds.OrderBy(r => r.Round.RoundNumber))
             {
                 foreach (var rr in round.Results)
                 {
@@ -145,10 +157,15 @@ public static class StatsCalculator
                 if (round.IsComplete)
                 {
                     var positions = CalculateRoundPositions(round, activePlayerIds);
+                    var positionFrequency = positions.PositionByPlayer.Values
+                        .GroupBy(p => p)
+                        .ToDictionary(g => g.Key, g => g.Count());
+
                     foreach (var id in activePlayerIds)
                     {
+                        var pos = positions.PositionByPlayer[id];
                         var (f, s, t, fo) = counts[id];
-                        switch (positions.PositionByPlayer[id])
+                        switch (pos)
                         {
                             case 1: f++; break;
                             case 2: s++; break;
@@ -156,9 +173,10 @@ public static class StatsCalculator
                             case 4: fo++; break;
                             default:
                                 throw new InvalidOperationException(
-                                    $"Unexpected position {positions.PositionByPlayer[id]} for player {id} in round {round.Round.Id}.");
+                                    $"Unexpected position {pos} for player {id} in round {round.Round.Id}.");
                         }
                         counts[id] = (f, s, t, fo);
+                        nightPlacements[id].Add(new TiedPlacement(pos, positionFrequency[pos] > 1));
                     }
                 }
             }
@@ -176,7 +194,12 @@ public static class StatsCalculator
                     return (decimal)nightPoints[id] / tracks;
                 });
 
-            series.Add(new NightAveragePoint(night.Night.PlayedOn, averageByPlayer));
+            series.Add(new NightAveragePoint(night.Night.PlayedOn, averageByPlayer)
+            {
+                PlacementsByPlayer = nightPlacements.ToDictionary(
+                    kv => kv.Key,
+                    kv => (IReadOnlyList<TiedPlacement>)kv.Value),
+            });
 
             foreach (var id in activePlayerIds)
             {
@@ -197,7 +220,8 @@ public static class StatsCalculator
                 return new PositionCounts(f, s, t, fo);
             }));
 
-        return new HistoryStats(positionTotals, careerAverageByPlayer, series);
+        var indexedSeries = AssignChronologicalIndices(series);
+        return new HistoryStats(positionTotals, careerAverageByPlayer, indexedSeries);
     }
 
     internal static int PointsFor(RoundResult rr) =>
@@ -205,6 +229,128 @@ public static class StatsCalculator
 
     internal static int TracksFor(RoundResult rr) =>
         rr.FirstPlaces + rr.SecondPlaces + rr.ThirdPlaces + rr.FourthPlaces;
+
+    private static int HistoricalPointsFor(HistoricalNightAggregate a) =>
+        4 * a.FirstPlaces + 3 * a.SecondPlaces + 2 * a.ThirdPlaces + a.FourthPlaces;
+
+    private static int HistoricalTracksFor(HistoricalNightAggregate a) =>
+        a.FirstPlaces + a.SecondPlaces + a.ThirdPlaces + a.FourthPlaces;
+
+    private static void ApplySeed(
+        HistoricalSeed seed,
+        IReadOnlyList<int> activePlayerIds,
+        Dictionary<int, (int firsts, int seconds, int thirds, int fourths)> counts,
+        Dictionary<int, int> careerPoints,
+        Dictionary<int, int> careerTracks,
+        List<NightAveragePoint> series)
+    {
+        if (seed.IsEmpty) return;
+
+        var activeSet = activePlayerIds.ToHashSet();
+
+        // 1. Position totals: snapshot är auktoritativ för historisk data.
+        //    HistoricalRoundPlacement används BARA för CSV:s Sektion 2
+        //    (placeringslista per historisk kväll) och ev. UI som visar
+        //    placeringar per kväll — den ska INTE räknas in i totals,
+        //    eftersom snapshot redan inkluderar dem (annars dubbel-räkning).
+        foreach (var snap in seed.PositionTotalsSnapshot)
+        {
+            if (!activeSet.Contains(snap.PlayerId)) continue;
+            counts[snap.PlayerId] = (snap.Firsts, snap.Seconds, snap.Thirds, snap.Fourths);
+        }
+
+        // 2. Career totals: historiska aggregat bidrar med poäng+banor.
+        //    App-kvällarnas siffror läggs på i huvudloopen efter ApplySeed.
+        foreach (var agg in seed.NightAggregates)
+        {
+            if (!activeSet.Contains(agg.PlayerId)) continue;
+            careerPoints[agg.PlayerId] += HistoricalPointsFor(agg);
+            careerTracks[agg.PlayerId] += HistoricalTracksFor(agg);
+        }
+
+        // 3. Series: one point per historical night, ordered ascending by NightNumber.
+        //    Each night must have an aggregate for every active player — anything else
+        //    is data corruption and should fail loudly.
+        var aggsByNight = seed.NightAggregates
+            .GroupBy(a => a.NightNumber)
+            .OrderBy(g => g.Key);
+
+        var placementsByNightAndRound = seed.RoundPlacements
+            .GroupBy(p => (p.NightNumber, p.RoundIndex))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var nightGroup in aggsByNight)
+        {
+            var nightNumber = nightGroup.Key;
+            var aggsByPlayer = nightGroup.ToDictionary(a => a.PlayerId);
+            var avgByPlayer = new Dictionary<int, decimal>(activePlayerIds.Count);
+            foreach (var id in activePlayerIds)
+            {
+                if (!aggsByPlayer.TryGetValue(id, out var agg))
+                {
+                    throw new InvalidOperationException(
+                        $"Historisk kväll {nightNumber} saknar aggregat för spelare {id} — datakorruption misstänks.");
+                }
+                var tracks = HistoricalTracksFor(agg);
+                if (tracks == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Historisk kväll {nightNumber}, spelare {id} har 0 banor — datakorruption misstänks.");
+                }
+                avgByPlayer[id] = (decimal)HistoricalPointsFor(agg) / tracks;
+            }
+
+            var placementsForNight = activePlayerIds.ToDictionary(
+                id => id,
+                _ => new List<TiedPlacement>());
+            var roundIndicesForNight = placementsByNightAndRound.Keys
+                .Where(k => k.NightNumber == nightNumber)
+                .Select(k => k.RoundIndex)
+                .Distinct()
+                .OrderBy(r => r);
+            foreach (var roundIndex in roundIndicesForNight)
+            {
+                var rowsForRound = placementsByNightAndRound[(nightNumber, roundIndex)];
+                var positionFrequency = rowsForRound
+                    .GroupBy(p => p.Position)
+                    .ToDictionary(g => g.Key, g => g.Count());
+                var byPlayer = rowsForRound.ToDictionary(p => p.PlayerId);
+                foreach (var id in activePlayerIds)
+                {
+                    if (!byPlayer.TryGetValue(id, out var placement))
+                    {
+                        // En spelare saknar placering i en omgång där andra har den
+                        // = halvifylld data (importern fångar normalt detta, men vi
+                        // är defensiva eftersom det skulle ge skev tied-detektion).
+                        throw new InvalidOperationException(
+                            $"Historisk kväll {nightNumber}, omgång {roundIndex} saknar placering för spelare {id} — datakorruption misstänks.");
+                    }
+                    placementsForNight[id].Add(new TiedPlacement(
+                        placement.Position,
+                        positionFrequency[placement.Position] > 1));
+                }
+            }
+
+            series.Add(new NightAveragePoint(PlayedOnUtc: null, avgByPlayer)
+            {
+                HistoricalNightNumber = nightNumber,
+                PlacementsByPlayer = placementsForNight.ToDictionary(
+                    kv => kv.Key,
+                    kv => (IReadOnlyList<TiedPlacement>)kv.Value),
+            });
+        }
+    }
+
+    private static IReadOnlyList<NightAveragePoint> AssignChronologicalIndices(
+        IReadOnlyList<NightAveragePoint> series)
+    {
+        var indexed = new List<NightAveragePoint>(series.Count);
+        for (int i = 0; i < series.Count; i++)
+        {
+            indexed.Add(series[i] with { ChronologicalIndex = i + 1 });
+        }
+        return indexed;
+    }
 
     private static void ValidateRoundsHaveAllPlayers(
         IReadOnlyList<RoundDetail> rounds,

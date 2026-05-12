@@ -29,6 +29,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<RoundRepository>();
         builder.Services.AddSingleton<HistoricalDataRepository>();
         builder.Services.AddSingleton<ExportService>();
+        builder.Services.AddSingleton<ChartTransferStore>();
 
         builder.Services.AddTransient<NightsListViewModel>();
         builder.Services.AddTransient<NewNightViewModel>();
@@ -37,6 +38,7 @@ public static class MauiProgram
         builder.Services.AddTransient<PlayerEditViewModel>();
         builder.Services.AddTransient<NightStatsViewModel>();
         builder.Services.AddTransient<HistoryStatsViewModel>();
+        builder.Services.AddTransient<FullScreenChartViewModel>();
 
         builder.Services.AddTransient<NightsListPage>();
         builder.Services.AddTransient<NewNightPage>();
@@ -45,6 +47,7 @@ public static class MauiProgram
         builder.Services.AddTransient<PlayerEditPage>();
         builder.Services.AddTransient<NightStatsPage>();
         builder.Services.AddTransient<HistoryStatsPage>();
+        builder.Services.AddTransient<FullScreenChartPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();

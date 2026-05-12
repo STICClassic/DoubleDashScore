@@ -1,4 +1,5 @@
 using DoubleDashScore.Models;
+using DoubleDashScore.Services;
 
 namespace DoubleDashScore.Data;
 
@@ -27,6 +28,14 @@ public class HistoricalDataRepository
     {
         var conn = await _db.GetConnectionAsync(ct).ConfigureAwait(false);
         return await conn.Table<HistoricalPositionTotalsSnapshot>().ToListAsync().ConfigureAwait(false);
+    }
+
+    public async Task<HistoricalSeed> GetSeedAsync(CancellationToken ct = default)
+    {
+        var aggregates = await GetAllNightAggregatesAsync(ct).ConfigureAwait(false);
+        var placements = await GetAllPlacementsAsync(ct).ConfigureAwait(false);
+        var snapshot = await GetSnapshotAsync(ct).ConfigureAwait(false);
+        return new HistoricalSeed(aggregates, placements, snapshot);
     }
 
     public async Task<ImportPreview> ComputePreviewAsync(ParsedExcelImport parsed, CancellationToken ct = default)
