@@ -75,7 +75,7 @@ public static class ExcelImporter
         var names = new string[4];
         for (int i = 0; i < 4; i++)
         {
-            names[i] = ws.Cell(GlobalHeaderRow, Section1PlayerCols[i]).GetString().Trim();
+            names[i] = ReadCachedString(ws.Cell(GlobalHeaderRow, Section1PlayerCols[i])).Trim();
             if (string.IsNullOrWhiteSpace(names[i]))
             {
                 throw new InvalidDataException(
@@ -120,7 +120,7 @@ public static class ExcelImporter
         var headerCell = ws.Cell(blockRow, Section1ColLabel);
         if (headerCell.IsEmpty()) return false;
 
-        var headerText = headerCell.GetString().Trim();
+        var headerText = ReadCachedString(headerCell).Trim();
         if (string.IsNullOrEmpty(headerText)) return false;
         if (!TryParseNightNumber(headerText, out nightNumber))
         {
@@ -128,7 +128,7 @@ public static class ExcelImporter
                 $"Cell {Section1ColLabel}{blockRow}: förväntade 'Kväll N', hittade '{headerText}'.");
         }
 
-        var totalTracks = ws.Cell(blockRow, Section1ColTotalTracks).GetValue<int>();
+        var totalTracks = ReadCachedInt(ws.Cell(blockRow, Section1ColTotalTracks));
         if (totalTracks <= 0)
         {
             throw new InvalidDataException(
@@ -143,7 +143,7 @@ public static class ExcelImporter
         for (int pos = 1; pos <= 4; pos++)
         {
             var row = blockRow + pos; // blockRow+1 .. blockRow+4
-            var labelText = ws.Cell(row, Section1ColLabel).GetString().Trim();
+            var labelText = ReadCachedString(ws.Cell(row, Section1ColLabel)).Trim();
             if (labelText != pos.ToString(CultureInfo.InvariantCulture))
             {
                 throw new InvalidDataException(
@@ -151,7 +151,7 @@ public static class ExcelImporter
             }
             for (int col = 0; col < 4; col++)
             {
-                var count = ws.Cell(row, Section1PlayerCols[col]).GetValue<int>();
+                var count = ReadCachedInt(ws.Cell(row, Section1PlayerCols[col]));
                 switch (pos)
                 {
                     case 1: firsts[col] = count; break;
@@ -212,12 +212,12 @@ public static class ExcelImporter
             for (int col = 0; col < 4; col++)
             {
                 var cell = ws.Cell(row, Section2PlayerCols[col]);
-                if (cell.IsEmpty())
+                if (cell.IsEmpty() || cell.CachedValue.IsBlank)
                 {
                     perPlayerLists[col] = new List<int>();
                     continue;
                 }
-                var value = cell.GetValue<double>();
+                var value = ReadCachedDouble(cell);
                 try
                 {
                     perPlayerLists[col] = ParsePlacements(value).ToList();
@@ -297,7 +297,7 @@ public static class ExcelImporter
         for (int i = 0; i < 4; i++)
         {
             var col = Section3PlayerColumns[i];
-            var name = ws.Cell(Section3HeaderRow, col).GetString().Trim();
+            var name = ReadCachedString(ws.Cell(Section3HeaderRow, col)).Trim();
             if (!nameToId.TryGetValue(name, out var id))
             {
                 throw new InvalidDataException(
@@ -316,7 +316,7 @@ public static class ExcelImporter
             var row = Section3HeaderRow + pos;
             for (int i = 0; i < 4; i++)
             {
-                var count = ws.Cell(row, Section3PlayerColumns[i]).GetValue<int>();
+                var count = ReadCachedInt(ws.Cell(row, Section3PlayerColumns[i]));
                 switch (pos)
                 {
                     case 1: firsts[i] = count; break;
@@ -341,5 +341,43 @@ public static class ExcelImporter
             });
         }
         return snapshot;
+    }
+
+    // Alla cellläsningar går via CachedValue så att ClosedXML aldrig försöker evaluera
+    // en lagrad formel. Excel-källan innehåller R1C1-stilformler (t.ex. SUM(R[-4]C:R[-1]C))
+    // som ClosedXML:s A1-parser inte hanterar — vi vill bara åt det senast beräknade värdet.
+    private static int ReadCachedInt(IXLCell cell)
+    {
+        var v = cell.CachedValue;
+        if (v.IsBlank) return 0;
+        if (v.IsNumber) return (int)Math.Round(v.GetNumber());
+        if (v.IsText && int.TryParse(v.GetText(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n))
+        {
+            return n;
+        }
+        throw new InvalidDataException(
+            $"Cell {cell.Address}: kunde inte tolka cachat värde som heltal (typ: {v.Type}).");
+    }
+
+    private static double ReadCachedDouble(IXLCell cell)
+    {
+        var v = cell.CachedValue;
+        if (v.IsNumber) return v.GetNumber();
+        if (v.IsText && double.TryParse(v.GetText(), NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+        {
+            return d;
+        }
+        throw new InvalidDataException(
+            $"Cell {cell.Address}: kunde inte tolka cachat värde som tal (typ: {v.Type}).");
+    }
+
+    private static string ReadCachedString(IXLCell cell)
+    {
+        var v = cell.CachedValue;
+        if (v.IsBlank) return string.Empty;
+        if (v.IsText) return v.GetText();
+        if (v.IsNumber) return v.GetNumber().ToString(CultureInfo.InvariantCulture);
+        if (v.IsBoolean) return v.GetBoolean().ToString();
+        return v.ToString();
     }
 }
