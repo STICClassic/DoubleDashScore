@@ -16,8 +16,12 @@ public static class ExcelImporter
     private static readonly string[] Section1PlayerCols = { "B", "C", "D", "E" };
 
     private const int Section2FirstRow = 55;
-    private const int Section2LastRow = 99;
     private const int Section2FirstNightNumber = 35;
+
+    // Säkerhetstak; den verkliga loopen bryts dynamiskt på första raden där alla
+    // fyra placeringsceller (V–Y) är tomma. Användaren fyller på nya rader när
+    // nya kvällar spelas, så ingen statisk slutrad fungerar.
+    private const int Section2MaxRow = 10_000;
     private static readonly string[] Section2PlayerCols = { "V", "W", "X", "Y" };
 
     private const int Section3HeaderRow = 55;
@@ -230,10 +234,11 @@ public static class ExcelImporter
         IReadOnlyDictionary<int, int> colToPlayerId)
     {
         var placements = new List<HistoricalRoundPlacement>();
-        for (int row = Section2FirstRow; row <= Section2LastRow; row++)
+        for (int row = Section2FirstRow; row <= Section2MaxRow; row++)
         {
             var nightNumber = Section2FirstNightNumber + (row - Section2FirstRow);
             var perPlayerLists = new List<int>[4];
+            var anyFilled = false;
             for (int col = 0; col < 4; col++)
             {
                 var cell = ws.Cell(row, Section2PlayerCols[col]);
@@ -243,6 +248,7 @@ public static class ExcelImporter
                     perPlayerLists[col] = new List<int>();
                     continue;
                 }
+                anyFilled = true;
                 var value = ConvertCachedToDouble(cell, cached);
                 try
                 {
@@ -255,11 +261,17 @@ public static class ExcelImporter
                 }
             }
 
+            if (!anyFilled)
+            {
+                // Hela raden tom → vi är förbi sista ifyllda kvällen.
+                break;
+            }
+
             var counts = perPlayerLists.Select(l => l.Count).Distinct().ToList();
             if (counts.Count > 1)
             {
                 throw new InvalidDataException(
-                    $"Kväll {nightNumber}: olika antal placeringar per spelare ({string.Join("/", perPlayerLists.Select(l => l.Count))}). Antingen har alla placeringar eller ingen.");
+                    $"Kväll {nightNumber} (rad {row}): halvifylld data — placeringar finns för vissa spelare men inte andra ({string.Join("/", perPlayerLists.Select(l => l.Count))} per kolumn V/W/X/Y). Antingen ska alla fyra spelare ha placeringar eller ingen.");
             }
 
             for (int col = 0; col < 4; col++)
