@@ -230,7 +230,84 @@ public class ExcelImporterTests
         });
 
         var ex = Assert.Throws<InvalidDataException>(() => ExcelImporter.Parse(stream, FourPlayers));
-        Assert.Contains("olika antal placeringar", ex.Message);
+        Assert.Contains("halvifylld data", ex.Message);
+    }
+
+    [Fact]
+    public void Parse_Section2_ReadsRowsPastOldUpperBoundOfRow99()
+    {
+        // Sektion 2 hade tidigare en hårdkodad slutrad (rad 99 = kväll 79).
+        // Användaren fyller på rader när nya kvällar spelas, så loopen läser
+        // nu dynamiskt tills första raden där alla fyra V–Y-celler är tomma.
+        // Här skriver vi placeringar för raderna 55..105 (kväll 35..85) och
+        // verifierar att alla 51 kvällar importeras.
+        using var stream = BuildWorkbook(ws =>
+        {
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
+                firsts: (16, 0, 0, 0),
+                seconds: (0, 16, 0, 0),
+                thirds: (0, 0, 16, 0),
+                fourths: (0, 0, 0, 16));
+            for (int row = 55; row <= 105; row++)
+            {
+                ws.Cell(row, "V").Value = 1;
+                ws.Cell(row, "W").Value = 2;
+                ws.Cell(row, "X").Value = 3;
+                ws.Cell(row, "Y").Value = 4;
+            }
+            WriteSection3Header(ws);
+            WriteSection3Row(ws, 1, (0, 0, 0, 0));
+            WriteSection3Row(ws, 2, (0, 0, 0, 0));
+            WriteSection3Row(ws, 3, (0, 0, 0, 0));
+            WriteSection3Row(ws, 4, (0, 0, 0, 0));
+        });
+
+        var result = ExcelImporter.Parse(stream, FourPlayers);
+
+        Assert.Equal(51 * 4, result.RoundPlacements.Count);
+        Assert.Equal(35, result.RoundPlacements.Min(p => p.NightNumber));
+        Assert.Equal(85, result.RoundPlacements.Max(p => p.NightNumber));
+    }
+
+    [Fact]
+    public void Parse_Section2_StopsAtFirstFullyBlankRow_AndDoesNotReadPastGap()
+    {
+        // Förutsättning per spec: raderna är kontinuerliga utan luckor.
+        // Om en rad är helt tom betyder det "slut på data" — vi läser inte
+        // vidare även om det finns ifyllda rader längre ner.
+        using var stream = BuildWorkbook(ws =>
+        {
+            WriteGlobalHeader(ws, DefaultExcelNames);
+            WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
+                firsts: (16, 0, 0, 0),
+                seconds: (0, 16, 0, 0),
+                thirds: (0, 0, 16, 0),
+                fourths: (0, 0, 0, 16));
+            // Rader 55–57 ifyllda, 58 helt tom, 59 ifylld igen — den ska INTE läsas.
+            for (int row = 55; row <= 57; row++)
+            {
+                ws.Cell(row, "V").Value = 1;
+                ws.Cell(row, "W").Value = 2;
+                ws.Cell(row, "X").Value = 3;
+                ws.Cell(row, "Y").Value = 4;
+            }
+            ws.Cell(59, "V").Value = 1;
+            ws.Cell(59, "W").Value = 2;
+            ws.Cell(59, "X").Value = 3;
+            ws.Cell(59, "Y").Value = 4;
+            WriteSection3Header(ws);
+            WriteSection3Row(ws, 1, (0, 0, 0, 0));
+            WriteSection3Row(ws, 2, (0, 0, 0, 0));
+            WriteSection3Row(ws, 3, (0, 0, 0, 0));
+            WriteSection3Row(ws, 4, (0, 0, 0, 0));
+        });
+
+        var result = ExcelImporter.Parse(stream, FourPlayers);
+
+        // 3 kvällar × 4 spelare = 12 placeringar. Kväll 39 (rad 59) ignoreras.
+        Assert.Equal(12, result.RoundPlacements.Count);
+        Assert.Equal(new[] { 35, 36, 37 }, result.RoundPlacements.Select(p => p.NightNumber).Distinct().OrderBy(n => n));
     }
 
     [Fact]
@@ -369,6 +446,61 @@ public class ExcelImporterTests
         var robin = result.PositionTotalsSnapshot.Single(s => s.PlayerId == 2);
         Assert.Equal(0, robin.Firsts);
         Assert.Equal(42, robin.Fourths);
+    }
+
+    [Fact]
+    public void Parse_FormulaCellsWithCachedValues_AreReadCorrectly()
+    {
+        // Excel-källan innehåller R1C1-formler i A1-slotten (t.ex. "SUM(R[-4]C:R[-1]C)")
+        // som ClosedXML:s A1-parser kraschar på vid utvärdering. Fix: läs CachedValue
+        // så att vi aldrig triggar formelparsern.
+        //
+        // I detta test sätter vi A1-formler som ClosedXML *kan* utvärdera, så att
+        // cached-värdet bevaras genom save/load (annars skriver ClosedXML inte ut
+        // cached-värdet — se SaveOptions.EvaluateFormulasBeforeSaving). Testet
+        // bevisar att hela parsningskedjan tål formel-celler. Den faktiska R1C1-
+        // bugfixen verifieras med användarens skarpa fil — vi kan inte konstruera
+        // en sådan fil i unit test utan att manipulera OpenXML direkt.
+        using var workbook = new XLWorkbook();
+        var ws = workbook.AddWorksheet("Sheet1");
+
+        WriteGlobalHeader(ws, DefaultExcelNames);
+        WriteNightBlock(ws, blockRow: 2, nightNumber: 1, totalTracks: 16,
+            firsts: (16, 0, 0, 0),
+            seconds: (0, 16, 0, 0),
+            thirds: (0, 0, 16, 0),
+            fourths: (0, 0, 0, 16));
+
+        // Ersätt totalTracks och en räknarcell med A1-formler som summerar
+        // de literala värdena ovan/nedanför. Cached-värdet blir korrekt vid save.
+        ws.Cell(2, "F").FormulaA1 = "SUM(B3:E3)"; // = 16
+        ws.Cell(3, "B").FormulaA1 = "12+4"; // = 16
+
+        // Section 2: en placering per spelare för natt 35.
+        ws.Cell(55, "V").FormulaA1 = "1*1";
+        ws.Cell(55, "W").Value = 2;
+        ws.Cell(55, "X").Value = 3;
+        ws.Cell(55, "Y").Value = 4;
+
+        WriteSection3Header(ws);
+        WriteSection3Row(ws, 1, (42, 0, 0, 0));
+        WriteSection3Row(ws, 2, (0, 0, 0, 0));
+        WriteSection3Row(ws, 3, (0, 0, 0, 0));
+        WriteSection3Row(ws, 4, (0, 0, 0, 0));
+        ws.Cell(56, "AB").FormulaA1 = "21+21"; // = 42
+
+        var stream = new MemoryStream();
+        workbook.SaveAs(stream, new SaveOptions { EvaluateFormulasBeforeSaving = true });
+        stream.Position = 0;
+
+        var result = ExcelImporter.Parse(stream, FourPlayers);
+
+        var claesAggregate = result.NightAggregates.Single(a => a.PlayerId == 1);
+        Assert.Equal(16, claesAggregate.TotalTracks);
+        Assert.Equal(16, claesAggregate.FirstPlaces);
+
+        Assert.Equal(1, result.RoundPlacements.Single(p => p.PlayerId == 1).Position);
+        Assert.Equal(42, result.PositionTotalsSnapshot.Single(s => s.PlayerId == 1).Firsts);
     }
 
     [Fact]
