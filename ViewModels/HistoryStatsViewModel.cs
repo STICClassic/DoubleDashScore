@@ -23,11 +23,16 @@ public partial class HistoryStatsViewModel : ObservableObject
 
     private readonly GameNightRepository _nights;
     private readonly PlayerRepository _players;
+    private readonly HistoricalDataRepository _historical;
 
-    public HistoryStatsViewModel(GameNightRepository nights, PlayerRepository players)
+    public HistoryStatsViewModel(
+        GameNightRepository nights,
+        PlayerRepository players,
+        HistoricalDataRepository historical)
     {
         _nights = nights;
         _players = players;
+        _historical = historical;
     }
 
     [ObservableProperty]
@@ -65,13 +70,14 @@ public partial class HistoryStatsViewModel : ObservableObject
 
             var nights = await _nights.GetAllNightsWithRoundsAsync(ct).ConfigureAwait(true);
             var withRounds = nights.Where(n => n.Rounds.Count > 0).ToList();
-            if (withRounds.Count == 0)
+            var seed = await _historical.GetSeedAsync(ct).ConfigureAwait(true);
+            if (withRounds.Count == 0 && seed.IsEmpty)
             {
                 StatusMessage = "Inga kvällar med omgångar än.";
                 return;
             }
 
-            var stats = StatsCalculator.CalculateHistory(withRounds, orderedIds);
+            var stats = StatsCalculator.CalculateHistory(withRounds, orderedIds, seed);
 
             foreach (var id in orderedIds)
             {

@@ -18,6 +18,7 @@
 		<Compile Include="..\Data\NightWithRounds.cs" LinkBase="Data" />
 		<Compile Include="..\Services\StatsCalculator.cs" LinkBase="Services" />
 		<Compile Include="..\Services\StatsResults.cs" LinkBase="Services" />
+		<Compile Include="..\Services\HistoricalSeed.cs" LinkBase="Services" />
 		<Compile Include="..\Services\CsvBuilder.cs" LinkBase="Services" />
 		<Compile Include="..\Services\ExcelImporter.cs" LinkBase="Services" />
 		<Compile Include="..\Data\HistoricalImportTypes.cs" LinkBase="Data" />

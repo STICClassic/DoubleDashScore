@@ -105,9 +105,16 @@ public static class StatsCalculator
     public static HistoryStats CalculateHistory(
         IReadOnlyList<NightWithRounds> nights,
         IReadOnlyList<int> activePlayerIds)
+        => CalculateHistory(nights, activePlayerIds, HistoricalSeed.Empty);
+
+    public static HistoryStats CalculateHistory(
+        IReadOnlyList<NightWithRounds> nights,
+        IReadOnlyList<int> activePlayerIds,
+        HistoricalSeed seed)
     {
         ArgumentNullException.ThrowIfNull(nights);
         ArgumentNullException.ThrowIfNull(activePlayerIds);
+        ArgumentNullException.ThrowIfNull(seed);
         if (activePlayerIds.Count != 4)
         {
             throw new ArgumentException("Stats assume exactly 4 active players.", nameof(activePlayerIds));
@@ -119,6 +126,8 @@ public static class StatsCalculator
         var careerPoints = activePlayerIds.ToDictionary(id => id, _ => 0);
         var careerTracks = activePlayerIds.ToDictionary(id => id, _ => 0);
         var series = new List<NightAveragePoint>();
+
+        ApplySeed(seed, activePlayerIds, counts, careerPoints, careerTracks, series);
 
         var orderedNights = nights.OrderBy(n => n.Night.PlayedOn).ToList();
 
@@ -205,6 +214,93 @@ public static class StatsCalculator
 
     internal static int TracksFor(RoundResult rr) =>
         rr.FirstPlaces + rr.SecondPlaces + rr.ThirdPlaces + rr.FourthPlaces;
+
+    private static int HistoricalPointsFor(HistoricalNightAggregate a) =>
+        4 * a.FirstPlaces + 3 * a.SecondPlaces + 2 * a.ThirdPlaces + a.FourthPlaces;
+
+    private static int HistoricalTracksFor(HistoricalNightAggregate a) =>
+        a.FirstPlaces + a.SecondPlaces + a.ThirdPlaces + a.FourthPlaces;
+
+    internal static DateTime HistoricalSyntheticDate(int nightNumber) =>
+        new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(nightNumber);
+
+    private static void ApplySeed(
+        HistoricalSeed seed,
+        IReadOnlyList<int> activePlayerIds,
+        Dictionary<int, (int firsts, int seconds, int thirds, int fourths)> counts,
+        Dictionary<int, int> careerPoints,
+        Dictionary<int, int> careerTracks,
+        List<NightAveragePoint> series)
+    {
+        if (seed.IsEmpty) return;
+
+        var activeSet = activePlayerIds.ToHashSet();
+
+        // 1. Position totals start from snapshot.
+        foreach (var snap in seed.PositionTotalsSnapshot)
+        {
+            if (!activeSet.Contains(snap.PlayerId)) continue;
+            counts[snap.PlayerId] = (snap.Firsts, snap.Seconds, snap.Thirds, snap.Fourths);
+        }
+
+        // 2. Add historical round placements on top.
+        foreach (var p in seed.RoundPlacements)
+        {
+            if (!activeSet.Contains(p.PlayerId)) continue;
+            var (f, s, t, fo) = counts[p.PlayerId];
+            switch (p.Position)
+            {
+                case 1: f++; break;
+                case 2: s++; break;
+                case 3: t++; break;
+                case 4: fo++; break;
+                default:
+                    throw new InvalidOperationException(
+                        $"Historisk placering {p.Position} (kväll {p.NightNumber}, spelare {p.PlayerId}) är utanför 1-4.");
+            }
+            counts[p.PlayerId] = (f, s, t, fo);
+        }
+
+        // 3. Career totals accumulate historical aggregates.
+        foreach (var agg in seed.NightAggregates)
+        {
+            if (!activeSet.Contains(agg.PlayerId)) continue;
+            careerPoints[agg.PlayerId] += HistoricalPointsFor(agg);
+            careerTracks[agg.PlayerId] += HistoricalTracksFor(agg);
+        }
+
+        // 4. Series: one point per historical night, ordered ascending by NightNumber.
+        //    Each night must have an aggregate for every active player — anything else
+        //    is data corruption and should fail loudly.
+        var aggsByNight = seed.NightAggregates
+            .GroupBy(a => a.NightNumber)
+            .OrderBy(g => g.Key);
+
+        foreach (var nightGroup in aggsByNight)
+        {
+            var aggsByPlayer = nightGroup.ToDictionary(a => a.PlayerId);
+            var avgByPlayer = new Dictionary<int, decimal>(activePlayerIds.Count);
+            foreach (var id in activePlayerIds)
+            {
+                if (!aggsByPlayer.TryGetValue(id, out var agg))
+                {
+                    throw new InvalidOperationException(
+                        $"Historisk kväll {nightGroup.Key} saknar aggregat för spelare {id} — datakorruption misstänks.");
+                }
+                var tracks = HistoricalTracksFor(agg);
+                if (tracks == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Historisk kväll {nightGroup.Key}, spelare {id} har 0 banor — datakorruption misstänks.");
+                }
+                avgByPlayer[id] = (decimal)HistoricalPointsFor(agg) / tracks;
+            }
+            series.Add(new NightAveragePoint(HistoricalSyntheticDate(nightGroup.Key), avgByPlayer)
+            {
+                HistoricalNightNumber = nightGroup.Key,
+            });
+        }
+    }
 
     private static void ValidateRoundsHaveAllPlayers(
         IReadOnlyList<RoundDetail> rounds,

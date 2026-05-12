@@ -18,38 +18,134 @@ public static class CsvBuilder
     public static string BuildHistoryCsv(
         IReadOnlyList<NightWithRounds> nights,
         IReadOnlyList<Player> orderedPlayers)
+        => BuildHistoryCsv(nights, orderedPlayers, HistoricalSeed.Empty);
+
+    public static string BuildHistoryCsv(
+        IReadOnlyList<NightWithRounds> nights,
+        IReadOnlyList<Player> orderedPlayers,
+        HistoricalSeed seed)
     {
         ArgumentNullException.ThrowIfNull(nights);
         ArgumentNullException.ThrowIfNull(orderedPlayers);
+        ArgumentNullException.ThrowIfNull(seed);
         if (orderedPlayers.Count != 4)
         {
             throw new InvalidOperationException(
                 $"Förväntade 4 aktiva spelare, hittade {orderedPlayers.Count}.");
         }
 
-        var ordered = nights
-            .Where(n => n.Rounds.Count > 0)
-            .OrderBy(n => n.Night.PlayedOn)
-            .ToList();
-        if (ordered.Count == 0)
+        var playerIds = orderedPlayers.Select(p => p.Id).ToList();
+        var unified = BuildUnifiedNights(nights, playerIds, seed);
+        if (unified.Count == 0)
         {
             throw new InvalidOperationException("Inga omgångar att exportera ännu.");
         }
 
-        var playerIds = orderedPlayers.Select(p => p.Id).ToList();
-        // Layout per section (0-indexed):
-        //   Row 0:  titles (KVÄLLSBLOCK, KVÄLLSPLACERINGAR, TOTALSCORE)
-        //   Row 1:  section 1 blank, section 2/3 column headers
-        //   Row 2+: data
-        // Section 1 dominates höjden: 2 (title + blank) + 8*N + (N-1) gap = 9*N + 1.
-        var totalRows = ordered.Count * 9 + 1;
+        // Layout: 2 (title + blank/header) + 9 rows per night (8 used + 1 gap).
+        var totalRows = unified.Count * 9 + 1;
         var grid = CreateGrid(totalRows, TotalColumns);
 
-        FillSection1(grid, ordered, orderedPlayers, playerIds);
-        FillSection2(grid, ordered, orderedPlayers, playerIds);
-        FillSection3(grid, ordered, orderedPlayers, playerIds);
+        FillSection1(grid, unified, orderedPlayers, playerIds);
+        FillSection2(grid, unified, orderedPlayers, playerIds);
+        FillSection3(grid, nights, seed, orderedPlayers, playerIds);
 
         return RenderGrid(grid);
+    }
+
+    private static List<UnifiedNight> BuildUnifiedNights(
+        IReadOnlyList<NightWithRounds> appNights,
+        IReadOnlyList<int> playerIds,
+        HistoricalSeed seed)
+    {
+        var unified = new List<UnifiedNight>();
+        int displayNumber = 0;
+
+        var placementsByKey = seed.RoundPlacements
+            .GroupBy(p => (p.NightNumber, p.PlayerId))
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<int>)g.OrderBy(p => p.RoundIndex).Select(p => p.Position).ToList());
+
+        var histByNight = seed.NightAggregates
+            .GroupBy(a => a.NightNumber)
+            .OrderBy(g => g.Key);
+
+        foreach (var nightGroup in histByNight)
+        {
+            displayNumber++;
+            var nightNumber = nightGroup.Key;
+            var aggsByPlayer = nightGroup.ToDictionary(a => a.PlayerId);
+            var perPlayer = new Dictionary<int, UnifiedPlayerNight>(playerIds.Count);
+            int sharedTotalTracks = 0;
+
+            foreach (var id in playerIds)
+            {
+                if (!aggsByPlayer.TryGetValue(id, out var agg))
+                {
+                    throw new InvalidOperationException(
+                        $"Historisk kväll {nightNumber} saknar aggregat för spelare {id} — datakorruption misstänks.");
+                }
+                var tracks = agg.FirstPlaces + agg.SecondPlaces + agg.ThirdPlaces + agg.FourthPlaces;
+                var points = 4 * agg.FirstPlaces + 3 * agg.SecondPlaces + 2 * agg.ThirdPlaces + agg.FourthPlaces;
+                var placements = placementsByKey.TryGetValue((nightNumber, id), out var list)
+                    ? list
+                    : (IReadOnlyList<int>)Array.Empty<int>();
+                perPlayer[id] = new UnifiedPlayerNight(
+                    agg.FirstPlaces, agg.SecondPlaces, agg.ThirdPlaces, agg.FourthPlaces,
+                    tracks, points, placements);
+                sharedTotalTracks = agg.TotalTracks;
+            }
+            unified.Add(new UnifiedNight(
+                DisplayNumber: displayNumber,
+                IsHistorical: true,
+                PlayedOnLocal: null,
+                TotalTracks: sharedTotalTracks,
+                PerPlayer: perPlayer));
+        }
+
+        var orderedApp = appNights
+            .Where(n => n.Rounds.Count > 0)
+            .OrderBy(n => n.Night.PlayedOn);
+
+        foreach (var night in orderedApp)
+        {
+            displayNumber++;
+            var totalTracks = night.Rounds.Sum(r => r.Round.TrackCount);
+            var perPlayer = new Dictionary<int, UnifiedPlayerNight>(playerIds.Count);
+
+            foreach (var id in playerIds)
+            {
+                int f = 0, s = 0, t = 0, fo = 0, points = 0, tracks = 0;
+                var placements = new List<int>();
+                foreach (var round in night.Rounds.OrderBy(r => r.Round.RoundNumber))
+                {
+                    var rr = round.Results.FirstOrDefault(r => r.PlayerId == id)
+                        ?? throw new InvalidOperationException(
+                            $"Omgång {round.Round.Id} (kväll {night.Night.Id}) saknar resultat för spelare {id}. Datakorruption misstänks.");
+                    f += rr.FirstPlaces;
+                    s += rr.SecondPlaces;
+                    t += rr.ThirdPlaces;
+                    fo += rr.FourthPlaces;
+                    points += StatsCalculator.PointsFor(rr);
+                    tracks += StatsCalculator.TracksFor(rr);
+                    if (round.IsComplete)
+                    {
+                        var positions = StatsCalculator.CalculateRoundPositions(round, playerIds);
+                        placements.Add(positions.PositionByPlayer[id]);
+                    }
+                }
+                perPlayer[id] = new UnifiedPlayerNight(f, s, t, fo, tracks, points, placements);
+            }
+
+            unified.Add(new UnifiedNight(
+                DisplayNumber: displayNumber,
+                IsHistorical: false,
+                PlayedOnLocal: night.Night.PlayedOn.ToLocalTime(),
+                TotalTracks: totalTracks,
+                PerPlayer: perPlayer));
+        }
+
+        return unified;
     }
 
     private static string[][] CreateGrid(int rows, int cols)
@@ -65,81 +161,53 @@ public static class CsvBuilder
 
     private static void FillSection1(
         string[][] grid,
-        IReadOnlyList<NightWithRounds> nights,
+        IReadOnlyList<UnifiedNight> unified,
         IReadOnlyList<Player> players,
         IReadOnlyList<int> playerIds)
     {
         grid[0][Section1Start + 0] = "KVÄLLSBLOCK";
-        // Row 1 lämnas tom i sektion 1-kolumnerna (separator under titeln).
-        for (int i = 0; i < nights.Count; i++)
+        for (int i = 0; i < unified.Count; i++)
         {
-            FillNightBlock(grid, 2 + i * 9, i + 1, nights[i], players, playerIds);
+            FillNightBlock(grid, 2 + i * 9, unified[i], players, playerIds);
         }
     }
 
     private static void FillNightBlock(
         string[][] grid,
         int rowStart,
-        int nightNumber,
-        NightWithRounds night,
+        UnifiedNight night,
         IReadOnlyList<Player> players,
         IReadOnlyList<int> playerIds)
     {
-        var roundsByNumber = night.Rounds.OrderBy(r => r.Round.RoundNumber).ToList();
-        var totalTracks = roundsByNumber.Sum(r => r.Round.TrackCount);
-        var date = night.Night.PlayedOn.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-        grid[rowStart][Section1Start + 0] = $"Kväll {nightNumber}";
-        grid[rowStart][Section1Start + 1] = date;
+        grid[rowStart][Section1Start + 0] = $"Kväll {night.DisplayNumber}";
+        // Historiska kvällar har tom datumcell per spec; appkvällar har ISO-datum.
+        grid[rowStart][Section1Start + 1] = night.IsHistorical
+            ? string.Empty
+            : night.PlayedOnLocal!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         for (int p = 0; p < players.Count; p++)
         {
             grid[rowStart + 1][Section1Start + 1 + p] = players[p].Name;
         }
-        grid[rowStart + 1][Section1Start + 5] = totalTracks.ToString(CultureInfo.InvariantCulture);
+        grid[rowStart + 1][Section1Start + 5] = night.TotalTracks.ToString(CultureInfo.InvariantCulture);
 
-        var sumFirsts = playerIds.ToDictionary(id => id, _ => 0);
-        var sumSeconds = playerIds.ToDictionary(id => id, _ => 0);
-        var sumThirds = playerIds.ToDictionary(id => id, _ => 0);
-        var sumFourths = playerIds.ToDictionary(id => id, _ => 0);
-        var sumPoints = playerIds.ToDictionary(id => id, _ => 0);
-        var sumTracks = playerIds.ToDictionary(id => id, _ => 0);
-
-        foreach (var round in roundsByNumber)
-        {
-            var resultsByPlayer = round.Results.ToDictionary(r => r.PlayerId);
-            foreach (var id in playerIds)
-            {
-                if (!resultsByPlayer.TryGetValue(id, out var rr))
-                {
-                    throw new InvalidOperationException(
-                        $"Omgång {round.Round.Id} (kväll {night.Night.Id}) saknar resultat för spelare {id}. Datakorruption misstänks.");
-                }
-                sumFirsts[id] += rr.FirstPlaces;
-                sumSeconds[id] += rr.SecondPlaces;
-                sumThirds[id] += rr.ThirdPlaces;
-                sumFourths[id] += rr.FourthPlaces;
-                sumPoints[id] += StatsCalculator.PointsFor(rr);
-                sumTracks[id] += StatsCalculator.TracksFor(rr);
-            }
-        }
-
-        WriteCountRow(grid, rowStart + 2, "1", sumFirsts, playerIds);
-        WriteCountRow(grid, rowStart + 3, "2", sumSeconds, playerIds);
-        WriteCountRow(grid, rowStart + 4, "3", sumThirds, playerIds);
-        WriteCountRow(grid, rowStart + 5, "4", sumFourths, playerIds);
-        WriteCountRow(grid, rowStart + 6, "Poäng", sumPoints, playerIds);
+        WriteCountRow(grid, rowStart + 2, "1", night.PerPlayer, playerIds, d => d.Firsts);
+        WriteCountRow(grid, rowStart + 3, "2", night.PerPlayer, playerIds, d => d.Seconds);
+        WriteCountRow(grid, rowStart + 4, "3", night.PerPlayer, playerIds, d => d.Thirds);
+        WriteCountRow(grid, rowStart + 5, "4", night.PerPlayer, playerIds, d => d.Fourths);
+        WriteCountRow(grid, rowStart + 6, "Poäng", night.PerPlayer, playerIds, d => d.Points);
 
         grid[rowStart + 7][Section1Start + 0] = "Snitt";
         for (int p = 0; p < playerIds.Count; p++)
         {
-            var id = playerIds[p];
-            if (sumTracks[id] == 0)
+            var d = night.PerPlayer[playerIds[p]];
+            if (d.Tracks == 0)
             {
+                var label = night.IsHistorical ? "historisk kväll" : "kväll";
                 throw new InvalidOperationException(
-                    $"Spelare {id} har 0 banor på kväll {night.Night.Id}. Datakorruption misstänks.");
+                    $"Spelare {playerIds[p]} har 0 banor på {label} {night.DisplayNumber}. Datakorruption misstänks.");
             }
-            var avg = (decimal)sumPoints[id] / sumTracks[id];
+            var avg = (decimal)d.Points / d.Tracks;
             grid[rowStart + 7][Section1Start + 1 + p] = avg.ToString("0.00", SvSe);
         }
     }
@@ -148,48 +216,39 @@ public static class CsvBuilder
         string[][] grid,
         int row,
         string label,
-        IReadOnlyDictionary<int, int> values,
-        IReadOnlyList<int> playerIds)
+        IReadOnlyDictionary<int, UnifiedPlayerNight> perPlayer,
+        IReadOnlyList<int> playerIds,
+        Func<UnifiedPlayerNight, int> selector)
     {
         grid[row][Section1Start + 0] = label;
         for (int p = 0; p < playerIds.Count; p++)
         {
-            grid[row][Section1Start + 1 + p] = values[playerIds[p]].ToString(CultureInfo.InvariantCulture);
+            grid[row][Section1Start + 1 + p] = selector(perPlayer[playerIds[p]])
+                .ToString(CultureInfo.InvariantCulture);
         }
     }
 
     private static void FillSection2(
         string[][] grid,
-        IReadOnlyList<NightWithRounds> nights,
+        IReadOnlyList<UnifiedNight> unified,
         IReadOnlyList<Player> players,
         IReadOnlyList<int> playerIds)
     {
         grid[0][Section2Start + 0] = "KVÄLLSPLACERINGAR";
-
         grid[1][Section2Start + 0] = "Kväll";
         for (int p = 0; p < players.Count; p++)
         {
             grid[1][Section2Start + 1 + p] = players[p].Name;
         }
 
-        for (int n = 0; n < nights.Count; n++)
+        for (int n = 0; n < unified.Count; n++)
         {
+            var night = unified[n];
             var row = 2 + n;
-            grid[row][Section2Start + 0] = (n + 1).ToString(CultureInfo.InvariantCulture);
-
-            var perPlayer = playerIds.ToDictionary(id => id, _ => new List<int>());
-            foreach (var round in nights[n].Rounds.OrderBy(r => r.Round.RoundNumber).Where(r => r.IsComplete))
-            {
-                var positions = StatsCalculator.CalculateRoundPositions(round, playerIds);
-                foreach (var id in playerIds)
-                {
-                    perPlayer[id].Add(positions.PositionByPlayer[id]);
-                }
-            }
-
+            grid[row][Section2Start + 0] = night.DisplayNumber.ToString(CultureInfo.InvariantCulture);
             for (int p = 0; p < playerIds.Count; p++)
             {
-                var list = perPlayer[playerIds[p]];
+                var list = night.PerPlayer[playerIds[p]].Placements;
                 grid[row][Section2Start + 1 + p] = list.Count == 0
                     ? string.Empty
                     : string.Join(",", list.Select(v => v.ToString(CultureInfo.InvariantCulture)));
@@ -199,14 +258,14 @@ public static class CsvBuilder
 
     private static void FillSection3(
         string[][] grid,
-        IReadOnlyList<NightWithRounds> nights,
+        IReadOnlyList<NightWithRounds> appNights,
+        HistoricalSeed seed,
         IReadOnlyList<Player> players,
         IReadOnlyList<int> playerIds)
     {
-        var history = StatsCalculator.CalculateHistory(nights, playerIds);
+        var history = StatsCalculator.CalculateHistory(appNights, playerIds, seed);
 
         grid[0][Section3Start + 0] = "TOTALSCORE";
-
         grid[1][Section3Start + 0] = "Tot placeringar:";
         for (int p = 0; p < players.Count; p++)
         {
@@ -257,4 +316,20 @@ public static class CsvBuilder
         }
         return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
+
+    private sealed record UnifiedNight(
+        int DisplayNumber,
+        bool IsHistorical,
+        DateTime? PlayedOnLocal,
+        int TotalTracks,
+        IReadOnlyDictionary<int, UnifiedPlayerNight> PerPlayer);
+
+    private sealed record UnifiedPlayerNight(
+        int Firsts,
+        int Seconds,
+        int Thirds,
+        int Fourths,
+        int Tracks,
+        int Points,
+        IReadOnlyList<int> Placements);
 }

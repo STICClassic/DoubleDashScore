@@ -334,6 +334,106 @@ public class CsvBuilderTests
         Assert.Contains("4 aktiva spelare", ex.Message);
     }
 
+    [Fact]
+    public void Seeded_HistoricalNight_HasEmptyDateCellAndTrailingAppNightKeepsDate()
+    {
+        var seed = HistoricalNightOne();
+        var appNight = OneCompleteNight("2026-05-01");
+        appNight = new NightWithRounds(MakeNight(2, "2026-05-01"), appNight.Rounds);
+
+        var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { appNight }, FourPlayers, seed));
+
+        // Kväll 1 är historisk (rad 2) — datumcellen är tom.
+        Assert.Equal("Kväll 1", Cell(grid, 2, 'A'));
+        Assert.Equal(string.Empty, Cell(grid, 2, 'B'));
+
+        // Kväll 2 är appkväll (rad 11 = 2 + 9) — datumet skrivs ut.
+        Assert.Equal("Kväll 2", Cell(grid, 11, 'A'));
+        Assert.Equal("2026-05-01", Cell(grid, 11, 'B'));
+    }
+
+    [Fact]
+    public void Seeded_OnlyHistoricalData_NoAppNights_StillProducesCsv()
+    {
+        var seed = HistoricalNightOne();
+
+        var csv = CsvBuilder.BuildHistoryCsv(Array.Empty<NightWithRounds>(), FourPlayers, seed);
+        var grid = ParseGrid(csv);
+
+        Assert.Equal("Kväll 1", Cell(grid, 2, 'A'));
+        Assert.Equal(string.Empty, Cell(grid, 2, 'B'));
+        Assert.Equal("16", Cell(grid, 3, 'F')); // antal banor
+        Assert.Equal("16", Cell(grid, 4, 'B')); // 1:or för Claes
+    }
+
+    [Fact]
+    public void Seeded_Section3_CombinesSnapshotAndAppPositionTotals()
+    {
+        // Snapshot: Claes har redan 10 ettor.
+        // Appkväll: Claes vinner en komplett omgång → +1 etta.
+        var seed = new HistoricalSeed(
+            NightAggregates: Array.Empty<HistoricalNightAggregate>(),
+            RoundPlacements: Array.Empty<HistoricalRoundPlacement>(),
+            PositionTotalsSnapshot: new[]
+            {
+                new HistoricalPositionTotalsSnapshot { PlayerId = 1, Firsts = 10, Seconds = 0, Thirds = 0, Fourths = 0, CreatedAt = DateTime.UtcNow },
+                new HistoricalPositionTotalsSnapshot { PlayerId = 2, Firsts = 0, Seconds = 0, Thirds = 0, Fourths = 0, CreatedAt = DateTime.UtcNow },
+                new HistoricalPositionTotalsSnapshot { PlayerId = 3, Firsts = 0, Seconds = 0, Thirds = 0, Fourths = 0, CreatedAt = DateTime.UtcNow },
+                new HistoricalPositionTotalsSnapshot { PlayerId = 4, Firsts = 0, Seconds = 0, Thirds = 0, Fourths = 0, CreatedAt = DateTime.UtcNow },
+            });
+        var night = OneCompleteNight("2026-01-15");
+
+        var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(new[] { night }, FourPlayers, seed));
+
+        // Sektion 3 rad 2 (= position 1): Claes har 10 (snapshot) + 1 (app) = 11.
+        AssertSection3Row(grid, 2, "1", "11", "0", "0", "0");
+    }
+
+    [Fact]
+    public void Seeded_Section2_HistoricalPlacementsRenderedAsCommaSeparatedList()
+    {
+        var seed = new HistoricalSeed(
+            NightAggregates: new[]
+            {
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 1, FirstPlaces = 16, SecondPlaces = 0, ThirdPlaces = 0, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 2, FirstPlaces = 0, SecondPlaces = 16, ThirdPlaces = 0, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 3, FirstPlaces = 0, SecondPlaces = 0, ThirdPlaces = 16, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+                new HistoricalNightAggregate { NightNumber = 1, PlayerId = 4, FirstPlaces = 0, SecondPlaces = 0, ThirdPlaces = 0, FourthPlaces = 16, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+            },
+            RoundPlacements: new[]
+            {
+                // Claes vann båda omgångarna, Jonas blev 4:a båda gångerna.
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 1, RoundIndex = 1, Position = 1, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 1, RoundIndex = 2, Position = 1, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 2, RoundIndex = 1, Position = 2, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 2, RoundIndex = 2, Position = 2, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 3, RoundIndex = 1, Position = 3, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 3, RoundIndex = 2, Position = 3, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 4, RoundIndex = 1, Position = 4, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 4, RoundIndex = 2, Position = 4, CreatedAt = DateTime.UtcNow },
+            },
+            PositionTotalsSnapshot: Array.Empty<HistoricalPositionTotalsSnapshot>());
+
+        var grid = ParseGrid(CsvBuilder.BuildHistoryCsv(Array.Empty<NightWithRounds>(), FourPlayers, seed));
+
+        Assert.Equal("1", Cell(grid, 2, 'H'));   // Kväll 1
+        Assert.Equal("1,1", Cell(grid, 2, 'I')); // Claes placeringar
+        Assert.Equal("2,2", Cell(grid, 2, 'J')); // Robin
+        Assert.Equal("3,3", Cell(grid, 2, 'K')); // Aleksi
+        Assert.Equal("4,4", Cell(grid, 2, 'L')); // Jonas
+    }
+
+    private static HistoricalSeed HistoricalNightOne() => new(
+        NightAggregates: new[]
+        {
+            new HistoricalNightAggregate { NightNumber = 1, PlayerId = 1, FirstPlaces = 16, SecondPlaces = 0, ThirdPlaces = 0, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+            new HistoricalNightAggregate { NightNumber = 1, PlayerId = 2, FirstPlaces = 0, SecondPlaces = 16, ThirdPlaces = 0, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+            new HistoricalNightAggregate { NightNumber = 1, PlayerId = 3, FirstPlaces = 0, SecondPlaces = 0, ThirdPlaces = 16, FourthPlaces = 0, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+            new HistoricalNightAggregate { NightNumber = 1, PlayerId = 4, FirstPlaces = 0, SecondPlaces = 0, ThirdPlaces = 0, FourthPlaces = 16, TotalTracks = 16, CreatedAt = DateTime.UtcNow },
+        },
+        RoundPlacements: Array.Empty<HistoricalRoundPlacement>(),
+        PositionTotalsSnapshot: Array.Empty<HistoricalPositionTotalsSnapshot>());
+
     private static void AssertSection3Row(
         string[][] grid, int row,
         string label, string claes, string robin, string aleksi, string jonas)

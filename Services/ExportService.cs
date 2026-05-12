@@ -7,11 +7,16 @@ public sealed class ExportService
 {
     private readonly GameNightRepository _nights;
     private readonly PlayerRepository _players;
+    private readonly HistoricalDataRepository _historical;
 
-    public ExportService(GameNightRepository nights, PlayerRepository players)
+    public ExportService(
+        GameNightRepository nights,
+        PlayerRepository players,
+        HistoricalDataRepository historical)
     {
         _nights = nights;
         _players = players;
+        _historical = historical;
     }
 
     public async Task<string> ExportAllNightsToCsvAsync(CancellationToken ct = default)
@@ -24,7 +29,8 @@ public sealed class ExportService
         }
 
         var nights = await _nights.GetAllNightsWithRoundsAsync(ct).ConfigureAwait(false);
-        var csv = CsvBuilder.BuildHistoryCsv(nights, players);
+        var seed = await _historical.GetSeedAsync(ct).ConfigureAwait(false);
+        var csv = CsvBuilder.BuildHistoryCsv(nights, players, seed);
 
         var fileName = $"mariokart-backup-{DateTime.Now:yyyy-MM-dd-HHmm}.csv";
         var path = Path.Combine(FileSystem.Current.CacheDirectory, fileName);
