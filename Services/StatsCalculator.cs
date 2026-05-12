@@ -234,32 +234,19 @@ public static class StatsCalculator
 
         var activeSet = activePlayerIds.ToHashSet();
 
-        // 1. Position totals start from snapshot.
+        // 1. Position totals: snapshot är auktoritativ för historisk data.
+        //    HistoricalRoundPlacement används BARA för CSV:s Sektion 2
+        //    (placeringslista per historisk kväll) och ev. UI som visar
+        //    placeringar per kväll — den ska INTE räknas in i totals,
+        //    eftersom snapshot redan inkluderar dem (annars dubbel-räkning).
         foreach (var snap in seed.PositionTotalsSnapshot)
         {
             if (!activeSet.Contains(snap.PlayerId)) continue;
             counts[snap.PlayerId] = (snap.Firsts, snap.Seconds, snap.Thirds, snap.Fourths);
         }
 
-        // 2. Add historical round placements on top.
-        foreach (var p in seed.RoundPlacements)
-        {
-            if (!activeSet.Contains(p.PlayerId)) continue;
-            var (f, s, t, fo) = counts[p.PlayerId];
-            switch (p.Position)
-            {
-                case 1: f++; break;
-                case 2: s++; break;
-                case 3: t++; break;
-                case 4: fo++; break;
-                default:
-                    throw new InvalidOperationException(
-                        $"Historisk placering {p.Position} (kväll {p.NightNumber}, spelare {p.PlayerId}) är utanför 1-4.");
-            }
-            counts[p.PlayerId] = (f, s, t, fo);
-        }
-
-        // 3. Career totals accumulate historical aggregates.
+        // 2. Career totals: historiska aggregat bidrar med poäng+banor.
+        //    App-kvällarnas siffror läggs på i huvudloopen efter ApplySeed.
         foreach (var agg in seed.NightAggregates)
         {
             if (!activeSet.Contains(agg.PlayerId)) continue;
@@ -267,7 +254,7 @@ public static class StatsCalculator
             careerTracks[agg.PlayerId] += HistoricalTracksFor(agg);
         }
 
-        // 4. Series: one point per historical night, ordered ascending by NightNumber.
+        // 3. Series: one point per historical night, ordered ascending by NightNumber.
         //    Each night must have an aggregate for every active player — anything else
         //    is data corruption and should fail loudly.
         var aggsByNight = seed.NightAggregates

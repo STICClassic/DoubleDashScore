@@ -414,26 +414,67 @@ public class StatsCalculatorTests
     }
 
     [Fact]
-    public void History_PlacementsInSeed_AddedOnTopOfSnapshot()
+    public void History_HistoricalRoundPlacements_DoNotAffectPositionTotals_OnlySnapshotDoes()
     {
+        // Snapshot är auktoritativ källa för historiska totalscore-räknare —
+        // HistoricalRoundPlacement är display-only (vilka placeringar varje
+        // historisk kväll, för CSV:s Sektion 2). Att även räkna upp totals
+        // från placements vore dubbel-räkning eftersom snapshot redan
+        // inkluderar dem.
         var seed = new HistoricalSeed(
             NightAggregates: Array.Empty<HistoricalNightAggregate>(),
             RoundPlacements: new[]
             {
-                // Claes wins two historical rounds, comes 4th once.
                 new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 1, RoundIndex = 1, Position = 1, CreatedAt = DateTime.UtcNow },
                 new HistoricalRoundPlacement { NightNumber = 2, PlayerId = 1, RoundIndex = 1, Position = 1, CreatedAt = DateTime.UtcNow },
                 new HistoricalRoundPlacement { NightNumber = 3, PlayerId = 1, RoundIndex = 1, Position = 4, CreatedAt = DateTime.UtcNow },
             },
             PositionTotalsSnapshot: new[]
             {
-                new HistoricalPositionTotalsSnapshot { PlayerId = 1, Firsts = 10, Seconds = 0, Thirds = 0, Fourths = 0, CreatedAt = DateTime.UtcNow },
+                new HistoricalPositionTotalsSnapshot { PlayerId = 1, Firsts = 10, Seconds = 5, Thirds = 3, Fourths = 2, CreatedAt = DateTime.UtcNow },
             });
 
         var history = StatsCalculator.CalculateHistory(Array.Empty<NightWithRounds>(), Players, seed);
 
-        // Snapshot 10 firsts + 2 from placements = 12. Plus 1 fourth from placements.
-        Assert.Equal(new PositionCounts(12, 0, 0, 1), history.PositionTotals.ByPlayer[1]);
+        // Endast snapshot räknas — placements ignoreras för totals.
+        Assert.Equal(new PositionCounts(10, 5, 3, 2), history.PositionTotals.ByPlayer[1]);
+    }
+
+    [Fact]
+    public void History_SnapshotPlusAppCompleteRounds_AddsAppPositionsOnly_NotHistoricalPlacements()
+    {
+        // Skarpa scenariot: Claes har 68/20/13/2 från snapshot. App lägger
+        // till en kväll med två kompletta omgångar där Claes vinner båda.
+        // Förväntat: 70/20/13/2. HistoricalRoundPlacement-rader i seed ska
+        // INTE påverka summan (de är display-only).
+        var seed = new HistoricalSeed(
+            NightAggregates: Array.Empty<HistoricalNightAggregate>(),
+            RoundPlacements: new[]
+            {
+                // Realistisk seed-data: placements finns för historiska kvällar.
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 1, RoundIndex = 1, Position = 1, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 2, RoundIndex = 1, Position = 2, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 3, RoundIndex = 1, Position = 3, CreatedAt = DateTime.UtcNow },
+                new HistoricalRoundPlacement { NightNumber = 1, PlayerId = 4, RoundIndex = 1, Position = 4, CreatedAt = DateTime.UtcNow },
+            },
+            PositionTotalsSnapshot: new[]
+            {
+                new HistoricalPositionTotalsSnapshot { PlayerId = 1, Firsts = 68, Seconds = 20, Thirds = 13, Fourths = 2, CreatedAt = DateTime.UtcNow },
+                new HistoricalPositionTotalsSnapshot { PlayerId = 2, Firsts = 0,  Seconds = 0,  Thirds = 0,  Fourths = 0, CreatedAt = DateTime.UtcNow },
+                new HistoricalPositionTotalsSnapshot { PlayerId = 3, Firsts = 0,  Seconds = 0,  Thirds = 0,  Fourths = 0, CreatedAt = DateTime.UtcNow },
+                new HistoricalPositionTotalsSnapshot { PlayerId = 4, Firsts = 0,  Seconds = 0,  Thirds = 0,  Fourths = 0, CreatedAt = DateTime.UtcNow },
+            });
+
+        // Två kompletta omgångar, Claes vinner båda klart.
+        var r1 = MakeRound(1, 1, 1, 16,
+            (1, 16, 0, 0, 0), (2, 0, 16, 0, 0), (3, 0, 0, 16, 0), (4, 0, 0, 0, 16));
+        var r2 = MakeRound(2, 1, 2, 16,
+            (1, 16, 0, 0, 0), (2, 0, 16, 0, 0), (3, 0, 0, 16, 0), (4, 0, 0, 0, 16));
+        var night = new NightWithRounds(MakeNight(1, "2026-05-01"), new[] { r1, r2 });
+
+        var history = StatsCalculator.CalculateHistory(new[] { night }, Players, seed);
+
+        Assert.Equal(new PositionCounts(70, 20, 13, 2), history.PositionTotals.ByPlayer[1]);
     }
 
     [Fact]
