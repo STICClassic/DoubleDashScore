@@ -117,6 +117,25 @@ public partial class NightsListViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ExportDatabaseAsync()
+    {
+        var page = Shell.Current.CurrentPage;
+        try
+        {
+            var path = await _export.ExportDatabaseAsync().ConfigureAwait(true);
+            await Share.Default.RequestAsync(new ShareFileRequest
+            {
+                Title = "DoubleDash-databas (backup)",
+                File = new ShareFile(path),
+            }).ConfigureAwait(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await page.DisplayAlertAsync("Kan inte exportera databas", ex.Message, "OK").ConfigureAwait(true);
+        }
+    }
+
+    [RelayCommand]
     private async Task ImportAsync()
     {
         var page = Shell.Current.CurrentPage;
