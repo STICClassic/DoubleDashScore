@@ -16,33 +16,33 @@
                    TextColor="{AppThemeBinding Light=#B45309, Dark=#FBBF24}"
                    IsVisible="{Binding WarningsBanner, Converter={StaticResource StringNotEmptyConverter}}" />
 
-            <Label Text="Spelare per kolumn" FontAttributes="Bold" />
-
-            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
-                <Picker Grid.Column="0"
-                        Title="P1"
-                        ItemsSource="{Binding AvailablePlayers}"
-                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
-                        SelectedItem="{Binding SelectedPlayer0, Mode=TwoWay}" />
-                <Picker Grid.Column="1"
-                        Title="P2"
-                        ItemsSource="{Binding AvailablePlayers}"
-                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
-                        SelectedItem="{Binding SelectedPlayer1, Mode=TwoWay}" />
-                <Picker Grid.Column="2"
-                        Title="P3"
-                        ItemsSource="{Binding AvailablePlayers}"
-                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
-                        SelectedItem="{Binding SelectedPlayer2, Mode=TwoWay}" />
-                <Picker Grid.Column="3"
-                        Title="P4"
-                        ItemsSource="{Binding AvailablePlayers}"
-                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
-                        SelectedItem="{Binding SelectedPlayer3, Mode=TwoWay}" />
-            </Grid>
-
             <vws:RoundMatrixView Players="{Binding Players}"
-                                 TrackCountText="{Binding TrackCountText, Mode=TwoWay}" />
+                                 TrackCountText="{Binding TrackCountText, Mode=TwoWay}">
+                <vws:RoundMatrixView.ColumnHeader0>
+                    <Picker Title="Välj spelare"
+                            ItemsSource="{Binding AvailablePlayers}"
+                            ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                            SelectedItem="{Binding SelectedPlayer0, Mode=TwoWay}" />
+                </vws:RoundMatrixView.ColumnHeader0>
+                <vws:RoundMatrixView.ColumnHeader1>
+                    <Picker Title="Välj spelare"
+                            ItemsSource="{Binding AvailablePlayers}"
+                            ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                            SelectedItem="{Binding SelectedPlayer1, Mode=TwoWay}" />
+                </vws:RoundMatrixView.ColumnHeader1>
+                <vws:RoundMatrixView.ColumnHeader2>
+                    <Picker Title="Välj spelare"
+                            ItemsSource="{Binding AvailablePlayers}"
+                            ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                            SelectedItem="{Binding SelectedPlayer2, Mode=TwoWay}" />
+                </vws:RoundMatrixView.ColumnHeader2>
+                <vws:RoundMatrixView.ColumnHeader3>
+                    <Picker Title="Välj spelare"
+                            ItemsSource="{Binding AvailablePlayers}"
+                            ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                            SelectedItem="{Binding SelectedPlayer3, Mode=TwoWay}" />
+                </vws:RoundMatrixView.ColumnHeader3>
+            </vws:RoundMatrixView>
 
             <Label Text="{Binding ValidationMessage}"
                    FontSize="13"
