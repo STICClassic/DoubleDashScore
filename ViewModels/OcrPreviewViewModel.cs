@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Data;
@@ -13,15 +14,18 @@ public partial class OcrPreviewViewModel : ObservableObject
     private readonly PlayerRepository _playersRepo;
     private readonly RoundRepository _rounds;
     private readonly OcrFlowContext _context;
+    private readonly IOcrDiagnosticsSink _diag;
 
     public OcrPreviewViewModel(
         PlayerRepository players,
         RoundRepository rounds,
-        OcrFlowContext context)
+        OcrFlowContext context,
+        IOcrDiagnosticsSink diag)
     {
         _playersRepo = players;
         _rounds = rounds;
         _context = context;
+        _diag = diag;
     }
 
     public List<PlayerColumnViewModel> Players { get; } = new();
@@ -57,6 +61,9 @@ public partial class OcrPreviewViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
+    [ObservableProperty]
+    private string _diagnosticDump = string.Empty;
+
     public bool IsValid
     {
         get
@@ -72,24 +79,47 @@ public partial class OcrPreviewViewModel : ObservableObject
         IsBusy = true;
         try
         {
+            var dump = new StringBuilder();
+            dump.AppendLine($"[OcrPreview LoadAsync @ {DateTime.Now:HH:mm:ss.fff}]");
+
             DetachColumnHandlers();
             Players.Clear();
             AvailablePlayers.Clear();
 
             var active = await _playersRepo.GetActivePlayersAsync(ct).ConfigureAwait(true);
+            dump.AppendLine($"Active players from DB: {active.Count}");
             if (active.Count != 4)
             {
                 ValidationMessage = $"Förväntade 4 aktiva spelare, hittade {active.Count}.";
+                DiagnosticDump = dump.ToString();
+                _diag.Save($"ctx-{DateTime.Now:yyyyMMdd-HHmmss-fff}-no-players.txt", DiagnosticDump);
                 return;
             }
             foreach (var p in active) AvailablePlayers.Add(p);
+            dump.AppendLine($"AvailablePlayers.Count: {AvailablePlayers.Count}");
 
             var parsed = _context.Pending;
+            dump.AppendLine($"OcrFlowContext.Pending: {(parsed is null ? "NULL" : "set")}");
+            dump.AppendLine($"OcrFlowContext.GameNightId: {_context.GameNightId}");
+            dump.AppendLine($"OcrFlowContext.PhotoPath: {_context.PhotoPath ?? "null"}");
+
             if (parsed is null)
             {
                 ValidationMessage = "Inga OCR-data att förhandsgranska.";
+                DiagnosticDump = dump.ToString();
+                _diag.Save($"ctx-{DateTime.Now:yyyyMMdd-HHmmss-fff}-pending-null.txt", DiagnosticDump);
                 return;
             }
+
+            dump.AppendLine($"parsed.InferredTrackCount: {parsed.InferredTrackCount}");
+            dump.AppendLine($"parsed.Slots.Count: {parsed.Slots.Count}");
+            for (int i = 0; i < parsed.Slots.Count; i++)
+            {
+                var s = parsed.Slots[i];
+                dump.AppendLine($"  parsed.Slots[{i}]: F={s.FirstPlaces} S={s.SecondPlaces} T={s.ThirdPlaces} Fo={s.FourthPlaces} (Sum={s.Sum})");
+            }
+            dump.AppendLine($"parsed.Warnings.Count: {parsed.Warnings.Count}");
+            foreach (var w in parsed.Warnings) dump.AppendLine($"  warning: {w}");
 
             var defaultMapping = PlayerSlotMapper.Map(active);
             SelectedPlayer0 = defaultMapping[0];
@@ -111,15 +141,26 @@ public partial class OcrPreviewViewModel : ObservableObject
                 Players.Add(col);
             }
 
+            dump.AppendLine($"Players.Count after build: {Players.Count}");
+            for (int i = 0; i < Players.Count; i++)
+            {
+                var p = Players[i];
+                dump.AppendLine($"  Players[{i}]: Name='{p.PlayerName}' F={p.FirstPlacesText} S={p.SecondPlacesText} T={p.ThirdPlacesText} Fo={p.FourthPlacesText}");
+            }
+
             TrackCountText = parsed.InferredTrackCount > 0
                 ? parsed.InferredTrackCount.ToString()
                 : "16";
+            dump.AppendLine($"TrackCountText set to: {TrackCountText}");
 
             WarningsBanner = parsed.Warnings.Count == 0
                 ? "Förifyllt från foto."
                 : $"Förifyllt från foto ({parsed.Warnings.Count} varning{(parsed.Warnings.Count == 1 ? "" : "ar")}): {string.Join(" ", parsed.Warnings)}";
 
             UpdateValidation();
+
+            DiagnosticDump = dump.ToString();
+            _diag.Save($"ctx-{DateTime.Now:yyyyMMdd-HHmmss-fff}-loaded.txt", DiagnosticDump);
         }
         finally
         {

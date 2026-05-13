@@ -11,6 +11,23 @@
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="14">
 
+            <Border BackgroundColor="LightYellow"
+                    Padding="8"
+                    Stroke="DarkGoldenrod"
+                    StrokeThickness="1">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="[DEBUG] OCR-flöde diagnostik"
+                           FontAttributes="Bold"
+                           FontSize="11"
+                           TextColor="Black" />
+                    <Label Text="{Binding DiagnosticDump}"
+                           FontSize="10"
+                           FontFamily="Courier"
+                           TextColor="Black"
+                           LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </Border>
+
             <Label Text="{Binding WarningsBanner}"
                    FontSize="13"
                    TextColor="{AppThemeBinding Light=#B45309, Dark=#FBBF24}"
