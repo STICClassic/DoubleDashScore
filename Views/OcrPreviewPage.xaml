@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             xmlns:models="clr-namespace:DoubleDashScore.Models"
+             xmlns:vws="clr-namespace:DoubleDashScore.Views"
+             x:Class="DoubleDashScore.Views.OcrPreviewPage"
+             x:DataType="vm:OcrPreviewViewModel"
+             Title="Granska foto">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="14">
+
+            <Border BackgroundColor="LightYellow"
+                    Padding="8"
+                    Stroke="DarkGoldenrod"
+                    StrokeThickness="1">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="[DEBUG] OCR-flöde diagnostik"
+                           FontAttributes="Bold"
+                           FontSize="11"
+                           TextColor="Black" />
+                    <Label Text="{Binding DiagnosticDump}"
+                           FontSize="10"
+                           FontFamily="Courier"
+                           TextColor="Black"
+                           LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="{Binding WarningsBanner}"
+                   FontSize="13"
+                   TextColor="{AppThemeBinding Light=#B45309, Dark=#FBBF24}"
+                   IsVisible="{Binding WarningsBanner, Converter={StaticResource StringNotEmptyConverter}}" />
+
+            <vws:RoundMatrixView Players="{Binding Players}"
+                                 TrackCountText="{Binding TrackCountText, Mode=TwoWay}">
+                <vws:RoundMatrixView.ColumnHeader0>
+                    <Picker Title="Välj spelare"
+                            ItemsSource="{Binding AvailablePlayers}"
+                            ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                            SelectedItem="{Binding SelectedPlayer0, Mode=TwoWay}" />
+                </vws:RoundMatrixView.ColumnHeader0>
+                <vws:RoundMatrixView.ColumnHeader1>
+                    <Picker Title="Välj spelare"
+                            ItemsSource="{Binding AvailablePlayers}"
+                            ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                            SelectedItem="{Binding SelectedPlayer1, Mode=TwoWay}" />
+                </vws:RoundMatrixView.ColumnHeader1>
+                <vws:RoundMatrixView.ColumnHeader2>
+                    <Picker Title="Välj spelare"
+                            ItemsSource="{Binding AvailablePlayers}"
+                            ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                            SelectedItem="{Binding SelectedPlayer2, Mode=TwoWay}" />
+                </vws:RoundMatrixView.ColumnHeader2>
+                <vws:RoundMatrixView.ColumnHeader3>
+                    <Picker Title="Välj spelare"
+                            ItemsSource="{Binding AvailablePlayers}"
+                            ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                            SelectedItem="{Binding SelectedPlayer3, Mode=TwoWay}" />
+                </vws:RoundMatrixView.ColumnHeader3>
+            </vws:RoundMatrixView>
+
+            <Label Text="{Binding ValidationMessage}"
+                   FontSize="13"
+                   TextColor="{AppThemeBinding Light=#B45309, Dark=#FBBF24}" />
+
+            <HorizontalStackLayout Spacing="12" HorizontalOptions="End" Margin="0,8,0,0">
+                <Button Text="Avbryt" Command="{Binding CancelCommand}" />
+                <Button Text="Spara" Command="{Binding SaveCommand}" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

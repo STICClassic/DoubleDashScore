@@ -13,6 +13,8 @@
         <ToolbarItem Text="Importera" Command="{Binding ImportCommand}" />
         <ToolbarItem Text="Exportera" Command="{Binding ExportCommand}" />
         <ToolbarItem Text="Ny kväll" Command="{Binding NewNightCommand}" />
+        <ToolbarItem Text="API-nyckel" Order="Secondary" Command="{Binding OpenApiKeySettingsCommand}" />
+        <ToolbarItem Text="Debug senaste OCR" Order="Secondary" Command="{Binding DebugLastOcrCommand}" />
         <ToolbarItem Text="Exportera databas" Order="Secondary" Command="{Binding ExportDatabaseCommand}" />
     </ContentPage.ToolbarItems>
 

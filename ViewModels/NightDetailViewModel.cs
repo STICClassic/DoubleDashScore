@@ -10,11 +10,16 @@ public partial class NightDetailViewModel : ObservableObject
 {
     private readonly GameNightRepository _nights;
     private readonly RoundRepository _rounds;
+    private readonly OcrCaptureViewModel _capture;
 
-    public NightDetailViewModel(GameNightRepository nights, RoundRepository rounds)
+    public NightDetailViewModel(
+        GameNightRepository nights,
+        RoundRepository rounds,
+        OcrCaptureViewModel capture)
     {
         _nights = nights;
         _rounds = rounds;
+        _capture = capture;
     }
 
     [ObservableProperty]
@@ -67,6 +72,13 @@ public partial class NightDetailViewModel : ObservableObject
     private async Task AddRoundAsync()
     {
         await Shell.Current.GoToAsync($"RoundEntryPage?gameNightId={NightId}").ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private async Task CapturePhotoAsync()
+    {
+        if (NightId <= 0) return;
+        await _capture.CapturePhotoAsync(NightId).ConfigureAwait(true);
     }
 
     [RelayCommand]
