@@ -23,6 +23,9 @@
 		<Compile Include="..\Services\ExcelImporter.cs" LinkBase="Services" />
 		<Compile Include="..\Data\HistoricalImportTypes.cs" LinkBase="Data" />
 		<Compile Include="..\Data\HistoricalImportPlanner.cs" LinkBase="Data" />
+		<Compile Include="..\Services\OcrParser.cs" LinkBase="Services" />
+		<Compile Include="..\Services\PlayerSlotMapper.cs" LinkBase="Services" />
+		<Compile Include="..\Services\MappingValidator.cs" LinkBase="Services" />
 	</ItemGroup>
 
 	<ItemGroup>

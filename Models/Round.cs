@@ -21,4 +21,6 @@ public class Round
     public DateTime CreatedAt { get; set; }
 
     public DateTime? DeletedAt { get; set; }
+
+    public string? PhotoPath { get; set; }
 }

@@ -126,10 +126,22 @@ Commit:a efter varje skiva.
 - Tied ranking (delade placeringar) införs i Skiva 2 — inte i Skiva 1.
 - Soft delete: ingen rad raderas hårt. Allt filtreras på `DeletedAt IS NULL`.
 
-> **Notering inför Skiva 5:** poängtavlans bildformat är en matris med
-> banorna på rader och spelarna i kolumner. OCR-resultatet ska räknas
-> ihop till samma räknare som matrisinmatningen producerar
-> (`FirstPlaces`/`SecondPlaces`/`ThirdPlaces`/`FourthPlaces` per spelare).
+> **Notering inför Skiva 5:** poängtavlan i Mario Kart Double Dash är ett
+> 4×4-aggregat — fyra spelarrutor sida vid sida, vardera med fyra rader
+> (1st/2nd/3rd/4th) som visar hur många banor spelaren tog respektive plats
+> på i omgången. Exempel:
+>
+> ```
+> [P1]      [P2]      [P3]      [P4]
+> 1st - 06  1st - 02  1st - 05  1st - 03
+> 2nd - 04  2nd - 05  2nd - 05  2nd - 02
+> 3rd - 04  3rd - 03  3rd - 03  3rd - 06
+> 4th - 02  4th - 06  4th - 03  4th - 05
+> ```
+>
+> Räknarna i bilden mappar 1:1 till `FirstPlaces`/`SecondPlaces`/
+> `ThirdPlaces`/`FourthPlaces` per spelare. (Tidigare diskussion om ett
+> "16×4-rådatarutnät" avsåg CSV-export, inte spelets poängtavla.)
 
 ### Skiva 2 — Statistik och grafer
 - All statistikberäkning i `/Services/StatsCalculator.cs` som **rena funktioner**
