@@ -81,12 +81,16 @@ public class HistoricalDataRepository
             PlayerNamesInExcelColumnOrder: parsed.PlayerNamesInExcelColumnOrder);
     }
 
-    public async Task<ImportResult> ImportAsync(ParsedExcelImport parsed, CancellationToken ct = default)
+    public async Task<ImportResult> ImportAsync(
+        ParsedExcelImport parsed,
+        bool overwrite = false,
+        CancellationToken ct = default)
     {
         var conn = await _db.GetConnectionAsync(ct).ConfigureAwait(false);
         var now = DateTime.UtcNow;
 
         int nightsInserted = 0;
+        int nightsOverwritten = 0;
         int placementsInserted = 0;
         bool snapshotReplaced = false;
 
@@ -97,35 +101,50 @@ public class HistoricalDataRepository
                 .Select(a => a.NightNumber)
                 .ToHashSet();
 
-            foreach (var nightAgg in parsed.NightAggregates)
-            {
-                if (existingNightNumbers.Contains(nightAgg.NightNumber)) continue;
-                nightAgg.CreatedAt = now;
-                tx.Insert(nightAgg);
-                nightsInserted++;
-            }
+            var plan = HistoricalImportPlanner.Plan(parsed, existingNightNumbers, overwrite);
 
-            var existingPlacements = tx.Table<HistoricalRoundPlacement>()
-                .ToList()
-                .Select(p => (p.NightNumber, p.PlayerId, p.RoundIndex))
-                .ToHashSet();
-
-            foreach (var placement in parsed.RoundPlacements)
-            {
-                if (existingPlacements.Contains((placement.NightNumber, placement.PlayerId, placement.RoundIndex))) continue;
-                placement.CreatedAt = now;
-                tx.Insert(placement);
-                placementsInserted++;
-            }
-
+            // Snapshot ersätts alltid (oavsett flagga) — det är hela tabellens semantik.
+            // Med InsertOrReplace per PlayerId behåller vi rader för spelare som inte
+            // står i filen, men det är ingen vanlig situation.
             foreach (var snap in parsed.PositionTotalsSnapshot)
             {
                 snap.CreatedAt = now;
                 tx.InsertOrReplace(snap);
                 snapshotReplaced = true;
             }
+
+            // Replace: radera alla rader för kvällar som skrivs över. Görs först så
+            // att efterföljande Insert inte krockar med befintliga PK:er.
+            foreach (var nightNumber in plan.NightNumbersToReplace)
+            {
+                tx.Execute(
+                    "DELETE FROM HistoricalNightAggregates WHERE NightNumber = ?",
+                    nightNumber);
+                tx.Execute(
+                    "DELETE FROM HistoricalRoundPlacements WHERE NightNumber = ?",
+                    nightNumber);
+            }
+
+            foreach (var agg in plan.AggregatesToInsert)
+            {
+                agg.CreatedAt = now;
+                tx.Insert(agg);
+            }
+            foreach (var placement in plan.PlacementsToInsert)
+            {
+                placement.CreatedAt = now;
+                tx.Insert(placement);
+            }
+
+            nightsInserted = plan.NightsInserted;
+            nightsOverwritten = plan.NightsOverwritten;
+            placementsInserted = plan.PlacementsToInsert.Count;
         }).ConfigureAwait(false);
 
-        return new ImportResult(nightsInserted, placementsInserted, snapshotReplaced);
+        return new ImportResult(
+            nightsInserted,
+            placementsInserted,
+            snapshotReplaced,
+            nightsOverwritten);
     }
 }

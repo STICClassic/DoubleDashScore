@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             x:Class="DoubleDashScore.Views.ImportPreviewPage"
+             x:DataType="vm:ImportPreviewViewModel"
+             Title="Förhandsgranskning"
+             Shell.NavBarIsVisible="False">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="14">
+
+            <Label Text="Förhandsgranskning av import"
+                   FontSize="20"
+                   FontAttributes="Bold" />
+
+            <Label Text="{Binding PlayersLine}" />
+            <Label Text="{Binding FileTotalLine}" />
+            <Label Text="{Binding NightSummaryLine}" FontAttributes="Bold" />
+
+            <Label Text="{Binding SnapshotLine}"
+                   IsVisible="{Binding SnapshotLine, Converter={StaticResource StringNotEmptyConverter}}" />
+
+            <Label Text="{Binding MissingLine}"
+                   TextColor="DarkOrange"
+                   IsVisible="{Binding MissingLine, Converter={StaticResource StringNotEmptyConverter}}" />
+
+            <BoxView HeightRequest="1"
+                     Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}"
+                     Margin="0,8" />
+
+            <HorizontalStackLayout Spacing="12">
+                <Switch IsToggled="{Binding Overwrite}" VerticalOptions="Center" />
+                <Label Text="Skriv över befintliga kvällar"
+                       VerticalOptions="Center"
+                       LineBreakMode="WordWrap" />
+            </HorizontalStackLayout>
+
+            <Grid ColumnDefinitions="*,*"
+                  ColumnSpacing="12"
+                  Margin="0,12,0,0">
+                <Button Grid.Column="0" Text="Avbryt" Command="{Binding CancelCommand}" />
+                <Button Grid.Column="1" Text="Importera" Command="{Binding ConfirmCommand}" />
+            </Grid>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
