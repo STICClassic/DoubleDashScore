@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -24,7 +25,7 @@ public partial class OcrPreviewViewModel : ObservableObject
     }
 
     public List<PlayerColumnViewModel> Players { get; } = new();
-    public List<Player> AvailablePlayers { get; } = new();
+    public ObservableCollection<Player> AvailablePlayers { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsValid))]
@@ -81,7 +82,7 @@ public partial class OcrPreviewViewModel : ObservableObject
                 ValidationMessage = $"Förväntade 4 aktiva spelare, hittade {active.Count}.";
                 return;
             }
-            AvailablePlayers.AddRange(active);
+            foreach (var p in active) AvailablePlayers.Add(p);
 
             var parsed = _context.Pending;
             if (parsed is null)
