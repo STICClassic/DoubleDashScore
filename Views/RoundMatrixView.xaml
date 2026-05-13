@@ -4,18 +4,12 @@
              x:Class="DoubleDashScore.Views.RoundMatrixView"
              x:Name="Root">
 
-    <VerticalStackLayout Spacing="14"
-                         BindingContext="{Binding Source={x:Reference Root}}">
-
-        <Label Text="{Binding DebugInfo}"
-               FontSize="10"
-               TextColor="DarkRed"
-               IsVisible="{Binding DebugInfoVisible}" />
+    <VerticalStackLayout Spacing="14">
 
         <Grid ColumnDefinitions="*,120" ColumnSpacing="12" VerticalOptions="Center">
             <Label Grid.Column="0" Text="Antal banor" VerticalOptions="Center" />
             <Entry Grid.Column="1"
-                   Text="{Binding TrackCountText, Mode=TwoWay}"
+                   Text="{Binding TrackCountText, Source={x:Reference Root}, Mode=TwoWay}"
                    Keyboard="Numeric"
                    HorizontalTextAlignment="Center" />
         </Grid>
@@ -30,52 +24,56 @@
             <Label Grid.Row="0" Grid.Column="0" Text="" />
 
             <Label Grid.Row="0" Grid.Column="1"
-                   Text="{Binding Players[0].PlayerName}"
+                   Text="{Binding Players[0].PlayerName, Source={x:Reference Root}}"
                    FontAttributes="Bold" HorizontalTextAlignment="Center"
-                   IsVisible="{Binding ColumnHeader0, Converter={StaticResource IsNullConverter}}" />
-            <ContentView Grid.Row="0" Grid.Column="1" Content="{Binding ColumnHeader0}" />
+                   IsVisible="{Binding ColumnHeader0, Source={x:Reference Root}, Converter={StaticResource IsNullConverter}}" />
+            <ContentView Grid.Row="0" Grid.Column="1"
+                         Content="{Binding ColumnHeader0, Source={x:Reference Root}}" />
 
             <Label Grid.Row="0" Grid.Column="2"
-                   Text="{Binding Players[1].PlayerName}"
+                   Text="{Binding Players[1].PlayerName, Source={x:Reference Root}}"
                    FontAttributes="Bold" HorizontalTextAlignment="Center"
-                   IsVisible="{Binding ColumnHeader1, Converter={StaticResource IsNullConverter}}" />
-            <ContentView Grid.Row="0" Grid.Column="2" Content="{Binding ColumnHeader1}" />
+                   IsVisible="{Binding ColumnHeader1, Source={x:Reference Root}, Converter={StaticResource IsNullConverter}}" />
+            <ContentView Grid.Row="0" Grid.Column="2"
+                         Content="{Binding ColumnHeader1, Source={x:Reference Root}}" />
 
             <Label Grid.Row="0" Grid.Column="3"
-                   Text="{Binding Players[2].PlayerName}"
+                   Text="{Binding Players[2].PlayerName, Source={x:Reference Root}}"
                    FontAttributes="Bold" HorizontalTextAlignment="Center"
-                   IsVisible="{Binding ColumnHeader2, Converter={StaticResource IsNullConverter}}" />
-            <ContentView Grid.Row="0" Grid.Column="3" Content="{Binding ColumnHeader2}" />
+                   IsVisible="{Binding ColumnHeader2, Source={x:Reference Root}, Converter={StaticResource IsNullConverter}}" />
+            <ContentView Grid.Row="0" Grid.Column="3"
+                         Content="{Binding ColumnHeader2, Source={x:Reference Root}}" />
 
             <Label Grid.Row="0" Grid.Column="4"
-                   Text="{Binding Players[3].PlayerName}"
+                   Text="{Binding Players[3].PlayerName, Source={x:Reference Root}}"
                    FontAttributes="Bold" HorizontalTextAlignment="Center"
-                   IsVisible="{Binding ColumnHeader3, Converter={StaticResource IsNullConverter}}" />
-            <ContentView Grid.Row="0" Grid.Column="4" Content="{Binding ColumnHeader3}" />
+                   IsVisible="{Binding ColumnHeader3, Source={x:Reference Root}, Converter={StaticResource IsNullConverter}}" />
+            <ContentView Grid.Row="0" Grid.Column="4"
+                         Content="{Binding ColumnHeader3, Source={x:Reference Root}}" />
 
             <Label Grid.Row="1" Grid.Column="0" Text="1:or" VerticalOptions="Center" />
-            <Entry Grid.Row="1" Grid.Column="1" Text="{Binding Players[0].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="1" Grid.Column="2" Text="{Binding Players[1].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="1" Grid.Column="3" Text="{Binding Players[2].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="1" Grid.Column="4" Text="{Binding Players[3].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="1" Grid.Column="1" Text="{Binding Players[0].FirstPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="1" Grid.Column="2" Text="{Binding Players[1].FirstPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="1" Grid.Column="3" Text="{Binding Players[2].FirstPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="1" Grid.Column="4" Text="{Binding Players[3].FirstPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
 
             <Label Grid.Row="2" Grid.Column="0" Text="2:or" VerticalOptions="Center" />
-            <Entry Grid.Row="2" Grid.Column="1" Text="{Binding Players[0].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="2" Grid.Column="2" Text="{Binding Players[1].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="2" Grid.Column="3" Text="{Binding Players[2].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="2" Grid.Column="4" Text="{Binding Players[3].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="2" Grid.Column="1" Text="{Binding Players[0].SecondPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="2" Grid.Column="2" Text="{Binding Players[1].SecondPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="2" Grid.Column="3" Text="{Binding Players[2].SecondPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="2" Grid.Column="4" Text="{Binding Players[3].SecondPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
 
             <Label Grid.Row="3" Grid.Column="0" Text="3:or" VerticalOptions="Center" />
-            <Entry Grid.Row="3" Grid.Column="1" Text="{Binding Players[0].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="3" Grid.Column="2" Text="{Binding Players[1].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="3" Grid.Column="3" Text="{Binding Players[2].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="3" Grid.Column="4" Text="{Binding Players[3].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="3" Grid.Column="1" Text="{Binding Players[0].ThirdPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="3" Grid.Column="2" Text="{Binding Players[1].ThirdPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="3" Grid.Column="3" Text="{Binding Players[2].ThirdPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="3" Grid.Column="4" Text="{Binding Players[3].ThirdPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
 
             <Label Grid.Row="4" Grid.Column="0" Text="4:or" VerticalOptions="Center" />
-            <Entry Grid.Row="4" Grid.Column="1" Text="{Binding Players[0].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="4" Grid.Column="2" Text="{Binding Players[1].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="4" Grid.Column="3" Text="{Binding Players[2].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
-            <Entry Grid.Row="4" Grid.Column="4" Text="{Binding Players[3].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="4" Grid.Column="1" Text="{Binding Players[0].FourthPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="4" Grid.Column="2" Text="{Binding Players[1].FourthPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="4" Grid.Column="3" Text="{Binding Players[2].FourthPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="4" Grid.Column="4" Text="{Binding Players[3].FourthPlacesText, Source={x:Reference Root}, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
         </Grid>
     </VerticalStackLayout>
 </ContentView>
