@@ -7,7 +7,7 @@ public class DatabaseService
 {
     private const string DatabaseFileName = "doubledashscore.db3";
 
-    private static readonly string DatabasePath =
+    public static readonly string DatabasePath =
         Path.Combine(FileSystem.AppDataDirectory, DatabaseFileName);
 
     private SQLiteAsyncConnection? _connection;

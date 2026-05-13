@@ -38,4 +38,25 @@ public sealed class ExportService
             .ConfigureAwait(false);
         return path;
     }
+
+    public async Task<string> ExportDatabaseAsync(CancellationToken ct = default)
+    {
+        var source = DatabaseService.DatabasePath;
+        if (!File.Exists(source))
+        {
+            throw new InvalidOperationException(
+                "Databasfilen hittades inte. Starta om appen och försök igen.");
+        }
+
+        var fileName = $"doubledashscore-backup-{DateTime.Now:yyyy-MM-dd-HHmm}.db";
+        var destination = Path.Combine(FileSystem.Current.CacheDirectory, fileName);
+
+        await using (var src = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        await using (var dst = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            await src.CopyToAsync(dst, ct).ConfigureAwait(false);
+        }
+
+        return destination;
+    }
 }
