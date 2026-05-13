@@ -7,6 +7,11 @@
     <VerticalStackLayout Spacing="14"
                          BindingContext="{Binding Source={x:Reference Root}}">
 
+        <Label Text="{Binding DebugInfo}"
+               FontSize="10"
+               TextColor="DarkRed"
+               IsVisible="{Binding DebugInfoVisible}" />
+
         <Grid ColumnDefinitions="*,120" ColumnSpacing="12" VerticalOptions="Center">
             <Label Grid.Column="0" Text="Antal banor" VerticalOptions="Center" />
             <Entry Grid.Column="1"
