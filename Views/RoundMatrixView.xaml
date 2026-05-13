@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DoubleDashScore.Views.RoundMatrixView"
+             x:Name="Root">
+
+    <VerticalStackLayout Spacing="14"
+                         BindingContext="{Binding Source={x:Reference Root}}">
+
+        <Grid ColumnDefinitions="*,120" ColumnSpacing="12" VerticalOptions="Center">
+            <Label Grid.Column="0" Text="Antal banor" VerticalOptions="Center" />
+            <Entry Grid.Column="1"
+                   Text="{Binding TrackCountText, Mode=TwoWay}"
+                   Keyboard="Numeric"
+                   HorizontalTextAlignment="Center" />
+        </Grid>
+
+        <Label Text="Räknare per spelare" FontAttributes="Bold" Margin="0,8,0,0" />
+
+        <Grid ColumnDefinitions="64,*,*,*,*"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+              RowSpacing="6"
+              ColumnSpacing="8">
+
+            <Label Grid.Row="0" Grid.Column="0" Text="" />
+            <Label Grid.Row="0" Grid.Column="1" Text="{Binding Players[0].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <Label Grid.Row="0" Grid.Column="2" Text="{Binding Players[1].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <Label Grid.Row="0" Grid.Column="3" Text="{Binding Players[2].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <Label Grid.Row="0" Grid.Column="4" Text="{Binding Players[3].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+
+            <Label Grid.Row="1" Grid.Column="0" Text="1:or" VerticalOptions="Center" />
+            <Entry Grid.Row="1" Grid.Column="1" Text="{Binding Players[0].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="1" Grid.Column="2" Text="{Binding Players[1].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="1" Grid.Column="3" Text="{Binding Players[2].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="1" Grid.Column="4" Text="{Binding Players[3].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+
+            <Label Grid.Row="2" Grid.Column="0" Text="2:or" VerticalOptions="Center" />
+            <Entry Grid.Row="2" Grid.Column="1" Text="{Binding Players[0].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="2" Grid.Column="2" Text="{Binding Players[1].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="2" Grid.Column="3" Text="{Binding Players[2].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="2" Grid.Column="4" Text="{Binding Players[3].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+
+            <Label Grid.Row="3" Grid.Column="0" Text="3:or" VerticalOptions="Center" />
+            <Entry Grid.Row="3" Grid.Column="1" Text="{Binding Players[0].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="3" Grid.Column="2" Text="{Binding Players[1].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="3" Grid.Column="3" Text="{Binding Players[2].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="3" Grid.Column="4" Text="{Binding Players[3].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+
+            <Label Grid.Row="4" Grid.Column="0" Text="4:or" VerticalOptions="Center" />
+            <Entry Grid.Row="4" Grid.Column="1" Text="{Binding Players[0].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="4" Grid.Column="2" Text="{Binding Players[1].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="4" Grid.Column="3" Text="{Binding Players[2].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+            <Entry Grid.Row="4" Grid.Column="4" Text="{Binding Players[3].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" />
+        </Grid>
+    </VerticalStackLayout>
+</ContentView>
