@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             xmlns:models="clr-namespace:DoubleDashScore.Models"
+             xmlns:vws="clr-namespace:DoubleDashScore.Views"
+             x:Class="DoubleDashScore.Views.OcrPreviewPage"
+             x:DataType="vm:OcrPreviewViewModel"
+             Title="Granska foto">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="14">
+
+            <Label Text="{Binding WarningsBanner}"
+                   FontSize="13"
+                   TextColor="{AppThemeBinding Light=#B45309, Dark=#FBBF24}"
+                   IsVisible="{Binding WarningsBanner, Converter={StaticResource StringNotEmptyConverter}}" />
+
+            <Label Text="Spelare per kolumn" FontAttributes="Bold" />
+
+            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                <Picker Grid.Column="0"
+                        Title="P1"
+                        ItemsSource="{Binding AvailablePlayers}"
+                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                        SelectedItem="{Binding SelectedPlayer0, Mode=TwoWay}" />
+                <Picker Grid.Column="1"
+                        Title="P2"
+                        ItemsSource="{Binding AvailablePlayers}"
+                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                        SelectedItem="{Binding SelectedPlayer1, Mode=TwoWay}" />
+                <Picker Grid.Column="2"
+                        Title="P3"
+                        ItemsSource="{Binding AvailablePlayers}"
+                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                        SelectedItem="{Binding SelectedPlayer2, Mode=TwoWay}" />
+                <Picker Grid.Column="3"
+                        Title="P4"
+                        ItemsSource="{Binding AvailablePlayers}"
+                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
+                        SelectedItem="{Binding SelectedPlayer3, Mode=TwoWay}" />
+            </Grid>
+
+            <vws:RoundMatrixView Players="{Binding Players}"
+                                 TrackCountText="{Binding TrackCountText, Mode=TwoWay}" />
+
+            <Label Text="{Binding ValidationMessage}"
+                   FontSize="13"
+                   TextColor="{AppThemeBinding Light=#B45309, Dark=#FBBF24}" />
+
+            <HorizontalStackLayout Spacing="12" HorizontalOptions="End" Margin="0,8,0,0">
+                <Button Text="Avbryt" Command="{Binding CancelCommand}" />
+                <Button Text="Spara" Command="{Binding SaveCommand}" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

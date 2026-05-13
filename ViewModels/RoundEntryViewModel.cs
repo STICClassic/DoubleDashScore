@@ -2,6 +2,7 @@ using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Data;
+using DoubleDashScore.Services;
 
 namespace DoubleDashScore.ViewModels;
 
@@ -45,7 +46,14 @@ public partial class RoundEntryViewModel : ObservableObject
     public int TrackCountValue =>
         int.TryParse(TrackCountText, out var v) ? v : -1;
 
-    public bool IsValid => ComputeValidation(out _);
+    public bool IsValid
+    {
+        get
+        {
+            var (ok, _) = RoundMatrixValidator.Validate(Players, TrackCountText);
+            return ok;
+        }
+    }
 
     public async Task LoadAsync(CancellationToken ct = default)
     {
@@ -120,68 +128,10 @@ public partial class RoundEntryViewModel : ObservableObject
 
     private void UpdateValidation()
     {
-        ComputeValidation(out var message);
+        var (_, message) = RoundMatrixValidator.Validate(Players, TrackCountText);
         ValidationMessage = message;
         OnPropertyChanged(nameof(IsValid));
         SaveCommand.NotifyCanExecuteChanged();
-    }
-
-    private bool ComputeValidation(out string message)
-    {
-        message = string.Empty;
-        var trackCount = TrackCountValue;
-        if (trackCount < 1 || trackCount > 16)
-        {
-            message = "Antal banor måste vara mellan 1 och 16.";
-            return false;
-        }
-        if (Players.Count != 4)
-        {
-            message = "Fyra spelare krävs.";
-            return false;
-        }
-        var problems = new List<string>();
-        for (int i = 0; i < Players.Count; i++)
-        {
-            var p = Players[i];
-            if (!p.TryGetCounts(out var c))
-            {
-                problems.Add($"{p.PlayerName}: ogiltig siffra.");
-                continue;
-            }
-            var sum = c.first + c.second + c.third + c.fourth;
-            if (sum != trackCount)
-            {
-                problems.Add($"{p.PlayerName}: {sum}/{trackCount}.");
-            }
-        }
-        var (firstSum, secondSum, thirdSum, fourthSum) = SumByPosition();
-        if (firstSum != trackCount) problems.Add($"1:or totalt {firstSum}/{trackCount}.");
-        if (secondSum != trackCount) problems.Add($"2:or totalt {secondSum}/{trackCount}.");
-        if (thirdSum != trackCount) problems.Add($"3:or totalt {thirdSum}/{trackCount}.");
-        if (fourthSum != trackCount) problems.Add($"4:or totalt {fourthSum}/{trackCount}.");
-
-        if (problems.Count == 0)
-        {
-            message = "Klar att spara.";
-            return true;
-        }
-        message = string.Join("  ", problems);
-        return false;
-    }
-
-    private (int first, int second, int third, int fourth) SumByPosition()
-    {
-        int f = 0, s = 0, t = 0, fo = 0;
-        foreach (var p in Players)
-        {
-            if (!p.TryGetCounts(out var c)) continue;
-            f += c.first;
-            s += c.second;
-            t += c.third;
-            fo += c.fourth;
-        }
-        return (f, s, t, fo);
     }
 
     [RelayCommand(CanExecute = nameof(IsValid))]
