@@ -92,6 +92,12 @@ public partial class NightsListViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private static async Task OpenApiKeySettingsAsync()
+    {
+        await Shell.Current.GoToAsync("ApiKeySettingsPage").ConfigureAwait(true);
+    }
+
+    [RelayCommand]
     private static async Task OpenStatsAsync()
     {
         await Shell.Current.GoToAsync("HistoryStatsPage").ConfigureAwait(true);

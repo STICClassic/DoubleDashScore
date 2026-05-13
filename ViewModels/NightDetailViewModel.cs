@@ -82,12 +82,6 @@ public partial class NightDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task DebugOcrAsync()
-    {
-        await _capture.DebugCaptureAsync().ConfigureAwait(true);
-    }
-
-    [RelayCommand]
     private async Task OpenStatsAsync()
     {
         await Shell.Current.GoToAsync($"NightStatsPage?nightId={NightId}").ConfigureAwait(true);

@@ -4,5 +4,5 @@ namespace DoubleDashScore.Services;
 
 public interface IOcrService
 {
-    Task<OcrResult> RecognizeAsync(Stream image, CancellationToken ct = default);
+    Task<ParsedCounters> RecognizeAsync(Stream image, CancellationToken ct = default);
 }

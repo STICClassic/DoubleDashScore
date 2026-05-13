@@ -32,8 +32,10 @@ public static class MauiProgram
         builder.Services.AddSingleton<ChartTransferStore>();
         builder.Services.AddSingleton<PhotoStorageService>();
         builder.Services.AddSingleton<OcrFlowContext>();
+        builder.Services.AddSingleton<IApiKeyStore, SecureStorageApiKeyStore>();
+        builder.Services.AddSingleton(_ => new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
 #if ANDROID
-        builder.Services.AddSingleton<IOcrService, Platforms.Android.Services.MlKitOcrService>();
+        builder.Services.AddSingleton<IOcrService, ClaudeVisionOcrService>();
 #else
         builder.Services.AddSingleton<IOcrService, NoOpOcrService>();
 #endif
@@ -48,6 +50,7 @@ public static class MauiProgram
         builder.Services.AddTransient<FullScreenChartViewModel>();
         builder.Services.AddTransient<OcrCaptureViewModel>();
         builder.Services.AddTransient<OcrPreviewViewModel>();
+        builder.Services.AddTransient<ApiKeySettingsViewModel>();
 
         builder.Services.AddTransient<NightsListPage>();
         builder.Services.AddTransient<NewNightPage>();
@@ -58,6 +61,7 @@ public static class MauiProgram
         builder.Services.AddTransient<HistoryStatsPage>();
         builder.Services.AddTransient<FullScreenChartPage>();
         builder.Services.AddTransient<OcrPreviewPage>();
+        builder.Services.AddTransient<ApiKeySettingsPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();
