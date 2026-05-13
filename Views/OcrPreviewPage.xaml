@@ -5,6 +5,7 @@
              xmlns:models="clr-namespace:DoubleDashScore.Models"
              xmlns:vws="clr-namespace:DoubleDashScore.Views"
              x:Class="DoubleDashScore.Views.OcrPreviewPage"
+             x:Name="PageRoot"
              x:DataType="vm:OcrPreviewViewModel"
              Title="Granska foto">
 
@@ -37,24 +38,28 @@
                                  TrackCountText="{Binding TrackCountText, Mode=TwoWay}">
                 <vws:RoundMatrixView.ColumnHeader0>
                     <Picker Title="Välj spelare"
+                            BindingContext="{Binding Source={x:Reference PageRoot}, Path=BindingContext}"
                             ItemsSource="{Binding AvailablePlayers}"
                             ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
                             SelectedItem="{Binding SelectedPlayer0, Mode=TwoWay}" />
                 </vws:RoundMatrixView.ColumnHeader0>
                 <vws:RoundMatrixView.ColumnHeader1>
                     <Picker Title="Välj spelare"
+                            BindingContext="{Binding Source={x:Reference PageRoot}, Path=BindingContext}"
                             ItemsSource="{Binding AvailablePlayers}"
                             ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
                             SelectedItem="{Binding SelectedPlayer1, Mode=TwoWay}" />
                 </vws:RoundMatrixView.ColumnHeader1>
                 <vws:RoundMatrixView.ColumnHeader2>
                     <Picker Title="Välj spelare"
+                            BindingContext="{Binding Source={x:Reference PageRoot}, Path=BindingContext}"
                             ItemsSource="{Binding AvailablePlayers}"
                             ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
                             SelectedItem="{Binding SelectedPlayer2, Mode=TwoWay}" />
                 </vws:RoundMatrixView.ColumnHeader2>
                 <vws:RoundMatrixView.ColumnHeader3>
                     <Picker Title="Välj spelare"
+                            BindingContext="{Binding Source={x:Reference PageRoot}, Path=BindingContext}"
                             ItemsSource="{Binding AvailablePlayers}"
                             ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
                             SelectedItem="{Binding SelectedPlayer3, Mode=TwoWay}" />
