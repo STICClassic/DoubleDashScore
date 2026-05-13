@@ -33,6 +33,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<PhotoStorageService>();
         builder.Services.AddSingleton<OcrFlowContext>();
         builder.Services.AddSingleton<IApiKeyStore, SecureStorageApiKeyStore>();
+        builder.Services.AddSingleton<IOcrDiagnosticsSink, FileSystemOcrDiagnosticsSink>();
         builder.Services.AddSingleton(_ => new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
 #if ANDROID
         builder.Services.AddSingleton<IOcrService, ClaudeVisionOcrService>();

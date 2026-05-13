@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using DoubleDashScore.Models;
 
 namespace DoubleDashScore.Services;
@@ -13,11 +14,13 @@ public sealed class ClaudeVisionOcrService : IOcrService
 
     private readonly HttpClient _http;
     private readonly IApiKeyStore _keys;
+    private readonly IOcrDiagnosticsSink _diag;
 
-    public ClaudeVisionOcrService(HttpClient http, IApiKeyStore keys)
+    public ClaudeVisionOcrService(HttpClient http, IApiKeyStore keys, IOcrDiagnosticsSink diag)
     {
         _http = http;
         _keys = keys;
+        _diag = diag;
     }
 
     public async Task<ParsedCounters> RecognizeAsync(Stream image, CancellationToken ct = default)
@@ -80,6 +83,11 @@ public sealed class ClaudeVisionOcrService : IOcrService
             throw new InvalidOperationException("Tidsgräns nåddes. Försök igen.");
         }
 
+        var bodyText = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss-fff");
+        SaveDebug($"api-{timestamp}-response.txt",
+            $"HTTP {(int)response.StatusCode} {response.StatusCode}\n\n{bodyText}");
+
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             throw new InvalidOperationException("Ogiltig API-nyckel. Kontrollera i Inställningar.");
@@ -93,8 +101,29 @@ public sealed class ClaudeVisionOcrService : IOcrService
             throw new InvalidOperationException($"API-fel ({(int)response.StatusCode}). Försök igen.");
         }
 
-        var bodyText = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        return ParseApiResponse(bodyText);
+        ParsedCounters parsed;
+        try
+        {
+            parsed = ParseApiResponse(bodyText);
+        }
+        catch (Exception parseEx)
+        {
+            SaveDebug($"api-{timestamp}-parse-error.txt",
+                $"{parseEx.GetType().Name}: {parseEx.Message}");
+            throw;
+        }
+
+        SaveDebug($"api-{timestamp}-parsed.json",
+            JsonSerializer.Serialize(parsed, new JsonSerializerOptions { WriteIndented = true }));
+        return parsed;
+    }
+
+    private static readonly Regex ApiKeyPattern = new(@"sk-ant-[A-Za-z0-9_\-]+", RegexOptions.Compiled);
+
+    private void SaveDebug(string filename, string content)
+    {
+        var redacted = ApiKeyPattern.Replace(content, "sk-ant-REDACTED");
+        _diag.Save(filename, redacted);
     }
 
     internal static ParsedCounters ParseApiResponse(string apiBody)

@@ -98,6 +98,43 @@ public partial class NightsListViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task DebugLastOcrAsync()
+    {
+        var page = Shell.Current.CurrentPage;
+        var dir = Path.Combine(FileSystem.AppDataDirectory, "api-debug");
+        if (!Directory.Exists(dir))
+        {
+            await page.DisplayAlertAsync(
+                "Ingen OCR-diagnostik",
+                "api-debug-mappen finns inte än. Kör ett OCR-anrop först.",
+                "OK").ConfigureAwait(true);
+            return;
+        }
+
+        var files = new DirectoryInfo(dir)
+            .GetFiles()
+            .OrderByDescending(f => f.LastWriteTime)
+            .Take(2)
+            .Select(f => new ShareFile(f.FullName))
+            .ToList();
+
+        if (files.Count == 0)
+        {
+            await page.DisplayAlertAsync(
+                "Ingen OCR-diagnostik",
+                "Inga filer i api-debug-mappen. Kör ett OCR-anrop först.",
+                "OK").ConfigureAwait(true);
+            return;
+        }
+
+        await Share.Default.RequestAsync(new ShareMultipleFilesRequest
+        {
+            Title = "OCR-diagnostik (senaste)",
+            Files = files,
+        }).ConfigureAwait(true);
+    }
+
+    [RelayCommand]
     private static async Task OpenStatsAsync()
     {
         await Shell.Current.GoToAsync("HistoryStatsPage").ConfigureAwait(true);

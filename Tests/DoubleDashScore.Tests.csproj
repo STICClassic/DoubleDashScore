@@ -27,6 +27,7 @@
 		<Compile Include="..\Services\MappingValidator.cs" LinkBase="Services" />
 		<Compile Include="..\Services\IApiKeyStore.cs" LinkBase="Services" />
 		<Compile Include="..\Services\IOcrService.cs" LinkBase="Services" />
+		<Compile Include="..\Services\IOcrDiagnosticsSink.cs" LinkBase="Services" />
 		<Compile Include="..\Services\ClaudeVisionOcrService.cs" LinkBase="Services" />
 	</ItemGroup>
 
