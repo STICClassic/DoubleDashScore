@@ -11,6 +11,7 @@
         <ToolbarItem Text="Statistik" Command="{Binding OpenStatsCommand}" />
         <ToolbarItem Text="Foto" Command="{Binding CapturePhotoCommand}" />
         <ToolbarItem Text="Lägg till omgång" Command="{Binding AddRoundCommand}" />
+        <ToolbarItem Text="Debug OCR" Order="Secondary" Command="{Binding DebugOcrCommand}" />
     </ContentPage.ToolbarItems>
 
     <Grid RowDefinitions="Auto,Auto,*">
