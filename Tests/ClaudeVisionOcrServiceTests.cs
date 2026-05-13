@@ -164,6 +164,55 @@ public class ClaudeVisionOcrServiceTests
     }
 
     [Fact]
+    public void ParseApiResponse_UncertainCell_AsMinusOne_BecomesZeroWithWarning()
+    {
+        var modelText = """
+        {
+          "players": [
+            {"slot": 1, "first": 6, "second": 4, "third": 4, "fourth": 2},
+            {"slot": 2, "first": 2, "second": 5, "third": -1, "fourth": 6},
+            {"slot": 3, "first": 5, "second": 5, "third": 3, "fourth": 3},
+            {"slot": 4, "first": 3, "second": 2, "third": 6, "fourth": 5}
+          ],
+          "total_tracks": 16,
+          "warnings": ["P2 3rd: uncertain, looks like 1 or 4"]
+        }
+        """;
+        var parsed = ClaudeVisionOcrService.ParseApiResponse(Wrap(modelText));
+
+        Assert.Equal(0, parsed.Slots[1].ThirdPlaces);
+        Assert.Equal(2, parsed.Slots[1].FirstPlaces);
+        Assert.Equal(5, parsed.Slots[1].SecondPlaces);
+        Assert.Equal(6, parsed.Slots[1].FourthPlaces);
+        Assert.Contains(parsed.Warnings, w => w.Contains("P2 3:e") && w.Contains("osäker"));
+        Assert.Contains(parsed.Warnings, w => w.Contains("P2 3rd"));
+    }
+
+    [Fact]
+    public void ParseApiResponse_MultipleUncertainCells_GeneratesMultipleWarnings()
+    {
+        var modelText = """
+        {
+          "players": [
+            {"slot": 1, "first": -1, "second": -1, "third": 4, "fourth": 2},
+            {"slot": 2, "first": 2, "second": 5, "third": 3, "fourth": -1},
+            {"slot": 3, "first": 5, "second": 5, "third": 3, "fourth": 3},
+            {"slot": 4, "first": 3, "second": 2, "third": 6, "fourth": 5}
+          ],
+          "total_tracks": 16
+        }
+        """;
+        var parsed = ClaudeVisionOcrService.ParseApiResponse(Wrap(modelText));
+
+        Assert.Equal(0, parsed.Slots[0].FirstPlaces);
+        Assert.Equal(0, parsed.Slots[0].SecondPlaces);
+        Assert.Equal(0, parsed.Slots[1].FourthPlaces);
+        Assert.Contains(parsed.Warnings, w => w.Contains("P1 1:a"));
+        Assert.Contains(parsed.Warnings, w => w.Contains("P1 2:a"));
+        Assert.Contains(parsed.Warnings, w => w.Contains("P2 4:e"));
+    }
+
+    [Fact]
     public void ParseApiResponse_MissingTotalTracks_FallsBackToFirstSlotSum()
     {
         var modelText = """

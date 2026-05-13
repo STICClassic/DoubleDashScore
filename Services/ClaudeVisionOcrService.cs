@@ -9,7 +9,7 @@ namespace DoubleDashScore.Services;
 public sealed class ClaudeVisionOcrService : IOcrService
 {
     private const string ApiUrl = "https://api.anthropic.com/v1/messages";
-    private const string Model = "claude-haiku-4-5-20251001";
+    private const string Model = "claude-sonnet-4-6";
     private const string AnthropicVersion = "2023-06-01";
 
     private readonly HttpClient _http;
@@ -198,12 +198,18 @@ public sealed class ClaudeVisionOcrService : IOcrService
                 if (!slotEl.TryGetInt32(out var slot)) continue;
                 if (slot < 1 || slot > 4) continue;
 
+                var first = ReadCount(playerElement, "first");
+                var second = ReadCount(playerElement, "second");
+                var third = ReadCount(playerElement, "third");
+                var fourth = ReadCount(playerElement, "fourth");
+
+                if (first.IsUncertain) warnings.Add($"P{slot} 1:a: osäker avläsning — verifiera manuellt.");
+                if (second.IsUncertain) warnings.Add($"P{slot} 2:a: osäker avläsning — verifiera manuellt.");
+                if (third.IsUncertain) warnings.Add($"P{slot} 3:e: osäker avläsning — verifiera manuellt.");
+                if (fourth.IsUncertain) warnings.Add($"P{slot} 4:e: osäker avläsning — verifiera manuellt.");
+
                 slots[slot - 1] = new PlayerSlotCounters(
-                    slot - 1,
-                    ReadIntOrZero(playerElement, "first"),
-                    ReadIntOrZero(playerElement, "second"),
-                    ReadIntOrZero(playerElement, "third"),
-                    ReadIntOrZero(playerElement, "fourth"));
+                    slot - 1, first.Value, second.Value, third.Value, fourth.Value);
             }
 
             for (int i = 0; i < 4; i++)
@@ -246,7 +252,17 @@ public sealed class ClaudeVisionOcrService : IOcrService
     {
         if (!obj.TryGetProperty(property, out var el)) return 0;
         if (el.ValueKind != JsonValueKind.Number) return 0;
-        return el.TryGetInt32(out var v) ? v : 0;
+        if (!el.TryGetInt32(out var v)) return 0;
+        return v < 0 ? 0 : v;
+    }
+
+    private static (int Value, bool IsUncertain) ReadCount(JsonElement obj, string property)
+    {
+        if (!obj.TryGetProperty(property, out var el)) return (0, false);
+        if (el.ValueKind != JsonValueKind.Number) return (0, false);
+        if (!el.TryGetInt32(out var v)) return (0, false);
+        if (v < 0) return (0, true);
+        return (v, false);
     }
 
     private static string StripCodeFence(string text)
@@ -268,33 +284,43 @@ public sealed class ClaudeVisionOcrService : IOcrService
     }
 
     private const string PromptText = """
-Du är en OCR-assistent för Mario Kart Double Dash. Bilden visar spelets poängtavla efter en omgång (Grand Prix-resultat). Poängtavlan har fyra spelarrutor (P1, P2, P3, P4) — antingen sida vid sida eller staplade vertikalt beroende på hur bilden är vriden. Identifiera spelaretiketterna (P1/P2/P3/P4) på bilden för att bestämma orienteringen.
+You are an OCR assistant for a Mario Kart Double Dash scoreboard. The image shows the Grand Prix results screen after a round, with four player boxes (P1, P2, P3, P4) — arranged either side-by-side or stacked vertically depending on the photo orientation. Identify the player boxes by their "P1"/"P2"/"P3"/"P4" labels.
 
-Varje spelarruta visar:
-- Spelar-ID (P1/P2/P3/P4)
-- Två karaktärsikoner
-- Fyra siffror som representerar antal banor spelaren kom 1:a, 2:a, 3:e respektive 4:e på.
+Each player box shows:
+- Player ID (P1/P2/P3/P4)
+- Two character icons
+- Four counters: how many tracks the player finished in 1st, 2nd, 3rd, and 4th place during the round.
 
-Siffrorna är vanligtvis tvåsiffriga med ledande nolla (t.ex. "06" = 6).
+CRITICAL INSTRUCTIONS — READ CAREFULLY:
 
-Returnera STRIKT JSON i exakt detta format. Inga kodblock, inga kommentarer, ingen text före eller efter:
+1. READ EACH CELL INDEPENDENTLY. Do not adjust numbers to make column sums consistent. If you see "01" in P2 row 3 but it makes P2's total unusual, report 1 with a warning. Never modify a digit to fit an expected total. Honesty per cell beats consistency across cells.
+
+2. NUMBERS ARE 2-DIGIT WITH LEADING ZERO (01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16). Report them as integers without the leading zero (01 → 1, 12 → 12). Do NOT report 0 unless the cell shows "00".
+
+3. FOR EACH CELL WHERE YOU ARE UNCERTAIN: set the value to -1 (NOT 0, NOT a guess) and add a warning string identifying the cell. Example: "P2 3rd: uncertain, looks like 1 or 4". Do NOT guess to maintain column consistency. -1 is the signal that means "I cannot read this confidently".
+
+4. COMMON CONFUSIONS IN THIS FONT — look carefully at these pairs:
+   - 1 vs 4 (the "1" has a curved/looped top in this stylised font)
+   - 1 vs 7
+   - 3 vs 5
+   - 6 vs 8
+
+Return STRICT JSON in exactly this format. No code fences, no commentary, no text before or after:
 
 {
   "players": [
-    {"slot": 1, "first": <antal 1:or>, "second": <antal 2:or>, "third": <antal 3:or>, "fourth": <antal 4:or>},
+    {"slot": 1, "first": <count or -1>, "second": <count or -1>, "third": <count or -1>, "fourth": <count or -1>},
     {"slot": 2, "first": ..., "second": ..., "third": ..., "fourth": ...},
     {"slot": 3, "first": ..., "second": ..., "third": ..., "fourth": ...},
     {"slot": 4, "first": ..., "second": ..., "third": ..., "fourth": ...}
   ],
-  "total_tracks": <summan av räknarna per spelare, vanligtvis 16>,
-  "warnings": [<svenska strängar med eventuella problem>]
+  "total_tracks": <usually 16; set to most common per-player sum if confident>,
+  "warnings": [<short strings identifying any uncertain cells or other issues>]
 }
 
-Regler:
+Rules:
 - slot 1 = P1, slot 2 = P2, slot 3 = P3, slot 4 = P4.
-- Om en siffra inte syns tydligt: returnera 0 och lägg till en varning som beskriver vilken slot och plats det gällde.
-- Om bilden inte verkar vara en Mario Kart Double Dash-poängtavla: returnera räknare på 0 och en varning som förklarar.
-- Varje spelares summa (first+second+third+fourth) bör vara samma; sätt total_tracks till den summan. Om summorna skiljer sig: rapportera det i warnings men sätt total_tracks till det vanligaste värdet.
-- Returnera bara JSON — ingenting annat.
+- If the image is not a Mario Kart Double Dash scoreboard: return all values as 0 and add a warning.
+- Return JSON only. Nothing else.
 """;
 }
