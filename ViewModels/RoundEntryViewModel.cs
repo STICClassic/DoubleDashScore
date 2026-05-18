@@ -1,6 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
-using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Data;
@@ -52,10 +50,6 @@ public partial class RoundEntryViewModel : ObservableObject
     private bool _suppressDirtyTracking;
     private bool _trackCountManuallyEdited;
 
-    private static int _loadAsyncCallCount;
-    private static int _onColumnChangedCallCount;
-    private static int _liveColumnHandlerCount;
-
     private static readonly HashSet<string> IgnoredCellProperties = new()
     {
         nameof(PlayerColumnViewModel.FirstPlaceHasError),
@@ -81,16 +75,11 @@ public partial class RoundEntryViewModel : ObservableObject
 
     public async Task LoadAsync(CancellationToken ct = default)
     {
-        var callId = Interlocked.Increment(ref _loadAsyncCallCount);
-        var sw = Stopwatch.StartNew();
-        Debug.WriteLine($"[LoadAsync #{callId}] START handlers-live={_liveColumnHandlerCount}");
-
         IsBusy = true;
         _suppressDirtyTracking = true;
         try
         {
             var activePlayers = await _playersRepo.GetActivePlayersAsync(ct).ConfigureAwait(true);
-            Debug.WriteLine($"[LoadAsync #{callId}] t={sw.ElapsedMilliseconds}ms got {activePlayers.Count} players from DB");
             if (activePlayers.Count != 4)
             {
                 ValidationMessage = $"Förväntade 4 aktiva spelare, hittade {activePlayers.Count}.";
@@ -129,18 +118,11 @@ public partial class RoundEntryViewModel : ObservableObject
 
             DetachColumnHandlers();
             Players = newPlayers;
-            Debug.WriteLine($"[LoadAsync #{callId}] t={sw.ElapsedMilliseconds}ms swapped Players (no handlers yet)");
 
-            foreach (var col in Players)
-            {
-                col.PropertyChanged += OnColumnChanged;
-                Interlocked.Increment(ref _liveColumnHandlerCount);
-            }
-            Debug.WriteLine($"[LoadAsync #{callId}] t={sw.ElapsedMilliseconds}ms attached handlers, handlers-live={_liveColumnHandlerCount}");
+            foreach (var col in Players) col.PropertyChanged += OnColumnChanged;
 
             UpdateValidation();
             UpdateErrorCells();
-            Debug.WriteLine($"[LoadAsync #{callId}] t={sw.ElapsedMilliseconds}ms final validation/error-cells done");
         }
         finally
         {
@@ -149,37 +131,20 @@ public partial class RoundEntryViewModel : ObservableObject
             HasUnsavedChanges = false;
             ShowErrors = false;
             IsBusy = false;
-            Debug.WriteLine($"[LoadAsync #{callId}] DONE t={sw.ElapsedMilliseconds}ms");
-
-            var dispatcher = Application.Current?.Dispatcher;
-            dispatcher?.Dispatch(() =>
-                Debug.WriteLine($"[LoadAsync #{callId}] POST-FRAME t={sw.ElapsedMilliseconds}ms (UI loop free)"));
         }
     }
 
     private void DetachColumnHandlers()
     {
-        foreach (var p in Players)
-        {
-            p.PropertyChanged -= OnColumnChanged;
-            Interlocked.Decrement(ref _liveColumnHandlerCount);
-        }
+        foreach (var p in Players) p.PropertyChanged -= OnColumnChanged;
     }
 
-    public void Cleanup()
-    {
-        Debug.WriteLine($"[Cleanup] before: handlers-live={_liveColumnHandlerCount}");
-        DetachColumnHandlers();
-        Debug.WriteLine($"[Cleanup] after: handlers-live={_liveColumnHandlerCount}");
-    }
+    public void Cleanup() => DetachColumnHandlers();
 
     private void OnColumnChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is null || IgnoredCellProperties.Contains(e.PropertyName)) return;
         if (_suppressDirtyTracking) return;
-
-        var callId = Interlocked.Increment(ref _onColumnChangedCallCount);
-        Debug.WriteLine($"[OnColumnChanged #{callId}] property={e.PropertyName}");
 
         HasUnsavedChanges = true;
         if (ReferenceEquals(sender, Players.FirstOrDefault()))
