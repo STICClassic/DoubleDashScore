@@ -68,6 +68,14 @@ public partial class OcrPreviewViewModel : ObservableObject
     private bool _suppressDirtyTracking;
     private bool _trackCountManuallyEdited;
 
+    private static readonly HashSet<string> IgnoredCellProperties = new()
+    {
+        nameof(PlayerColumnViewModel.FirstPlaceHasError),
+        nameof(PlayerColumnViewModel.SecondPlaceHasError),
+        nameof(PlayerColumnViewModel.ThirdPlaceHasError),
+        nameof(PlayerColumnViewModel.FourthPlaceHasError),
+    };
+
     public bool IsValid
     {
         get
@@ -150,8 +158,12 @@ public partial class OcrPreviewViewModel : ObservableObject
         foreach (var p in Players) p.PropertyChanged -= OnColumnChanged;
     }
 
+    public void Cleanup() => DetachColumnHandlers();
+
     private void OnColumnChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is null || IgnoredCellProperties.Contains(e.PropertyName)) return;
+
         if (!_suppressDirtyTracking)
         {
             HasUnsavedChanges = true;

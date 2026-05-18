@@ -19,6 +19,12 @@ public partial class RoundEntryPage : ContentPage
         await _vm.LoadAsync();
     }
 
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _vm.Cleanup();
+    }
+
     protected override bool OnBackButtonPressed()
     {
         _ = HandleBackAsync();

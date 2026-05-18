@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Data;
@@ -50,6 +52,18 @@ public partial class RoundEntryViewModel : ObservableObject
     private bool _suppressDirtyTracking;
     private bool _trackCountManuallyEdited;
 
+    private static int _loadAsyncCallCount;
+    private static int _onColumnChangedCallCount;
+    private static int _liveColumnHandlerCount;
+
+    private static readonly HashSet<string> IgnoredCellProperties = new()
+    {
+        nameof(PlayerColumnViewModel.FirstPlaceHasError),
+        nameof(PlayerColumnViewModel.SecondPlaceHasError),
+        nameof(PlayerColumnViewModel.ThirdPlaceHasError),
+        nameof(PlayerColumnViewModel.FourthPlaceHasError),
+    };
+
     [ObservableProperty]
     private IReadOnlyList<PlayerColumnViewModel> _players = Array.Empty<PlayerColumnViewModel>();
 
@@ -67,11 +81,16 @@ public partial class RoundEntryViewModel : ObservableObject
 
     public async Task LoadAsync(CancellationToken ct = default)
     {
+        var callId = Interlocked.Increment(ref _loadAsyncCallCount);
+        var sw = Stopwatch.StartNew();
+        Debug.WriteLine($"[LoadAsync #{callId}] START handlers-live={_liveColumnHandlerCount}");
+
         IsBusy = true;
         _suppressDirtyTracking = true;
         try
         {
             var activePlayers = await _playersRepo.GetActivePlayersAsync(ct).ConfigureAwait(true);
+            Debug.WriteLine($"[LoadAsync #{callId}] t={sw.ElapsedMilliseconds}ms got {activePlayers.Count} players from DB");
             if (activePlayers.Count != 4)
             {
                 ValidationMessage = $"Förväntade 4 aktiva spelare, hittade {activePlayers.Count}.";
@@ -106,11 +125,13 @@ public partial class RoundEntryViewModel : ObservableObject
                     FourthPlacesText = existingForPlayer?.FourthPlaces.ToString() ?? "0",
                 };
                 col.PropertyChanged += OnColumnChanged;
+                Interlocked.Increment(ref _liveColumnHandlerCount);
                 newPlayers.Add(col);
             }
 
             DetachColumnHandlers();
             Players = newPlayers;
+            Debug.WriteLine($"[LoadAsync #{callId}] t={sw.ElapsedMilliseconds}ms built+attached new Players, handlers-live={_liveColumnHandlerCount}");
 
             UpdateValidation();
         }
@@ -121,6 +142,7 @@ public partial class RoundEntryViewModel : ObservableObject
             HasUnsavedChanges = false;
             ShowErrors = false;
             IsBusy = false;
+            Debug.WriteLine($"[LoadAsync #{callId}] DONE t={sw.ElapsedMilliseconds}ms");
         }
     }
 
@@ -129,11 +151,24 @@ public partial class RoundEntryViewModel : ObservableObject
         foreach (var p in Players)
         {
             p.PropertyChanged -= OnColumnChanged;
+            Interlocked.Decrement(ref _liveColumnHandlerCount);
         }
+    }
+
+    public void Cleanup()
+    {
+        Debug.WriteLine($"[Cleanup] before: handlers-live={_liveColumnHandlerCount}");
+        DetachColumnHandlers();
+        Debug.WriteLine($"[Cleanup] after: handlers-live={_liveColumnHandlerCount}");
     }
 
     private void OnColumnChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is null || IgnoredCellProperties.Contains(e.PropertyName)) return;
+
+        var callId = Interlocked.Increment(ref _onColumnChangedCallCount);
+        Debug.WriteLine($"[OnColumnChanged #{callId}] property={e.PropertyName} suppressed={_suppressDirtyTracking}");
+
         if (!_suppressDirtyTracking)
         {
             HasUnsavedChanges = true;
