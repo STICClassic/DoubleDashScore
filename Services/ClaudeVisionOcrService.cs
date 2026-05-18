@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using DoubleDashScore.Models;
 
 namespace DoubleDashScore.Services;
@@ -9,18 +8,19 @@ namespace DoubleDashScore.Services;
 public sealed class ClaudeVisionOcrService : IOcrService
 {
     private const string ApiUrl = "https://api.anthropic.com/v1/messages";
+
+    // Verifierad vid Skiva 5-leverans (2026-05). Vision-kvaliteten på poängtavlan
+    // är god nog med Sonnet 4.6. Uppdatera först efter manuell test mot bilderna.
     private const string Model = "claude-sonnet-4-6";
     private const string AnthropicVersion = "2023-06-01";
 
     private readonly HttpClient _http;
     private readonly IApiKeyStore _keys;
-    private readonly IOcrDiagnosticsSink _diag;
 
-    public ClaudeVisionOcrService(HttpClient http, IApiKeyStore keys, IOcrDiagnosticsSink diag)
+    public ClaudeVisionOcrService(HttpClient http, IApiKeyStore keys)
     {
         _http = http;
         _keys = keys;
-        _diag = diag;
     }
 
     public async Task<ParsedCounters> RecognizeAsync(Stream image, CancellationToken ct = default)
@@ -84,9 +84,6 @@ public sealed class ClaudeVisionOcrService : IOcrService
         }
 
         var bodyText = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss-fff");
-        SaveDebug($"api-{timestamp}-response.txt",
-            $"HTTP {(int)response.StatusCode} {response.StatusCode}\n\n{bodyText}");
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
@@ -101,29 +98,7 @@ public sealed class ClaudeVisionOcrService : IOcrService
             throw new InvalidOperationException($"API-fel ({(int)response.StatusCode}). Försök igen.");
         }
 
-        ParsedCounters parsed;
-        try
-        {
-            parsed = ParseApiResponse(bodyText);
-        }
-        catch (Exception parseEx)
-        {
-            SaveDebug($"api-{timestamp}-parse-error.txt",
-                $"{parseEx.GetType().Name}: {parseEx.Message}");
-            throw;
-        }
-
-        SaveDebug($"api-{timestamp}-parsed.json",
-            JsonSerializer.Serialize(parsed, new JsonSerializerOptions { WriteIndented = true }));
-        return parsed;
-    }
-
-    private static readonly Regex ApiKeyPattern = new(@"sk-ant-[A-Za-z0-9_\-]+", RegexOptions.Compiled);
-
-    private void SaveDebug(string filename, string content)
-    {
-        var redacted = ApiKeyPattern.Replace(content, "sk-ant-REDACTED");
-        _diag.Save(filename, redacted);
+        return ParseApiResponse(bodyText);
     }
 
     internal static ParsedCounters ParseApiResponse(string apiBody)
