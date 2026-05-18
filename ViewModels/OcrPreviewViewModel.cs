@@ -126,12 +126,13 @@ public partial class OcrPreviewViewModel : ObservableObject
                     ThirdPlacesText = slot.ThirdPlaces.ToString(),
                     FourthPlacesText = slot.FourthPlaces.ToString(),
                 };
-                col.PropertyChanged += OnColumnChanged;
                 newPlayers.Add(col);
             }
 
             DetachColumnHandlers();
             Players = newPlayers;
+
+            foreach (var col in Players) col.PropertyChanged += OnColumnChanged;
 
             TrackCountText = parsed.InferredTrackCount > 0
                 ? parsed.InferredTrackCount.ToString()
@@ -142,6 +143,7 @@ public partial class OcrPreviewViewModel : ObservableObject
                 : $"Förifyllt från foto ({parsed.Warnings.Count} varning{(parsed.Warnings.Count == 1 ? "" : "ar")}): {string.Join(" ", parsed.Warnings)}";
 
             UpdateValidation();
+            UpdateErrorCells();
         }
         finally
         {
@@ -163,20 +165,16 @@ public partial class OcrPreviewViewModel : ObservableObject
     private void OnColumnChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is null || IgnoredCellProperties.Contains(e.PropertyName)) return;
+        if (_suppressDirtyTracking) return;
 
-        if (!_suppressDirtyTracking)
+        HasUnsavedChanges = true;
+        if (ReferenceEquals(sender, Players.FirstOrDefault()))
         {
-            HasUnsavedChanges = true;
-            if (ReferenceEquals(sender, Players.FirstOrDefault()))
-            {
-                AutoUpdateTrackCount();
-            }
+            AutoUpdateTrackCount();
         }
         UpdateValidation();
         UpdateErrorCells();
     }
-
-    partial void OnShowErrorsChanged(bool value) => UpdateErrorCells();
 
     private void AutoUpdateTrackCount()
     {
@@ -236,25 +234,26 @@ public partial class OcrPreviewViewModel : ObservableObject
 
     partial void OnTrackCountTextChanged(string value)
     {
-        if (!_suppressDirtyTracking)
-        {
-            _trackCountManuallyEdited = true;
-            HasUnsavedChanges = true;
-        }
+        if (_suppressDirtyTracking) return;
+        _trackCountManuallyEdited = true;
+        HasUnsavedChanges = true;
         UpdateValidation();
         UpdateErrorCells();
     }
 
-    private void MarkSelectionDirty()
+    partial void OnShowErrorsChanged(bool value) => UpdateErrorCells();
+
+    private void OnPickerSelectionChanged()
     {
         if (_suppressDirtyTracking) return;
         HasUnsavedChanges = true;
+        UpdateValidation();
     }
 
-    partial void OnSelectedPlayer0Changed(Player? value) { UpdateValidation(); MarkSelectionDirty(); }
-    partial void OnSelectedPlayer1Changed(Player? value) { UpdateValidation(); MarkSelectionDirty(); }
-    partial void OnSelectedPlayer2Changed(Player? value) { UpdateValidation(); MarkSelectionDirty(); }
-    partial void OnSelectedPlayer3Changed(Player? value) { UpdateValidation(); MarkSelectionDirty(); }
+    partial void OnSelectedPlayer0Changed(Player? value) => OnPickerSelectionChanged();
+    partial void OnSelectedPlayer1Changed(Player? value) => OnPickerSelectionChanged();
+    partial void OnSelectedPlayer2Changed(Player? value) => OnPickerSelectionChanged();
+    partial void OnSelectedPlayer3Changed(Player? value) => OnPickerSelectionChanged();
 
     private IReadOnlyList<Player?> CurrentSelections() =>
         new[] { SelectedPlayer0, SelectedPlayer1, SelectedPlayer2, SelectedPlayer3 };

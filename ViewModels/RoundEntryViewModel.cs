@@ -124,16 +124,23 @@ public partial class RoundEntryViewModel : ObservableObject
                     ThirdPlacesText = existingForPlayer?.ThirdPlaces.ToString() ?? "0",
                     FourthPlacesText = existingForPlayer?.FourthPlaces.ToString() ?? "0",
                 };
-                col.PropertyChanged += OnColumnChanged;
-                Interlocked.Increment(ref _liveColumnHandlerCount);
                 newPlayers.Add(col);
             }
 
             DetachColumnHandlers();
             Players = newPlayers;
-            Debug.WriteLine($"[LoadAsync #{callId}] t={sw.ElapsedMilliseconds}ms built+attached new Players, handlers-live={_liveColumnHandlerCount}");
+            Debug.WriteLine($"[LoadAsync #{callId}] t={sw.ElapsedMilliseconds}ms swapped Players (no handlers yet)");
+
+            foreach (var col in Players)
+            {
+                col.PropertyChanged += OnColumnChanged;
+                Interlocked.Increment(ref _liveColumnHandlerCount);
+            }
+            Debug.WriteLine($"[LoadAsync #{callId}] t={sw.ElapsedMilliseconds}ms attached handlers, handlers-live={_liveColumnHandlerCount}");
 
             UpdateValidation();
+            UpdateErrorCells();
+            Debug.WriteLine($"[LoadAsync #{callId}] t={sw.ElapsedMilliseconds}ms final validation/error-cells done");
         }
         finally
         {
@@ -143,6 +150,10 @@ public partial class RoundEntryViewModel : ObservableObject
             ShowErrors = false;
             IsBusy = false;
             Debug.WriteLine($"[LoadAsync #{callId}] DONE t={sw.ElapsedMilliseconds}ms");
+
+            var dispatcher = Application.Current?.Dispatcher;
+            dispatcher?.Dispatch(() =>
+                Debug.WriteLine($"[LoadAsync #{callId}] POST-FRAME t={sw.ElapsedMilliseconds}ms (UI loop free)"));
         }
     }
 
@@ -165,17 +176,15 @@ public partial class RoundEntryViewModel : ObservableObject
     private void OnColumnChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is null || IgnoredCellProperties.Contains(e.PropertyName)) return;
+        if (_suppressDirtyTracking) return;
 
         var callId = Interlocked.Increment(ref _onColumnChangedCallCount);
-        Debug.WriteLine($"[OnColumnChanged #{callId}] property={e.PropertyName} suppressed={_suppressDirtyTracking}");
+        Debug.WriteLine($"[OnColumnChanged #{callId}] property={e.PropertyName}");
 
-        if (!_suppressDirtyTracking)
+        HasUnsavedChanges = true;
+        if (ReferenceEquals(sender, Players.FirstOrDefault()))
         {
-            HasUnsavedChanges = true;
-            if (ReferenceEquals(sender, Players.FirstOrDefault()))
-            {
-                AutoUpdateTrackCount();
-            }
+            AutoUpdateTrackCount();
         }
         UpdateValidation();
         UpdateErrorCells();
@@ -183,11 +192,9 @@ public partial class RoundEntryViewModel : ObservableObject
 
     partial void OnTrackCountTextChanged(string value)
     {
-        if (!_suppressDirtyTracking)
-        {
-            _trackCountManuallyEdited = true;
-            HasUnsavedChanges = true;
-        }
+        if (_suppressDirtyTracking) return;
+        _trackCountManuallyEdited = true;
+        HasUnsavedChanges = true;
         UpdateValidation();
         UpdateErrorCells();
     }
