@@ -1,42 +1,60 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Data;
+using DoubleDashScore.Models;
 using DoubleDashScore.Services;
 
 namespace DoubleDashScore.ViewModels;
 
-[QueryProperty(nameof(GameNightId), "gameNightId")]
-[QueryProperty(nameof(RoundId), "roundId")]
-public partial class RoundEntryViewModel : ObservableObject
+public partial class OcrPreviewViewModel : ObservableObject
 {
     private readonly PlayerRepository _playersRepo;
     private readonly RoundRepository _rounds;
+    private readonly OcrFlowContext _context;
 
-    public RoundEntryViewModel(PlayerRepository players, RoundRepository rounds)
+    public OcrPreviewViewModel(
+        PlayerRepository players,
+        RoundRepository rounds,
+        OcrFlowContext context)
     {
         _playersRepo = players;
         _rounds = rounds;
-        TrackCountText = "16";
+        _context = context;
     }
 
     [ObservableProperty]
-    private int _gameNightId;
+    private IReadOnlyList<PlayerColumnViewModel> _players = Array.Empty<PlayerColumnViewModel>();
+
+    public ObservableCollection<Player> AvailablePlayers { get; } = new();
 
     [ObservableProperty]
-    private int _roundId;
-
-    [ObservableProperty]
-    private string _title = "Ny omgång";
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TrackCountValue))]
     [NotifyPropertyChangedFor(nameof(IsValid))]
     [NotifyPropertyChangedFor(nameof(ValidationMessage))]
     private string _trackCountText = "16";
 
     [ObservableProperty]
     private string _validationMessage = string.Empty;
+
+    [ObservableProperty]
+    private string _warningsBanner = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsValid))]
+    private Player? _selectedPlayer0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsValid))]
+    private Player? _selectedPlayer1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsValid))]
+    private Player? _selectedPlayer2;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsValid))]
+    private Player? _selectedPlayer3;
 
     [ObservableProperty]
     private bool _isBusy;
@@ -58,18 +76,13 @@ public partial class RoundEntryViewModel : ObservableObject
         nameof(PlayerColumnViewModel.FourthPlaceHasError),
     };
 
-    [ObservableProperty]
-    private IReadOnlyList<PlayerColumnViewModel> _players = Array.Empty<PlayerColumnViewModel>();
-
-    public int TrackCountValue =>
-        int.TryParse(TrackCountText, out var v) ? v : -1;
-
     public bool IsValid
     {
         get
         {
-            var (ok, _) = RoundMatrixValidator.Validate(Players, TrackCountText);
-            return ok;
+            var (matrixOk, _) = RoundMatrixValidator.Validate(Players, TrackCountText);
+            var (mapOk, _) = MappingValidator.Validate(CurrentSelections());
+            return matrixOk && mapOk;
         }
     }
 
@@ -79,39 +92,39 @@ public partial class RoundEntryViewModel : ObservableObject
         _suppressDirtyTracking = true;
         try
         {
-            var activePlayers = await _playersRepo.GetActivePlayersAsync(ct).ConfigureAwait(true);
-            if (activePlayers.Count != 4)
+            AvailablePlayers.Clear();
+
+            var active = await _playersRepo.GetActivePlayersAsync(ct).ConfigureAwait(true);
+            if (active.Count != 4)
             {
-                ValidationMessage = $"Förväntade 4 aktiva spelare, hittade {activePlayers.Count}.";
+                ValidationMessage = $"Förväntade 4 aktiva spelare, hittade {active.Count}.";
+                return;
+            }
+            foreach (var p in active) AvailablePlayers.Add(p);
+
+            var parsed = _context.Pending;
+            if (parsed is null)
+            {
+                ValidationMessage = "Inga OCR-data att förhandsgranska.";
                 return;
             }
 
-            RoundDetail? existing = null;
-            if (RoundId > 0)
-            {
-                existing = await _rounds.GetRoundAsync(RoundId, ct).ConfigureAwait(true);
-                if (existing is not null)
-                {
-                    Title = $"Redigera omgång {existing.Round.RoundNumber}";
-                    TrackCountText = existing.Round.TrackCount.ToString();
-                }
-            }
-            else
-            {
-                Title = "Ny omgång";
-                TrackCountText = "16";
-            }
+            var defaultMapping = PlayerSlotMapper.Map(active);
+            SelectedPlayer0 = defaultMapping[0];
+            SelectedPlayer1 = defaultMapping[1];
+            SelectedPlayer2 = defaultMapping[2];
+            SelectedPlayer3 = defaultMapping[3];
 
             var newPlayers = new List<PlayerColumnViewModel>(4);
-            foreach (var p in activePlayers)
+            for (int i = 0; i < 4; i++)
             {
-                var existingForPlayer = existing?.Results.FirstOrDefault(rr => rr.PlayerId == p.Id);
-                var col = new PlayerColumnViewModel(p.Id, p.Name)
+                var slot = parsed.Slots[i];
+                var col = new PlayerColumnViewModel(0, $"P{i + 1}")
                 {
-                    FirstPlacesText = existingForPlayer?.FirstPlaces.ToString() ?? "0",
-                    SecondPlacesText = existingForPlayer?.SecondPlaces.ToString() ?? "0",
-                    ThirdPlacesText = existingForPlayer?.ThirdPlaces.ToString() ?? "0",
-                    FourthPlacesText = existingForPlayer?.FourthPlaces.ToString() ?? "0",
+                    FirstPlacesText = slot.FirstPlaces.ToString(),
+                    SecondPlacesText = slot.SecondPlaces.ToString(),
+                    ThirdPlacesText = slot.ThirdPlaces.ToString(),
+                    FourthPlacesText = slot.FourthPlaces.ToString(),
                 };
                 newPlayers.Add(col);
             }
@@ -121,6 +134,14 @@ public partial class RoundEntryViewModel : ObservableObject
 
             foreach (var col in Players) col.PropertyChanged += OnColumnChanged;
 
+            TrackCountText = parsed.InferredTrackCount > 0
+                ? parsed.InferredTrackCount.ToString()
+                : "16";
+
+            WarningsBanner = parsed.Warnings.Count == 0
+                ? "Förifyllt från foto."
+                : $"Förifyllt från foto ({parsed.Warnings.Count} varning{(parsed.Warnings.Count == 1 ? "" : "ar")}): {string.Join(" ", parsed.Warnings)}";
+
             UpdateValidation();
             UpdateErrorCells();
         }
@@ -128,9 +149,9 @@ public partial class RoundEntryViewModel : ObservableObject
         {
             _suppressDirtyTracking = false;
             _trackCountManuallyEdited = false;
-            HasUnsavedChanges = false;
             ShowErrors = false;
             IsBusy = false;
+            HasUnsavedChanges = true;
         }
     }
 
@@ -155,17 +176,6 @@ public partial class RoundEntryViewModel : ObservableObject
         UpdateErrorCells();
     }
 
-    partial void OnTrackCountTextChanged(string value)
-    {
-        if (_suppressDirtyTracking) return;
-        _trackCountManuallyEdited = true;
-        HasUnsavedChanges = true;
-        UpdateValidation();
-        UpdateErrorCells();
-    }
-
-    partial void OnShowErrorsChanged(bool value) => UpdateErrorCells();
-
     private void AutoUpdateTrackCount()
     {
         if (_trackCountManuallyEdited) return;
@@ -187,8 +197,9 @@ public partial class RoundEntryViewModel : ObservableObject
 
     private void UpdateValidation()
     {
-        var (_, message) = RoundMatrixValidator.Validate(Players, TrackCountText);
-        ValidationMessage = message;
+        var (_, matrixMsg) = RoundMatrixValidator.Validate(Players, TrackCountText);
+        var (mapOk, mapMsg) = MappingValidator.Validate(CurrentSelections());
+        ValidationMessage = mapOk ? matrixMsg : $"{mapMsg}  {matrixMsg}";
         OnPropertyChanged(nameof(IsValid));
         SaveCommand.NotifyCanExecuteChanged();
     }
@@ -221,6 +232,32 @@ public partial class RoundEntryViewModel : ObservableObject
         }
     }
 
+    partial void OnTrackCountTextChanged(string value)
+    {
+        if (_suppressDirtyTracking) return;
+        _trackCountManuallyEdited = true;
+        HasUnsavedChanges = true;
+        UpdateValidation();
+        UpdateErrorCells();
+    }
+
+    partial void OnShowErrorsChanged(bool value) => UpdateErrorCells();
+
+    private void OnPickerSelectionChanged()
+    {
+        if (_suppressDirtyTracking) return;
+        HasUnsavedChanges = true;
+        UpdateValidation();
+    }
+
+    partial void OnSelectedPlayer0Changed(Player? value) => OnPickerSelectionChanged();
+    partial void OnSelectedPlayer1Changed(Player? value) => OnPickerSelectionChanged();
+    partial void OnSelectedPlayer2Changed(Player? value) => OnPickerSelectionChanged();
+    partial void OnSelectedPlayer3Changed(Player? value) => OnPickerSelectionChanged();
+
+    private IReadOnlyList<Player?> CurrentSelections() =>
+        new[] { SelectedPlayer0, SelectedPlayer1, SelectedPlayer2, SelectedPlayer3 };
+
     [RelayCommand]
     private async Task SaveAsync()
     {
@@ -229,24 +266,24 @@ public partial class RoundEntryViewModel : ObservableObject
             ShowErrors = true;
             return;
         }
-        var trackCount = TrackCountValue;
-        var inputs = Players.Select(p =>
+        var selections = CurrentSelections();
+        var trackCount = int.Parse(TrackCountText);
+        var inputs = new List<RoundResultInput>(4);
+        for (int i = 0; i < 4; i++)
         {
-            p.TryGetCounts(out var c);
-            return new RoundResultInput(p.PlayerId, c.first, c.second, c.third, c.fourth);
-        }).ToList();
+            Players[i].TryGetCounts(out var c);
+            inputs.Add(new RoundResultInput(selections[i]!.Id, c.first, c.second, c.third, c.fourth));
+        }
 
         IsBusy = true;
         try
         {
-            if (RoundId > 0)
-            {
-                await _rounds.UpdateRoundAsync(RoundId, trackCount, inputs).ConfigureAwait(true);
-            }
-            else
-            {
-                await _rounds.CreateRoundAsync(GameNightId, trackCount, inputs).ConfigureAwait(true);
-            }
+            await _rounds.CreateRoundAsync(
+                _context.GameNightId,
+                trackCount,
+                inputs,
+                photoPath: _context.PhotoPath).ConfigureAwait(true);
+            _context.Clear();
             HasUnsavedChanges = false;
             await Shell.Current.GoToAsync("..").ConfigureAwait(true);
         }
@@ -270,6 +307,7 @@ public partial class RoundEntryViewModel : ObservableObject
     public async Task TryNavigateBackAsync()
     {
         if (!await ConfirmDiscardAsync().ConfigureAwait(true)) return;
+        _context.Clear();
         await Shell.Current.GoToAsync("..").ConfigureAwait(true);
     }
 

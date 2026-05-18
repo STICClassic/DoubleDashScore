@@ -7,6 +7,10 @@
              x:DataType="vm:RoundEntryViewModel"
              Title="{Binding Title}">
 
+    <Shell.BackButtonBehavior>
+        <BackButtonBehavior Command="{Binding BackCommand}" />
+    </Shell.BackButtonBehavior>
+
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="14">
 

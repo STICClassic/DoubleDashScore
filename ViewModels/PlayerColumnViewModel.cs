@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using DoubleDashScore.Services;
 
 namespace DoubleDashScore.ViewModels;
 
@@ -24,6 +25,26 @@ public partial class PlayerColumnViewModel : ObservableObject
 
     [ObservableProperty]
     private string _fourthPlacesText = "0";
+
+    [ObservableProperty]
+    private bool _firstPlaceHasError;
+
+    [ObservableProperty]
+    private bool _secondPlaceHasError;
+
+    [ObservableProperty]
+    private bool _thirdPlaceHasError;
+
+    [ObservableProperty]
+    private bool _fourthPlaceHasError;
+
+    public void SetCellErrors(MatrixErrorDetector.CellErrors errors)
+    {
+        FirstPlaceHasError = errors.First;
+        SecondPlaceHasError = errors.Second;
+        ThirdPlaceHasError = errors.Third;
+        FourthPlaceHasError = errors.Fourth;
+    }
 
     public bool TryGetCounts(out (int first, int second, int third, int fourth) counts)
     {

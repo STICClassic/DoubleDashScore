@@ -2,11 +2,11 @@ using DoubleDashScore.ViewModels;
 
 namespace DoubleDashScore.Views;
 
-public partial class RoundEntryPage : ContentPage
+public partial class OcrPreviewPage : ContentPage
 {
-    private readonly RoundEntryViewModel _vm;
+    private readonly OcrPreviewViewModel _vm;
 
-    public RoundEntryPage(RoundEntryViewModel vm)
+    public OcrPreviewPage(OcrPreviewViewModel vm)
     {
         InitializeComponent();
         _vm = vm;

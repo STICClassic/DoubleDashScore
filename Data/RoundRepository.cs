@@ -66,6 +66,7 @@ public class RoundRepository
         int gameNightId,
         int trackCount,
         IReadOnlyList<RoundResultInput> results,
+        string? photoPath = null,
         CancellationToken ct = default)
     {
         ValidateResults(trackCount, results);
@@ -83,6 +84,7 @@ public class RoundRepository
                 RoundNumber = nextRoundNumber,
                 TrackCount = trackCount,
                 CreatedAt = now,
+                PhotoPath = photoPath,
             };
             tx.Insert(round);
             newRoundId = round.Id;

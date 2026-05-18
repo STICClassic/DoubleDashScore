@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             x:Class="DoubleDashScore.Views.ApiKeySettingsPage"
+             x:DataType="vm:ApiKeySettingsViewModel"
+             Title="API-nyckel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="14">
+
+            <Label Text="Anthropic API-nyckel"
+                   FontAttributes="Bold"
+                   FontSize="16" />
+
+            <Label Text="Används för OCR via Claude Vision. Lagras säkert i enhetens nyckelring."
+                   FontSize="13"
+                   Opacity="0.75" />
+
+            <Label Text="Status:" FontAttributes="Bold" Margin="0,12,0,0" />
+            <Label Text="{Binding CurrentStatus}" FontSize="14" />
+
+            <Label Text="Ange nyckel:" FontAttributes="Bold" Margin="0,12,0,0" />
+            <Entry Text="{Binding EntryText, Mode=TwoWay}"
+                   IsPassword="True"
+                   Placeholder="sk-ant-..."
+                   Keyboard="Default" />
+
+            <HorizontalStackLayout Spacing="12" Margin="0,12,0,0">
+                <Button Text="Spara" Command="{Binding SaveCommand}" />
+                <Button Text="Rensa" Command="{Binding ClearCommand}" />
+            </HorizontalStackLayout>
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}"
+                               IsVisible="{Binding IsBusy}"
+                               HorizontalOptions="Center"
+                               Margin="0,12,0,0" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
