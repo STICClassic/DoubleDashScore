@@ -34,6 +34,9 @@ public partial class NightDetailViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
+    [ObservableProperty]
+    private bool _isLoadingOcr;
+
     public ObservableCollection<RoundListItem> Rounds { get; } = new();
 
     public async Task LoadAsync(CancellationToken ct = default)
@@ -78,7 +81,7 @@ public partial class NightDetailViewModel : ObservableObject
     private async Task CapturePhotoAsync()
     {
         if (NightId <= 0) return;
-        await _capture.CapturePhotoAsync(NightId).ConfigureAwait(true);
+        await _capture.CapturePhotoAsync(NightId, isLoading => IsLoadingOcr = isLoading).ConfigureAwait(true);
     }
 
     [RelayCommand]

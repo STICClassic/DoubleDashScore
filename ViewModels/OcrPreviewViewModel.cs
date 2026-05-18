@@ -149,9 +149,9 @@ public partial class OcrPreviewViewModel : ObservableObject
         {
             _suppressDirtyTracking = false;
             _trackCountManuallyEdited = false;
-            HasUnsavedChanges = false;
             ShowErrors = false;
             IsBusy = false;
+            HasUnsavedChanges = true;
         }
     }
 

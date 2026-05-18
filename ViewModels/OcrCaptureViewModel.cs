@@ -24,7 +24,10 @@ public partial class OcrCaptureViewModel : ObservableObject
         _keys = keys;
     }
 
-    public async Task CapturePhotoAsync(int gameNightId, CancellationToken ct = default)
+    public async Task CapturePhotoAsync(
+        int gameNightId,
+        Action<bool>? onOcrLoading = null,
+        CancellationToken ct = default)
     {
         var page = Shell.Current.CurrentPage;
 
@@ -71,8 +74,16 @@ public partial class OcrCaptureViewModel : ObservableObject
         ParsedCounters parsed;
         try
         {
-            await using var stream = File.OpenRead(photoPath);
-            parsed = await _ocr.RecognizeAsync(stream, ct).ConfigureAwait(true);
+            onOcrLoading?.Invoke(true);
+            try
+            {
+                await using var stream = File.OpenRead(photoPath);
+                parsed = await _ocr.RecognizeAsync(stream, ct).ConfigureAwait(true);
+            }
+            finally
+            {
+                onOcrLoading?.Invoke(false);
+            }
         }
         catch (InvalidOperationException ex)
         {

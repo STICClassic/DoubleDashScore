@@ -3,6 +3,7 @@ using DoubleDashScore.Services;
 using DoubleDashScore.ViewModels;
 using DoubleDashScore.Views;
 using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Handlers;
 using OxyPlot.Maui.Skia;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 
@@ -22,6 +23,13 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
+
+#if ANDROID
+        EntryHandler.Mapper.AppendToMapping("SelectAllOnFocus", (handler, _) =>
+        {
+            handler.PlatformView.SetSelectAllOnFocus(true);
+        });
+#endif
 
         builder.Services.AddSingleton<DatabaseService>();
         builder.Services.AddSingleton<PlayerRepository>();

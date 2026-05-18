@@ -13,7 +13,7 @@
                    Text="{Binding TrackCountText, Mode=TwoWay}"
                    Keyboard="Numeric"
                    HorizontalTextAlignment="Center"
-                   Focused="OnEntryFocused" />
+                   />
         </Grid>
 
         <Label Text="Räknare per spelare" FontAttributes="Bold" Margin="0,8,0,0" />
@@ -30,28 +30,28 @@
             <Label Grid.Row="0" Grid.Column="4" Text="{Binding Players[3].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
 
             <Label Grid.Row="1" Grid.Column="0" Text="1:or" VerticalOptions="Center" />
-            <Entry Grid.Row="1" Grid.Column="1" Text="{Binding Players[0].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="1" Grid.Column="1" Text="{Binding Players[0].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[0].FirstPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="1" Grid.Column="2" Text="{Binding Players[1].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="1" Grid.Column="2" Text="{Binding Players[1].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[1].FirstPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="1" Grid.Column="3" Text="{Binding Players[2].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="1" Grid.Column="3" Text="{Binding Players[2].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[2].FirstPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="1" Grid.Column="4" Text="{Binding Players[3].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="1" Grid.Column="4" Text="{Binding Players[3].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[3].FirstPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
@@ -60,28 +60,28 @@
             </Entry>
 
             <Label Grid.Row="2" Grid.Column="0" Text="2:or" VerticalOptions="Center" />
-            <Entry Grid.Row="2" Grid.Column="1" Text="{Binding Players[0].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="2" Grid.Column="1" Text="{Binding Players[0].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[0].SecondPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="2" Grid.Column="2" Text="{Binding Players[1].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="2" Grid.Column="2" Text="{Binding Players[1].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[1].SecondPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="2" Grid.Column="3" Text="{Binding Players[2].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="2" Grid.Column="3" Text="{Binding Players[2].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[2].SecondPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="2" Grid.Column="4" Text="{Binding Players[3].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="2" Grid.Column="4" Text="{Binding Players[3].SecondPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[3].SecondPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
@@ -90,28 +90,28 @@
             </Entry>
 
             <Label Grid.Row="3" Grid.Column="0" Text="3:or" VerticalOptions="Center" />
-            <Entry Grid.Row="3" Grid.Column="1" Text="{Binding Players[0].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="3" Grid.Column="1" Text="{Binding Players[0].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[0].ThirdPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="3" Grid.Column="2" Text="{Binding Players[1].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="3" Grid.Column="2" Text="{Binding Players[1].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[1].ThirdPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="3" Grid.Column="3" Text="{Binding Players[2].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="3" Grid.Column="3" Text="{Binding Players[2].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[2].ThirdPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="3" Grid.Column="4" Text="{Binding Players[3].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="3" Grid.Column="4" Text="{Binding Players[3].ThirdPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[3].ThirdPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
@@ -120,28 +120,28 @@
             </Entry>
 
             <Label Grid.Row="4" Grid.Column="0" Text="4:or" VerticalOptions="Center" />
-            <Entry Grid.Row="4" Grid.Column="1" Text="{Binding Players[0].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="4" Grid.Column="1" Text="{Binding Players[0].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[0].FourthPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="4" Grid.Column="2" Text="{Binding Players[1].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="4" Grid.Column="2" Text="{Binding Players[1].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[1].FourthPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="4" Grid.Column="3" Text="{Binding Players[2].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="4" Grid.Column="3" Text="{Binding Players[2].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[2].FourthPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />
                     </DataTrigger>
                 </Entry.Triggers>
             </Entry>
-            <Entry Grid.Row="4" Grid.Column="4" Text="{Binding Players[3].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center" Focused="OnEntryFocused">
+            <Entry Grid.Row="4" Grid.Column="4" Text="{Binding Players[3].FourthPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
                 <Entry.Triggers>
                     <DataTrigger TargetType="Entry" Binding="{Binding Players[3].FourthPlaceHasError}" Value="True">
                         <Setter Property="BackgroundColor" Value="#FFD4D4" />

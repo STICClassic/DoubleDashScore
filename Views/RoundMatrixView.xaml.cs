@@ -32,14 +32,4 @@ public partial class RoundMatrixView : ContentView
     {
         InitializeComponent();
     }
-
-    private async void OnEntryFocused(object? sender, FocusEventArgs e)
-    {
-        if (sender is not Entry entry) return;
-        if (string.IsNullOrEmpty(entry.Text)) return;
-        await Task.Delay(100).ConfigureAwait(true);
-        if (string.IsNullOrEmpty(entry.Text)) return;
-        entry.CursorPosition = 0;
-        entry.SelectionLength = entry.Text.Length;
-    }
 }
