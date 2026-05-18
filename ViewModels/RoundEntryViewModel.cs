@@ -10,12 +10,12 @@ namespace DoubleDashScore.ViewModels;
 [QueryProperty(nameof(RoundId), "roundId")]
 public partial class RoundEntryViewModel : ObservableObject
 {
-    private readonly PlayerRepository _players;
+    private readonly PlayerRepository _playersRepo;
     private readonly RoundRepository _rounds;
 
     public RoundEntryViewModel(PlayerRepository players, RoundRepository rounds)
     {
-        _players = players;
+        _playersRepo = players;
         _rounds = rounds;
         TrackCountText = "16";
     }
@@ -41,7 +41,8 @@ public partial class RoundEntryViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
-    public List<PlayerColumnViewModel> Players { get; } = new();
+    [ObservableProperty]
+    private IReadOnlyList<PlayerColumnViewModel> _players = Array.Empty<PlayerColumnViewModel>();
 
     public int TrackCountValue =>
         int.TryParse(TrackCountText, out var v) ? v : -1;
@@ -60,10 +61,7 @@ public partial class RoundEntryViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            DetachColumnHandlers();
-            Players.Clear();
-
-            var activePlayers = await _players.GetActivePlayersAsync(ct).ConfigureAwait(true);
+            var activePlayers = await _playersRepo.GetActivePlayersAsync(ct).ConfigureAwait(true);
             if (activePlayers.Count != 4)
             {
                 ValidationMessage = $"Förväntade 4 aktiva spelare, hittade {activePlayers.Count}.";
@@ -86,6 +84,7 @@ public partial class RoundEntryViewModel : ObservableObject
                 TrackCountText = "16";
             }
 
+            var newPlayers = new List<PlayerColumnViewModel>(4);
             foreach (var p in activePlayers)
             {
                 var existingForPlayer = existing?.Results.FirstOrDefault(rr => rr.PlayerId == p.Id);
@@ -97,8 +96,11 @@ public partial class RoundEntryViewModel : ObservableObject
                     FourthPlacesText = existingForPlayer?.FourthPlaces.ToString() ?? "0",
                 };
                 col.PropertyChanged += OnColumnChanged;
-                Players.Add(col);
+                newPlayers.Add(col);
             }
+
+            DetachColumnHandlers();
+            Players = newPlayers;
 
             UpdateValidation();
         }

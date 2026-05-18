@@ -28,7 +28,9 @@ public partial class OcrPreviewViewModel : ObservableObject
         _diag = diag;
     }
 
-    public List<PlayerColumnViewModel> Players { get; } = new();
+    [ObservableProperty]
+    private IReadOnlyList<PlayerColumnViewModel> _players = Array.Empty<PlayerColumnViewModel>();
+
     public ObservableCollection<Player> AvailablePlayers { get; } = new();
 
     [ObservableProperty]
@@ -82,8 +84,6 @@ public partial class OcrPreviewViewModel : ObservableObject
             var dump = new StringBuilder();
             dump.AppendLine($"[OcrPreview LoadAsync @ {DateTime.Now:HH:mm:ss.fff}]");
 
-            DetachColumnHandlers();
-            Players.Clear();
             AvailablePlayers.Clear();
 
             var active = await _playersRepo.GetActivePlayersAsync(ct).ConfigureAwait(true);
@@ -127,6 +127,7 @@ public partial class OcrPreviewViewModel : ObservableObject
             SelectedPlayer2 = defaultMapping[2];
             SelectedPlayer3 = defaultMapping[3];
 
+            var newPlayers = new List<PlayerColumnViewModel>(4);
             for (int i = 0; i < 4; i++)
             {
                 var slot = parsed.Slots[i];
@@ -138,8 +139,11 @@ public partial class OcrPreviewViewModel : ObservableObject
                     FourthPlacesText = slot.FourthPlaces.ToString(),
                 };
                 col.PropertyChanged += OnColumnChanged;
-                Players.Add(col);
+                newPlayers.Add(col);
             }
+
+            DetachColumnHandlers();
+            Players = newPlayers;
 
             dump.AppendLine($"Players.Count after build: {Players.Count}");
             for (int i = 0; i < Players.Count; i++)
