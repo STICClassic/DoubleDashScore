@@ -32,4 +32,13 @@ public partial class RoundMatrixView : ContentView
     {
         InitializeComponent();
     }
+
+    private void OnEntryFocused(object? sender, FocusEventArgs e)
+    {
+        if (sender is not Entry entry) return;
+        var length = entry.Text?.Length ?? 0;
+        if (length == 0) return;
+        entry.CursorPosition = 0;
+        entry.SelectionLength = length;
+    }
 }

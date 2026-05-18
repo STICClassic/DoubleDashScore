@@ -25,6 +25,7 @@
 		<Compile Include="..\Data\HistoricalImportPlanner.cs" LinkBase="Data" />
 		<Compile Include="..\Services\PlayerSlotMapper.cs" LinkBase="Services" />
 		<Compile Include="..\Services\MappingValidator.cs" LinkBase="Services" />
+		<Compile Include="..\Services\MatrixErrorDetector.cs" LinkBase="Services" />
 		<Compile Include="..\Services\IApiKeyStore.cs" LinkBase="Services" />
 		<Compile Include="..\Services\IOcrService.cs" LinkBase="Services" />
 		<Compile Include="..\Services\ClaudeVisionOcrService.cs" LinkBase="Services" />

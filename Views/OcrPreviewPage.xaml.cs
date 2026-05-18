@@ -27,7 +27,7 @@ public partial class OcrPreviewPage : ContentPage
 
     private async Task HandleBackAsync()
     {
-        if (await _vm.ConfirmDiscardAsync().ConfigureAwait(true))
+        if (await _vm.ConfirmDiscardAsync("Hårdvaru-back").ConfigureAwait(true))
         {
             await Shell.Current.GoToAsync("..").ConfigureAwait(true);
         }

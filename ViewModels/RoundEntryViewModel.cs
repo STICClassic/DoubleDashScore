@@ -45,6 +45,9 @@ public partial class RoundEntryViewModel : ObservableObject
     private bool _hasUnsavedChanges;
 
     private bool _suppressDirtyTracking;
+    private bool _trackCountManuallyEdited;
+    private int _columnChangeCount;
+    private int _trackCountChangeCount;
 
     [ObservableProperty]
     private IReadOnlyList<PlayerColumnViewModel> _players = Array.Empty<PlayerColumnViewModel>();
@@ -113,6 +116,7 @@ public partial class RoundEntryViewModel : ObservableObject
         finally
         {
             _suppressDirtyTracking = false;
+            _trackCountManuallyEdited = false;
             HasUnsavedChanges = false;
             IsBusy = false;
         }
@@ -128,14 +132,48 @@ public partial class RoundEntryViewModel : ObservableObject
 
     private void OnColumnChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (!_suppressDirtyTracking)
+        {
+            _columnChangeCount++;
+            HasUnsavedChanges = true;
+            if (ReferenceEquals(sender, Players.FirstOrDefault()))
+            {
+                AutoUpdateTrackCount();
+            }
+        }
         UpdateValidation();
-        if (!_suppressDirtyTracking) HasUnsavedChanges = true;
+        UpdateErrorCells();
     }
 
     partial void OnTrackCountTextChanged(string value)
     {
+        if (!_suppressDirtyTracking)
+        {
+            _trackCountChangeCount++;
+            _trackCountManuallyEdited = true;
+            HasUnsavedChanges = true;
+        }
         UpdateValidation();
-        if (!_suppressDirtyTracking) HasUnsavedChanges = true;
+        UpdateErrorCells();
+    }
+
+    private void AutoUpdateTrackCount()
+    {
+        if (_trackCountManuallyEdited) return;
+        if (Players.Count == 0) return;
+        if (!Players[0].TryGetCounts(out var c)) return;
+        var newText = (c.first + c.second + c.third + c.fourth).ToString();
+        if (TrackCountText == newText) return;
+
+        _suppressDirtyTracking = true;
+        try
+        {
+            TrackCountText = newText;
+        }
+        finally
+        {
+            _suppressDirtyTracking = false;
+        }
     }
 
     private void UpdateValidation()
@@ -144,6 +182,23 @@ public partial class RoundEntryViewModel : ObservableObject
         ValidationMessage = message;
         OnPropertyChanged(nameof(IsValid));
         SaveCommand.NotifyCanExecuteChanged();
+    }
+
+    private void UpdateErrorCells()
+    {
+        if (Players.Count != 4) return;
+        var cells = new List<MatrixErrorDetector.MatrixCells>(4);
+        foreach (var p in Players)
+        {
+            p.TryGetCounts(out var c);
+            cells.Add(new MatrixErrorDetector.MatrixCells(c.first, c.second, c.third, c.fourth));
+        }
+        int.TryParse(TrackCountText, out var tracks);
+        var errors = MatrixErrorDetector.Detect(cells, tracks);
+        for (int i = 0; i < 4; i++)
+        {
+            Players[i].SetCellErrors(errors[i]);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(IsValid))]
@@ -177,10 +232,24 @@ public partial class RoundEntryViewModel : ObservableObject
         }
     }
 
-    public async Task<bool> ConfirmDiscardAsync()
+    public async Task<bool> ConfirmDiscardAsync(string trigger)
     {
-        if (!HasUnsavedChanges) return true;
         var page = Shell.Current.CurrentPage;
+        var p1 = Players.Count > 0 ? Players[0] : null;
+        await page.DisplayAlertAsync(
+            $"[DEBUG] {trigger}",
+            $"HasUnsavedChanges = {HasUnsavedChanges}\n" +
+            $"_suppressDirtyTracking = {_suppressDirtyTracking}\n" +
+            $"_columnChangeCount = {_columnChangeCount}\n" +
+            $"_trackCountChangeCount = {_trackCountChangeCount}\n" +
+            $"_trackCountManuallyEdited = {_trackCountManuallyEdited}\n" +
+            $"Players.Count = {Players.Count}\n" +
+            $"TrackCountText = {TrackCountText}\n" +
+            $"P1 first/second/third/fourth = " +
+            $"{p1?.FirstPlacesText}/{p1?.SecondPlacesText}/{p1?.ThirdPlacesText}/{p1?.FourthPlacesText}",
+            "OK").ConfigureAwait(true);
+
+        if (!HasUnsavedChanges) return true;
         return await page.DisplayAlertAsync(
             "Osparade ändringar",
             "Du har osparade ändringar. Vill du avbryta?",
@@ -191,7 +260,7 @@ public partial class RoundEntryViewModel : ObservableObject
     [RelayCommand]
     private async Task CancelAsync()
     {
-        if (!await ConfirmDiscardAsync().ConfigureAwait(true)) return;
+        if (!await ConfirmDiscardAsync("Avbryt-knapp").ConfigureAwait(true)) return;
         await Shell.Current.GoToAsync("..").ConfigureAwait(true);
     }
 }
