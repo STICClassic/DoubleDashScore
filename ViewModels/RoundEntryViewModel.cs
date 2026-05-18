@@ -42,6 +42,11 @@ public partial class RoundEntryViewModel : ObservableObject
     private bool _isBusy;
 
     [ObservableProperty]
+    private bool _hasUnsavedChanges;
+
+    private bool _suppressDirtyTracking;
+
+    [ObservableProperty]
     private IReadOnlyList<PlayerColumnViewModel> _players = Array.Empty<PlayerColumnViewModel>();
 
     public int TrackCountValue =>
@@ -59,6 +64,7 @@ public partial class RoundEntryViewModel : ObservableObject
     public async Task LoadAsync(CancellationToken ct = default)
     {
         IsBusy = true;
+        _suppressDirtyTracking = true;
         try
         {
             var activePlayers = await _playersRepo.GetActivePlayersAsync(ct).ConfigureAwait(true);
@@ -106,6 +112,8 @@ public partial class RoundEntryViewModel : ObservableObject
         }
         finally
         {
+            _suppressDirtyTracking = false;
+            HasUnsavedChanges = false;
             IsBusy = false;
         }
     }
@@ -121,11 +129,13 @@ public partial class RoundEntryViewModel : ObservableObject
     private void OnColumnChanged(object? sender, PropertyChangedEventArgs e)
     {
         UpdateValidation();
+        if (!_suppressDirtyTracking) HasUnsavedChanges = true;
     }
 
     partial void OnTrackCountTextChanged(string value)
     {
         UpdateValidation();
+        if (!_suppressDirtyTracking) HasUnsavedChanges = true;
     }
 
     private void UpdateValidation()
@@ -158,6 +168,7 @@ public partial class RoundEntryViewModel : ObservableObject
             {
                 await _rounds.CreateRoundAsync(GameNightId, trackCount, inputs).ConfigureAwait(true);
             }
+            HasUnsavedChanges = false;
             await Shell.Current.GoToAsync("..").ConfigureAwait(true);
         }
         finally
@@ -166,9 +177,21 @@ public partial class RoundEntryViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private static async Task CancelAsync()
+    public async Task<bool> ConfirmDiscardAsync()
     {
+        if (!HasUnsavedChanges) return true;
+        var page = Shell.Current.CurrentPage;
+        return await page.DisplayAlertAsync(
+            "Osparade ändringar",
+            "Du har osparade ändringar. Vill du avbryta?",
+            "Ja, avbryt",
+            "Nej, fortsätt").ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private async Task CancelAsync()
+    {
+        if (!await ConfirmDiscardAsync().ConfigureAwait(true)) return;
         await Shell.Current.GoToAsync("..").ConfigureAwait(true);
     }
 }

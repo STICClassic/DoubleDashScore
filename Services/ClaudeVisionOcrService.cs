@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using DoubleDashScore.Models;
 
 namespace DoubleDashScore.Services;
@@ -196,18 +197,43 @@ public sealed class ClaudeVisionOcrService : IOcrService
                 }
             }
 
+            var expectedSum = MostCommonSum(slots!);
+
             var inferred = ReadIntOrZero(root, "total_tracks");
             if (inferred <= 0)
             {
-                inferred = slots[0]!.Sum;
+                inferred = expectedSum;
             }
 
             AddModelWarnings(root, warnings);
+            AddSumMismatchWarnings(slots!, expectedSum, warnings);
 
             return new ParsedCounters(
                 slots.Select(s => s!).ToList(),
                 inferred,
                 warnings);
+        }
+    }
+
+    private static int MostCommonSum(PlayerSlotCounters[] slots)
+    {
+        return slots
+            .GroupBy(s => s.Sum)
+            .OrderByDescending(g => g.Count())
+            .ThenByDescending(g => g.Key)
+            .First()
+            .Key;
+    }
+
+    private static void AddSumMismatchWarnings(
+        PlayerSlotCounters[] slots, int expectedSum, List<string> warnings)
+    {
+        for (int i = 0; i < slots.Length; i++)
+        {
+            var actual = slots[i].Sum;
+            if (actual == expectedSum) continue;
+            warnings.Add(
+                $"P{i + 1}: summan {actual} stämmer inte med övriga ({expectedSum}) — kontrollera 1:or/2:or/3:or/4:or.");
         }
     }
 
@@ -219,8 +245,35 @@ public sealed class ClaudeVisionOcrService : IOcrService
         {
             if (w.ValueKind != JsonValueKind.String) continue;
             var s = w.GetString();
-            if (!string.IsNullOrWhiteSpace(s)) warnings.Add(s);
+            if (string.IsNullOrWhiteSpace(s)) continue;
+            if (IsNoisyWarning(s)) continue;
+            warnings.Add(s);
         }
+    }
+
+    private static readonly string[] ActionableMarkers =
+    {
+        "uncertain", "osäker", "osaker", "mismatch", "skiljer", "differ", "differs",
+        "inconsistent", "unclear", "could be", "looks like", "saknas", "saknades",
+        "kunde inte", "rätta", "ratta", "varning", "warning", "fel",
+    };
+
+    private static readonly string[] NoisyMarkers =
+    {
+        "consistent", "verified", "looks correct", "all correct", "no issues",
+        "everything ok", "everything fine", "all rows verified", "all sums match",
+    };
+
+    private static readonly Regex SumPattern =
+        new(@"sum[\s:=]+\d+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    internal static bool IsNoisyWarning(string warning)
+    {
+        var lower = warning.ToLowerInvariant();
+        if (ActionableMarkers.Any(m => lower.Contains(m))) return false;
+        if (NoisyMarkers.Any(m => lower.Contains(m))) return true;
+        if (SumPattern.IsMatch(lower)) return true;
+        return false;
     }
 
     private static int ReadIntOrZero(JsonElement obj, string property)
@@ -280,6 +333,12 @@ CRITICAL INSTRUCTIONS — READ CAREFULLY:
    - 3 vs 5
    - 6 vs 8
 
+5. DO NOT ASSUME TOTAL TRACKS. Count what you actually see. If P1's four cells sum to 14, report total_tracks=14 even if other players sum to different totals. The round may be partial (fewer than 16 tracks) or you may misread cells — in either case, report what you observe per player, do not default to 16.
+
+6. VERIFY ROW/COLUMN SUMS BEFORE RETURNING JSON. After reading every cell, compute each player's sum (first + second + third + fourth). All four player sums SHOULD be equal because every track produces exactly one finisher per position. If any player's sum differs from the others, add a specific warning identifying which player deviates — for example "P3 sum (14) differs from others (16); re-check P3's cells". Do NOT modify your readings to make sums match; report what you see and flag the discrepancy.
+
+7. DO NOT EMIT NOISE-LEVEL WARNINGS. Only include warnings that require user action: uncertain cells, sum mismatches, or wrong-image alerts. Do NOT add positive confirmations like "P2 sum: 16, consistent" or "all rows verified" — silence means everything looked fine.
+
 Return STRICT JSON in exactly this format. No code fences, no commentary, no text before or after:
 
 {
@@ -289,8 +348,8 @@ Return STRICT JSON in exactly this format. No code fences, no commentary, no tex
     {"slot": 3, "first": ..., "second": ..., "third": ..., "fourth": ...},
     {"slot": 4, "first": ..., "second": ..., "third": ..., "fourth": ...}
   ],
-  "total_tracks": <usually 16; set to most common per-player sum if confident>,
-  "warnings": [<short strings identifying any uncertain cells or other issues>]
+  "total_tracks": <the per-player sum you actually observed; do NOT default to 16>,
+  "warnings": [<short actionable strings only — uncertain cells, sum mismatches, wrong image>]
 }
 
 Rules:

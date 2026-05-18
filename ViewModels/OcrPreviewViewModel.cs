@@ -59,6 +59,11 @@ public partial class OcrPreviewViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
+    [ObservableProperty]
+    private bool _hasUnsavedChanges;
+
+    private bool _suppressDirtyTracking;
+
     public bool IsValid
     {
         get
@@ -72,6 +77,7 @@ public partial class OcrPreviewViewModel : ObservableObject
     public async Task LoadAsync(CancellationToken ct = default)
     {
         IsBusy = true;
+        _suppressDirtyTracking = true;
         try
         {
             AvailablePlayers.Clear();
@@ -127,6 +133,8 @@ public partial class OcrPreviewViewModel : ObservableObject
         }
         finally
         {
+            _suppressDirtyTracking = false;
+            HasUnsavedChanges = false;
             IsBusy = false;
         }
     }
@@ -136,7 +144,11 @@ public partial class OcrPreviewViewModel : ObservableObject
         foreach (var p in Players) p.PropertyChanged -= OnColumnChanged;
     }
 
-    private void OnColumnChanged(object? sender, PropertyChangedEventArgs e) => UpdateValidation();
+    private void OnColumnChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        UpdateValidation();
+        if (!_suppressDirtyTracking) HasUnsavedChanges = true;
+    }
 
     private void UpdateValidation()
     {
@@ -147,11 +159,16 @@ public partial class OcrPreviewViewModel : ObservableObject
         SaveCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnTrackCountTextChanged(string value) => UpdateValidation();
-    partial void OnSelectedPlayer0Changed(Player? value) => UpdateValidation();
-    partial void OnSelectedPlayer1Changed(Player? value) => UpdateValidation();
-    partial void OnSelectedPlayer2Changed(Player? value) => UpdateValidation();
-    partial void OnSelectedPlayer3Changed(Player? value) => UpdateValidation();
+    private void MarkDirty()
+    {
+        if (!_suppressDirtyTracking) HasUnsavedChanges = true;
+    }
+
+    partial void OnTrackCountTextChanged(string value) { UpdateValidation(); MarkDirty(); }
+    partial void OnSelectedPlayer0Changed(Player? value) { UpdateValidation(); MarkDirty(); }
+    partial void OnSelectedPlayer1Changed(Player? value) { UpdateValidation(); MarkDirty(); }
+    partial void OnSelectedPlayer2Changed(Player? value) { UpdateValidation(); MarkDirty(); }
+    partial void OnSelectedPlayer3Changed(Player? value) { UpdateValidation(); MarkDirty(); }
 
     private IReadOnlyList<Player?> CurrentSelections() =>
         new[] { SelectedPlayer0, SelectedPlayer1, SelectedPlayer2, SelectedPlayer3 };
@@ -178,6 +195,7 @@ public partial class OcrPreviewViewModel : ObservableObject
                 inputs,
                 photoPath: _context.PhotoPath).ConfigureAwait(true);
             _context.Clear();
+            HasUnsavedChanges = false;
             await Shell.Current.GoToAsync("..").ConfigureAwait(true);
         }
         finally
@@ -186,9 +204,21 @@ public partial class OcrPreviewViewModel : ObservableObject
         }
     }
 
+    public async Task<bool> ConfirmDiscardAsync()
+    {
+        if (!HasUnsavedChanges) return true;
+        var page = Shell.Current.CurrentPage;
+        return await page.DisplayAlertAsync(
+            "Osparade ändringar",
+            "Du har osparade ändringar. Vill du avbryta?",
+            "Ja, avbryt",
+            "Nej, fortsätt").ConfigureAwait(true);
+    }
+
     [RelayCommand]
     private async Task CancelAsync()
     {
+        if (!await ConfirmDiscardAsync().ConfigureAwait(true)) return;
         _context.Clear();
         await Shell.Current.GoToAsync("..").ConfigureAwait(true);
     }

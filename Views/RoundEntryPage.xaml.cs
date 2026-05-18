@@ -18,4 +18,18 @@ public partial class RoundEntryPage : ContentPage
         base.OnAppearing();
         await _vm.LoadAsync();
     }
+
+    protected override bool OnBackButtonPressed()
+    {
+        _ = HandleBackAsync();
+        return true;
+    }
+
+    private async Task HandleBackAsync()
+    {
+        if (await _vm.ConfirmDiscardAsync().ConfigureAwait(true))
+        {
+            await Shell.Current.GoToAsync("..").ConfigureAwait(true);
+        }
+    }
 }

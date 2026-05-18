@@ -213,7 +213,7 @@ public class ClaudeVisionOcrServiceTests
     }
 
     [Fact]
-    public void ParseApiResponse_MissingTotalTracks_FallsBackToFirstSlotSum()
+    public void ParseApiResponse_MissingTotalTracks_FallsBackToMostCommonSum()
     {
         var modelText = """
         {
@@ -228,5 +228,95 @@ public class ClaudeVisionOcrServiceTests
         var parsed = ClaudeVisionOcrService.ParseApiResponse(Wrap(modelText));
 
         Assert.Equal(20, parsed.InferredTrackCount);
+    }
+
+    [Fact]
+    public void ParseApiResponse_SumMismatch_WarnsPerDeviatingPlayer()
+    {
+        var modelText = """
+        {
+          "players": [
+            {"slot": 1, "first": 4, "second": 4, "third": 4, "fourth": 4},
+            {"slot": 2, "first": 4, "second": 4, "third": 4, "fourth": 2},
+            {"slot": 3, "first": 4, "second": 4, "third": 4, "fourth": 4},
+            {"slot": 4, "first": 4, "second": 4, "third": 4, "fourth": 4}
+          ],
+          "total_tracks": 16,
+          "warnings": []
+        }
+        """;
+        var parsed = ClaudeVisionOcrService.ParseApiResponse(Wrap(modelText));
+
+        Assert.Contains(parsed.Warnings, w =>
+            w.Contains("P2") && w.Contains("14") && w.Contains("16") && w.Contains("stämmer inte"));
+        Assert.DoesNotContain(parsed.Warnings, w => w.Contains("P1:"));
+        Assert.DoesNotContain(parsed.Warnings, w => w.Contains("P3:"));
+        Assert.DoesNotContain(parsed.Warnings, w => w.Contains("P4:"));
+    }
+
+    [Fact]
+    public void ParseApiResponse_AllSumsMatch_NoMismatchWarning()
+    {
+        var modelText = """
+        {
+          "players": [
+            {"slot": 1, "first": 4, "second": 4, "third": 4, "fourth": 4},
+            {"slot": 2, "first": 4, "second": 4, "third": 4, "fourth": 4},
+            {"slot": 3, "first": 4, "second": 4, "third": 4, "fourth": 4},
+            {"slot": 4, "first": 4, "second": 4, "third": 4, "fourth": 4}
+          ],
+          "total_tracks": 16,
+          "warnings": []
+        }
+        """;
+        var parsed = ClaudeVisionOcrService.ParseApiResponse(Wrap(modelText));
+
+        Assert.DoesNotContain(parsed.Warnings, w => w.Contains("stämmer inte"));
+    }
+
+    [Theory]
+    [InlineData("P2 sum: 16, consistent")]
+    [InlineData("All rows verified")]
+    [InlineData("Looks correct")]
+    [InlineData("P3 sum: 14")]
+    [InlineData("sum=16 for all players")]
+    public void IsNoisyWarning_FiltersPositiveConfirmations(string warning)
+    {
+        Assert.True(ClaudeVisionOcrService.IsNoisyWarning(warning));
+    }
+
+    [Theory]
+    [InlineData("P2 3rd: uncertain, looks like 1 or 4")]
+    [InlineData("P3 sum (14) differs from others (16)")]
+    [InlineData("Slot P1 kunde inte avläsas")]
+    [InlineData("Image does not look like a scoreboard")]
+    [InlineData("P1 1:a osäker avläsning")]
+    public void IsNoisyWarning_KeepsActionableMessages(string warning)
+    {
+        Assert.False(ClaudeVisionOcrService.IsNoisyWarning(warning));
+    }
+
+    [Fact]
+    public void ParseApiResponse_DropsNoisyModelWarnings_KeepsActionable()
+    {
+        var modelText = """
+        {
+          "players": [
+            {"slot": 1, "first": 4, "second": 4, "third": 4, "fourth": 4},
+            {"slot": 2, "first": 4, "second": 4, "third": 4, "fourth": 4},
+            {"slot": 3, "first": 4, "second": 4, "third": 4, "fourth": 4},
+            {"slot": 4, "first": 4, "second": 4, "third": 4, "fourth": 4}
+          ],
+          "total_tracks": 16,
+          "warnings": [
+            "P1 sum: 16, consistent",
+            "P3 2nd: uncertain, looks like 4 or 1"
+          ]
+        }
+        """;
+        var parsed = ClaudeVisionOcrService.ParseApiResponse(Wrap(modelText));
+
+        Assert.DoesNotContain(parsed.Warnings, w => w.Contains("consistent"));
+        Assert.Contains(parsed.Warnings, w => w.Contains("P3 2nd"));
     }
 }
