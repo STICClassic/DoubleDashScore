@@ -25,11 +25,6 @@ public partial class OcrPreviewPage : ContentPage
         return true;
     }
 
-    private async Task HandleBackAsync()
-    {
-        if (await _vm.ConfirmDiscardAsync("Hårdvaru-back").ConfigureAwait(true))
-        {
-            await Shell.Current.GoToAsync("..").ConfigureAwait(true);
-        }
-    }
+    private async Task HandleBackAsync() =>
+        await _vm.TryNavigateBackAsync().ConfigureAwait(true);
 }

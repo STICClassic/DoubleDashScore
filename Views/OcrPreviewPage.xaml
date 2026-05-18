@@ -8,6 +8,10 @@
              x:DataType="vm:OcrPreviewViewModel"
              Title="Granska foto">
 
+    <Shell.BackButtonBehavior>
+        <BackButtonBehavior Command="{Binding BackCommand}" />
+    </Shell.BackButtonBehavior>
+
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="14">
 

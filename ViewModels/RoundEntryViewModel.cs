@@ -44,10 +44,11 @@ public partial class RoundEntryViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasUnsavedChanges;
 
+    [ObservableProperty]
+    private bool _showErrors;
+
     private bool _suppressDirtyTracking;
     private bool _trackCountManuallyEdited;
-    private int _columnChangeCount;
-    private int _trackCountChangeCount;
 
     [ObservableProperty]
     private IReadOnlyList<PlayerColumnViewModel> _players = Array.Empty<PlayerColumnViewModel>();
@@ -118,6 +119,7 @@ public partial class RoundEntryViewModel : ObservableObject
             _suppressDirtyTracking = false;
             _trackCountManuallyEdited = false;
             HasUnsavedChanges = false;
+            ShowErrors = false;
             IsBusy = false;
         }
     }
@@ -134,7 +136,6 @@ public partial class RoundEntryViewModel : ObservableObject
     {
         if (!_suppressDirtyTracking)
         {
-            _columnChangeCount++;
             HasUnsavedChanges = true;
             if (ReferenceEquals(sender, Players.FirstOrDefault()))
             {
@@ -149,13 +150,14 @@ public partial class RoundEntryViewModel : ObservableObject
     {
         if (!_suppressDirtyTracking)
         {
-            _trackCountChangeCount++;
             _trackCountManuallyEdited = true;
             HasUnsavedChanges = true;
         }
         UpdateValidation();
         UpdateErrorCells();
     }
+
+    partial void OnShowErrorsChanged(bool value) => UpdateErrorCells();
 
     private void AutoUpdateTrackCount()
     {
@@ -187,6 +189,13 @@ public partial class RoundEntryViewModel : ObservableObject
     private void UpdateErrorCells()
     {
         if (Players.Count != 4) return;
+
+        if (!ShowErrors)
+        {
+            for (int i = 0; i < 4; i++) Players[i].SetCellErrors(MatrixErrorDetector.CellErrors.None);
+            return;
+        }
+
         var cells = new List<MatrixErrorDetector.MatrixCells>(4);
         foreach (var p in Players)
         {
@@ -199,12 +208,20 @@ public partial class RoundEntryViewModel : ObservableObject
         {
             Players[i].SetCellErrors(errors[i]);
         }
+        if (errors.All(e => e == MatrixErrorDetector.CellErrors.None))
+        {
+            ShowErrors = false;
+        }
     }
 
-    [RelayCommand(CanExecute = nameof(IsValid))]
+    [RelayCommand]
     private async Task SaveAsync()
     {
-        if (!IsValid) return;
+        if (!IsValid)
+        {
+            ShowErrors = true;
+            return;
+        }
         var trackCount = TrackCountValue;
         var inputs = Players.Select(p =>
         {
@@ -232,24 +249,10 @@ public partial class RoundEntryViewModel : ObservableObject
         }
     }
 
-    public async Task<bool> ConfirmDiscardAsync(string trigger)
+    public async Task<bool> ConfirmDiscardAsync()
     {
-        var page = Shell.Current.CurrentPage;
-        var p1 = Players.Count > 0 ? Players[0] : null;
-        await page.DisplayAlertAsync(
-            $"[DEBUG] {trigger}",
-            $"HasUnsavedChanges = {HasUnsavedChanges}\n" +
-            $"_suppressDirtyTracking = {_suppressDirtyTracking}\n" +
-            $"_columnChangeCount = {_columnChangeCount}\n" +
-            $"_trackCountChangeCount = {_trackCountChangeCount}\n" +
-            $"_trackCountManuallyEdited = {_trackCountManuallyEdited}\n" +
-            $"Players.Count = {Players.Count}\n" +
-            $"TrackCountText = {TrackCountText}\n" +
-            $"P1 first/second/third/fourth = " +
-            $"{p1?.FirstPlacesText}/{p1?.SecondPlacesText}/{p1?.ThirdPlacesText}/{p1?.FourthPlacesText}",
-            "OK").ConfigureAwait(true);
-
         if (!HasUnsavedChanges) return true;
+        var page = Shell.Current.CurrentPage;
         return await page.DisplayAlertAsync(
             "Osparade ändringar",
             "Du har osparade ändringar. Vill du avbryta?",
@@ -257,10 +260,15 @@ public partial class RoundEntryViewModel : ObservableObject
             "Nej, fortsätt").ConfigureAwait(true);
     }
 
-    [RelayCommand]
-    private async Task CancelAsync()
+    public async Task TryNavigateBackAsync()
     {
-        if (!await ConfirmDiscardAsync("Avbryt-knapp").ConfigureAwait(true)) return;
+        if (!await ConfirmDiscardAsync().ConfigureAwait(true)) return;
         await Shell.Current.GoToAsync("..").ConfigureAwait(true);
     }
+
+    [RelayCommand]
+    private async Task CancelAsync() => await TryNavigateBackAsync().ConfigureAwait(true);
+
+    [RelayCommand]
+    private async Task BackAsync() => await TryNavigateBackAsync().ConfigureAwait(true);
 }

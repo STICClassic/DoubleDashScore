@@ -62,11 +62,11 @@ public partial class OcrPreviewViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasUnsavedChanges;
 
+    [ObservableProperty]
+    private bool _showErrors;
+
     private bool _suppressDirtyTracking;
     private bool _trackCountManuallyEdited;
-    private int _columnChangeCount;
-    private int _trackCountChangeCount;
-    private int _selectionChangeCount;
 
     public bool IsValid
     {
@@ -140,6 +140,7 @@ public partial class OcrPreviewViewModel : ObservableObject
             _suppressDirtyTracking = false;
             _trackCountManuallyEdited = false;
             HasUnsavedChanges = false;
+            ShowErrors = false;
             IsBusy = false;
         }
     }
@@ -153,7 +154,6 @@ public partial class OcrPreviewViewModel : ObservableObject
     {
         if (!_suppressDirtyTracking)
         {
-            _columnChangeCount++;
             HasUnsavedChanges = true;
             if (ReferenceEquals(sender, Players.FirstOrDefault()))
             {
@@ -163,6 +163,8 @@ public partial class OcrPreviewViewModel : ObservableObject
         UpdateValidation();
         UpdateErrorCells();
     }
+
+    partial void OnShowErrorsChanged(bool value) => UpdateErrorCells();
 
     private void AutoUpdateTrackCount()
     {
@@ -195,6 +197,13 @@ public partial class OcrPreviewViewModel : ObservableObject
     private void UpdateErrorCells()
     {
         if (Players.Count != 4) return;
+
+        if (!ShowErrors)
+        {
+            for (int i = 0; i < 4; i++) Players[i].SetCellErrors(MatrixErrorDetector.CellErrors.None);
+            return;
+        }
+
         var cells = new List<MatrixErrorDetector.MatrixCells>(4);
         foreach (var p in Players)
         {
@@ -207,13 +216,16 @@ public partial class OcrPreviewViewModel : ObservableObject
         {
             Players[i].SetCellErrors(errors[i]);
         }
+        if (errors.All(e => e == MatrixErrorDetector.CellErrors.None))
+        {
+            ShowErrors = false;
+        }
     }
 
     partial void OnTrackCountTextChanged(string value)
     {
         if (!_suppressDirtyTracking)
         {
-            _trackCountChangeCount++;
             _trackCountManuallyEdited = true;
             HasUnsavedChanges = true;
         }
@@ -224,7 +236,6 @@ public partial class OcrPreviewViewModel : ObservableObject
     private void MarkSelectionDirty()
     {
         if (_suppressDirtyTracking) return;
-        _selectionChangeCount++;
         HasUnsavedChanges = true;
     }
 
@@ -236,10 +247,14 @@ public partial class OcrPreviewViewModel : ObservableObject
     private IReadOnlyList<Player?> CurrentSelections() =>
         new[] { SelectedPlayer0, SelectedPlayer1, SelectedPlayer2, SelectedPlayer3 };
 
-    [RelayCommand(CanExecute = nameof(IsValid))]
+    [RelayCommand]
     private async Task SaveAsync()
     {
-        if (!IsValid) return;
+        if (!IsValid)
+        {
+            ShowErrors = true;
+            return;
+        }
         var selections = CurrentSelections();
         var trackCount = int.Parse(TrackCountText);
         var inputs = new List<RoundResultInput>(4);
@@ -267,25 +282,10 @@ public partial class OcrPreviewViewModel : ObservableObject
         }
     }
 
-    public async Task<bool> ConfirmDiscardAsync(string trigger)
+    public async Task<bool> ConfirmDiscardAsync()
     {
-        var page = Shell.Current.CurrentPage;
-        var p1 = Players.Count > 0 ? Players[0] : null;
-        await page.DisplayAlertAsync(
-            $"[DEBUG] {trigger}",
-            $"HasUnsavedChanges = {HasUnsavedChanges}\n" +
-            $"_suppressDirtyTracking = {_suppressDirtyTracking}\n" +
-            $"_columnChangeCount = {_columnChangeCount}\n" +
-            $"_trackCountChangeCount = {_trackCountChangeCount}\n" +
-            $"_selectionChangeCount = {_selectionChangeCount}\n" +
-            $"_trackCountManuallyEdited = {_trackCountManuallyEdited}\n" +
-            $"Players.Count = {Players.Count}\n" +
-            $"TrackCountText = {TrackCountText}\n" +
-            $"P1 first/second/third/fourth = " +
-            $"{p1?.FirstPlacesText}/{p1?.SecondPlacesText}/{p1?.ThirdPlacesText}/{p1?.FourthPlacesText}",
-            "OK").ConfigureAwait(true);
-
         if (!HasUnsavedChanges) return true;
+        var page = Shell.Current.CurrentPage;
         return await page.DisplayAlertAsync(
             "Osparade ändringar",
             "Du har osparade ändringar. Vill du avbryta?",
@@ -293,11 +293,16 @@ public partial class OcrPreviewViewModel : ObservableObject
             "Nej, fortsätt").ConfigureAwait(true);
     }
 
-    [RelayCommand]
-    private async Task CancelAsync()
+    public async Task TryNavigateBackAsync()
     {
-        if (!await ConfirmDiscardAsync("Avbryt-knapp").ConfigureAwait(true)) return;
+        if (!await ConfirmDiscardAsync().ConfigureAwait(true)) return;
         _context.Clear();
         await Shell.Current.GoToAsync("..").ConfigureAwait(true);
     }
+
+    [RelayCommand]
+    private async Task CancelAsync() => await TryNavigateBackAsync().ConfigureAwait(true);
+
+    [RelayCommand]
+    private async Task BackAsync() => await TryNavigateBackAsync().ConfigureAwait(true);
 }
