@@ -1,6 +1,5 @@
 using Android.App;
 using Android.Content.PM;
-using Android.OS;
 using AndroidX.Core.View;
 
 namespace DoubleDashScore
@@ -8,26 +7,15 @@ namespace DoubleDashScore
     [Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, LaunchMode = LaunchMode.SingleTop, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
     public class MainActivity : MauiAppCompatActivity
     {
-        protected override void OnCreate(Bundle? savedInstanceState)
-        {
-            base.OnCreate(savedInstanceState);
-            if (Window?.DecorView is null) return;
+        // Tidigare OnCreate-override satte AppearanceLightStatusBars via
+        // WindowCompat.GetInsetsController och styrde statusbar-färgen via theme + runtime.
+        // På Android 15 (API 35) kraschade det här flödet vid uppstart. Vi accepterar
+        // Androids default-hantering av statusbar och låter MauiAppCompatActivity:s egen
+        // OnCreate köras orörd.
 
-            // Primärmekanismen för statusbar-färgen är android:windowOptOutEdgeToEdgeEnforcement
-            // + android:statusBarColor i Platforms/Android/Resources/values/styles.xml — det
-            // gör att statusbar:n behandlas som pre-Android-15 (opak, themat:s färg gäller)
-            // på API 35+ också. Här i runtime sätter vi bara ikonfärgen (ljusa ikoner mot
-            // den mörka bakgrunden) — själva färgen styrs av themat.
-            var controller = WindowCompat.GetInsetsController(Window, Window.DecorView);
-            if (controller is not null)
-            {
-                controller.AppearanceLightStatusBars = false;
-            }
-        }
-
-
-        // Anropas av FullScreenChartPage.OnAppearing för riktig kant-till-kant.
-        // Använder WindowInsetsControllerCompat (API 21+, MAUI 10 min är API 24).
+        // EnterFullscreen/ExitFullscreen rör inte statusbar-färgen; de döljer/visar
+        // bara system bars för riktig kant-till-kant i FullScreenChartPage. Inget krasch-
+        // beteende observerat där, så de behålls.
         public void EnterFullscreen()
         {
             if (Window?.DecorView == null) return;
