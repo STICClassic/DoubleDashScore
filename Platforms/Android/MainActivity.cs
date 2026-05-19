@@ -13,23 +13,11 @@ namespace DoubleDashScore
             base.OnCreate(savedInstanceState);
             if (Window?.DecorView is null) return;
 
-            // 6a:s SetStatusBarColor räcker inte ensam när target SDK ≥ 35 — Android 15+
-            // enforce:ar edge-to-edge och gör statusbar transparent, vilket gör att
-            // colorPrimary (= orange #FB923C) lyser igenom från splash- och Maui.MainTheme.
-            //
-            // Tre lager för att täcka API 21 → 36 konsekvent:
-            //  1) styles.xml överskuggar Maui.SplashTheme och Maui.MainTheme med
-            //     android:statusBarColor=#1F1F1F + windowLightStatusBar=false.
-            //  2) WindowCompat.SetDecorFitsSystemWindows(true) opt:ar ut ur edge-to-edge
-            //     så statusbar:n förblir opak (deprecated på API 35+ men fungerar
-            //     fortfarande som escape hatch).
-            //  3) Window.SetStatusBarColor sätter färgen i runtime för säkerhets skull.
-            // Edge-to-edge som första klassens lösning (rita själva under transparent
-            // statusbar) ligger utanför scope för Skiva 6.
-#pragma warning disable CA1422
-            WindowCompat.SetDecorFitsSystemWindows(Window, true);
-            Window.SetStatusBarColor(Android.Graphics.Color.ParseColor("#1F1F1F"));
-#pragma warning restore CA1422
+            // Primärmekanismen för statusbar-färgen är android:windowOptOutEdgeToEdgeEnforcement
+            // + android:statusBarColor i Platforms/Android/Resources/values/styles.xml — det
+            // gör att statusbar:n behandlas som pre-Android-15 (opak, themat:s färg gäller)
+            // på API 35+ också. Här i runtime sätter vi bara ikonfärgen (ljusa ikoner mot
+            // den mörka bakgrunden) — själva färgen styrs av themat.
             var controller = WindowCompat.GetInsetsController(Window, Window.DecorView);
             if (controller is not null)
             {

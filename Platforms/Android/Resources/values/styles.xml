@@ -18,6 +18,14 @@
         <item name="colorPrimaryVariant">@color/colorPrimaryDark</item>
         <item name="android:statusBarColor">#FF1F1F1F</item>
         <item name="android:windowLightStatusBar">false</item>
+        <!-- Android 15+ (API 35+) enforce:ar edge-to-edge per default för appar som
+             targetar SDK 35+. Konsekvensen: statusbar:n blir transparent och
+             Window.SetStatusBarColor (samt android:statusBarColor i themat) ignoreras —
+             färgen vi ser är vad app:en råkar rita längst upp, vilket i splash:ens fall
+             är ?attr/colorPrimary = orange. Opt-out:attributet säger till systemet att
+             behandla app:en som pre-Android-15, så android:statusBarColor ovan får
+             effekt igen. Attributet är okänt på API <35 och ignoreras tyst där. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 
 </resources>
