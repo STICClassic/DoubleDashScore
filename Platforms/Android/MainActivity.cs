@@ -27,7 +27,7 @@ namespace DoubleDashScore
             if (controller == null) return;
             controller.Hide(WindowInsetsCompat.Type.SystemBars());
             controller.SystemBarsBehavior = WindowInsetsControllerCompat.BehaviorShowTransientBarsBySwipe;
-            RequestedOrientation = ScreenOrientation.Landscape;
+            RequestedOrientation = ScreenOrientation.ReverseLandscape;
         }
 
         public void ExitFullscreen()
