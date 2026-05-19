@@ -81,6 +81,7 @@ public static class MauiProgram
         builder.Services.AddTransient<FullScreenChartPage>();
         builder.Services.AddTransient<OcrPreviewPage>();
         builder.Services.AddTransient<ApiKeySettingsPage>();
+        builder.Services.AddTransient<SplashPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();

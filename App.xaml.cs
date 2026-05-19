@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using DoubleDashScore.Views;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DoubleDashScore
 {
@@ -14,10 +15,13 @@ namespace DoubleDashScore
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            // AppShell tar AppShellViewModel via DI för flyout-menyns kommandon
-            // och aktiv-route-tracking. Måste resolvas via service provider —
-            // `new AppShell()` skulle gå förbi DI.
-            return new Window(_services.GetRequiredService<AppShell>());
+            // Splash visas som Window.Page först. När animationen är klar byter
+            // SplashPage själv ut Window.Page mot AppShell. Att starta i Shell
+            // skulle visa NightsListPage direkt utan splash; att lägga
+            // SplashPage som ShellContent skulle göra den till en navigerbar
+            // route som kunde dyka upp via back-stack — vi vill att den bara
+            // existerar precis vid kallstart.
+            return new Window(_services.GetRequiredService<SplashPage>());
         }
     }
 }
