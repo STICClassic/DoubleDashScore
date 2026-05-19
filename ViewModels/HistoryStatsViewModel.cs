@@ -88,8 +88,8 @@ public partial class HistoryStatsViewModel : ObservableObject
     private int _selectedTabIndex;
 
     public bool IsTotalsTab => SelectedTabIndex == 0;
-    public bool IsGraphTab => SelectedTabIndex == 1;
-    public bool IsPlacementsTab => SelectedTabIndex == 2;
+    public bool IsPlacementsTab => SelectedTabIndex == 1;
+    public bool IsGraphTab => SelectedTabIndex == 2;
 
     // Karriärsnitt:et är dolt som default — användaren vill kunna se sitt
     // eget snitt privat men inte ha det synligt by default. Togglas via
