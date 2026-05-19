@@ -69,7 +69,7 @@
 
             <!-- Totalscore -->
             <VerticalStackLayout Spacing="8" IsVisible="{Binding IsTotalsTab}">
-                <Grid ColumnDefinitions="*,40,40,40,40,96"
+                <Grid ColumnDefinitions="*,40,40,40,40,80"
                       Padding="0,4"
                       ColumnSpacing="8">
                     <Label Grid.Column="0" Text="Spelare" FontAttributes="Bold" LineBreakMode="TailTruncation" />
@@ -87,9 +87,8 @@
                                LineBreakMode="WordWrap" />
                         <Label Grid.Column="1"
                                Text="{Binding EyeIcon}"
-                               FontSize="16"
-                               VerticalOptions="Center"
-                               Padding="4,0">
+                               FontSize="14"
+                               VerticalOptions="Center">
                             <Label.GestureRecognizers>
                                 <TapGestureRecognizer Command="{Binding ToggleCareerAverageCommand}" />
                             </Label.GestureRecognizers>
