@@ -17,7 +17,9 @@ namespace DoubleDashScore
 
         // EnterFullscreen/ExitFullscreen rör inte statusbar-färgen; de döljer/visar
         // bara system bars för riktig kant-till-kant i FullScreenChartPage. Inget krasch-
-        // beteende observerat där, så de behålls.
+        // beteende observerat där, så de behålls. Plus orienterings-lås: grafen är
+        // oläslig i porträtt så vi tvingar landskap medan FullScreenChart är öppen,
+        // och låter resten av appen gå tillbaka till porträtt vid stäng.
         public void EnterFullscreen()
         {
             if (Window?.DecorView == null) return;
@@ -25,6 +27,7 @@ namespace DoubleDashScore
             if (controller == null) return;
             controller.Hide(WindowInsetsCompat.Type.SystemBars());
             controller.SystemBarsBehavior = WindowInsetsControllerCompat.BehaviorShowTransientBarsBySwipe;
+            RequestedOrientation = ScreenOrientation.Landscape;
         }
 
         public void ExitFullscreen()
@@ -32,6 +35,7 @@ namespace DoubleDashScore
             if (Window?.DecorView == null) return;
             var controller = WindowCompat.GetInsetsController(Window, Window.DecorView);
             controller?.Show(WindowInsetsCompat.Type.SystemBars());
+            RequestedOrientation = ScreenOrientation.Portrait;
         }
     }
 }

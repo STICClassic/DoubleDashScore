@@ -88,8 +88,8 @@ public partial class HistoryStatsViewModel : ObservableObject
     private int _selectedTabIndex;
 
     public bool IsTotalsTab => SelectedTabIndex == 0;
-    public bool IsGraphTab => SelectedTabIndex == 1;
-    public bool IsPlacementsTab => SelectedTabIndex == 2;
+    public bool IsPlacementsTab => SelectedTabIndex == 1;
+    public bool IsGraphTab => SelectedTabIndex == 2;
 
     [ObservableProperty]
     private PlacementHeaders _placementsHeaders = new(string.Empty, string.Empty, string.Empty, string.Empty);

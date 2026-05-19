@@ -25,7 +25,7 @@
                          IsVisible="{Binding IsTotalsTab}" />
             </VerticalStackLayout>
             <VerticalStackLayout Grid.Column="1" Spacing="4">
-                <Label Text="Kvällssnitt"
+                <Label Text="Placeringar"
                        HorizontalTextAlignment="Center"
                        Padding="8"
                        FontAttributes="Bold">
@@ -35,10 +35,10 @@
                 </Label>
                 <BoxView HeightRequest="2"
                          Color="{StaticResource Primary}"
-                         IsVisible="{Binding IsGraphTab}" />
+                         IsVisible="{Binding IsPlacementsTab}" />
             </VerticalStackLayout>
             <VerticalStackLayout Grid.Column="2" Spacing="4">
-                <Label Text="Placeringar"
+                <Label Text="Graf"
                        HorizontalTextAlignment="Center"
                        Padding="8"
                        FontAttributes="Bold">
@@ -48,7 +48,7 @@
                 </Label>
                 <BoxView HeightRequest="2"
                          Color="{StaticResource Primary}"
-                         IsVisible="{Binding IsPlacementsTab}" />
+                         IsVisible="{Binding IsGraphTab}" />
             </VerticalStackLayout>
         </Grid>
 
@@ -102,7 +102,7 @@
                 </CollectionView>
             </VerticalStackLayout>
 
-            <!-- Kvällssnitt graf -->
+            <!-- Graf -->
             <Grid IsVisible="{Binding IsGraphTab}">
                 <oxy:PlotView Model="{Binding PlotModel}"
                               BackgroundColor="Transparent"
