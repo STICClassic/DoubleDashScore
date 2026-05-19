@@ -91,6 +91,23 @@ public partial class HistoryStatsViewModel : ObservableObject
     public bool IsGraphTab => SelectedTabIndex == 1;
     public bool IsPlacementsTab => SelectedTabIndex == 2;
 
+    // Karriärsnitt:et är dolt som default — användaren vill kunna se sitt
+    // eget snitt privat men inte ha det synligt by default. Togglas via
+    // ögon-ikon bredvid kolumnrubriken; ingen persistering, varje
+    // app-session börjar med dolt.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EyeIcon))]
+    private bool _isCareerAverageVisible;
+
+    // 👁 (öppet öga) när värdet visas, 🙈 (see-no-evil) när det är dolt.
+    public string EyeIcon => IsCareerAverageVisible ? "👁" : "🙈";
+
+    [RelayCommand]
+    private void ToggleCareerAverage()
+    {
+        IsCareerAverageVisible = !IsCareerAverageVisible;
+    }
+
     [ObservableProperty]
     private PlacementHeaders _placementsHeaders = new(string.Empty, string.Empty, string.Empty, string.Empty);
 
