@@ -4,12 +4,190 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:views="clr-namespace:DoubleDashScore.Views"
+    xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+    x:DataType="vm:AppShellViewModel"
     Title="DoubleDashScore"
-    FlyoutBehavior="Disabled">
+    FlyoutBehavior="Flyout">
 
-    <ShellContent
-        Title="Kvällar"
-        ContentTemplate="{DataTemplate views:NightsListPage}"
-        Route="NightsListPage" />
+    <Shell.FlyoutHeader>
+        <Grid BackgroundColor="{StaticResource OffBlack}"
+              HeightRequest="120"
+              Padding="20,0">
+            <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                <!-- Platshållarikon — byts mot riktig grafik senare. -->
+                <Label Text="🏆" FontSize="34" VerticalOptions="Center" />
+                <Label Text="DoubleDashScore"
+                       TextColor="{StaticResource White}"
+                       FontFamily="Baloo2Bold"
+                       FontSize="20"
+                       VerticalOptions="Center" />
+            </HorizontalStackLayout>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <Shell.FlyoutContentTemplate>
+        <DataTemplate x:DataType="vm:AppShellViewModel">
+            <ScrollView BackgroundColor="{StaticResource OffBlack}">
+                <VerticalStackLayout Padding="0,8" Spacing="2">
+
+                    <!-- Kvällar -->
+                    <Grid ColumnDefinitions="4,*" HeightRequest="52">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding NavigateCommand}"
+                                                  CommandParameter="NightsListPage" />
+                        </Grid.GestureRecognizers>
+                        <BoxView Grid.Column="0"
+                                 Color="{StaticResource Primary}"
+                                 IsVisible="{Binding IsKvallarSelected}" />
+                        <Label Grid.Column="1"
+                               Text="Kvällar"
+                               TextColor="{StaticResource White}"
+                               FontFamily="Baloo2Bold"
+                               FontSize="16"
+                               Padding="20,0,0,0"
+                               VerticalOptions="Center" />
+                    </Grid>
+
+                    <!-- Statistik -->
+                    <Grid ColumnDefinitions="4,*" HeightRequest="52">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding NavigateCommand}"
+                                                  CommandParameter="HistoryStatsPage" />
+                        </Grid.GestureRecognizers>
+                        <BoxView Grid.Column="0"
+                                 Color="{StaticResource Primary}"
+                                 IsVisible="{Binding IsStatistikSelected}" />
+                        <Label Grid.Column="1"
+                               Text="Statistik"
+                               TextColor="{StaticResource White}"
+                               FontFamily="Baloo2Bold"
+                               FontSize="16"
+                               Padding="20,0,0,0"
+                               VerticalOptions="Center" />
+                    </Grid>
+
+                    <!-- Spelare -->
+                    <Grid ColumnDefinitions="4,*" HeightRequest="52">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding NavigateCommand}"
+                                                  CommandParameter="PlayerEditPage" />
+                        </Grid.GestureRecognizers>
+                        <BoxView Grid.Column="0"
+                                 Color="{StaticResource Primary}"
+                                 IsVisible="{Binding IsSpelareSelected}" />
+                        <Label Grid.Column="1"
+                               Text="Spelare"
+                               TextColor="{StaticResource White}"
+                               FontFamily="Baloo2Bold"
+                               FontSize="16"
+                               Padding="20,0,0,0"
+                               VerticalOptions="Center" />
+                    </Grid>
+
+                    <!-- Importera/Exportera — toggleable -->
+                    <Grid ColumnDefinitions="4,*,Auto" HeightRequest="52">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding ToggleImportExportCommand}" />
+                        </Grid.GestureRecognizers>
+                        <Label Grid.Column="1"
+                               Text="Importera/Exportera"
+                               TextColor="{StaticResource White}"
+                               FontFamily="Baloo2Bold"
+                               FontSize="16"
+                               Padding="20,0,0,0"
+                               VerticalOptions="Center" />
+                        <Label Grid.Column="2"
+                               Text="▾"
+                               TextColor="{StaticResource White}"
+                               FontSize="14"
+                               Padding="0,0,20,0"
+                               VerticalOptions="Center"
+                               IsVisible="{Binding IsImportExportExpanded, Converter={StaticResource InvertedBoolConverter}}" />
+                        <Label Grid.Column="2"
+                               Text="▴"
+                               TextColor="{StaticResource White}"
+                               FontSize="14"
+                               Padding="0,0,20,0"
+                               VerticalOptions="Center"
+                               IsVisible="{Binding IsImportExportExpanded}" />
+                    </Grid>
+
+                    <!-- Importera/Exportera-barn — visas när IsImportExportExpanded=true -->
+                    <VerticalStackLayout IsVisible="{Binding IsImportExportExpanded}" Spacing="2">
+                        <Grid ColumnDefinitions="4,*" HeightRequest="44">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding ImportExcelCommand}" />
+                            </Grid.GestureRecognizers>
+                            <Label Grid.Column="1"
+                                   Text="Importera Excel"
+                                   TextColor="{StaticResource White}"
+                                   FontFamily="Baloo2"
+                                   FontSize="14"
+                                   Padding="40,0,0,0"
+                                   VerticalOptions="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="4,*" HeightRequest="44">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding ExportCsvCommand}" />
+                            </Grid.GestureRecognizers>
+                            <Label Grid.Column="1"
+                                   Text="Exportera CSV"
+                                   TextColor="{StaticResource White}"
+                                   FontFamily="Baloo2"
+                                   FontSize="14"
+                                   Padding="40,0,0,0"
+                                   VerticalOptions="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="4,*" HeightRequest="44">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding ExportDatabaseCommand}" />
+                            </Grid.GestureRecognizers>
+                            <Label Grid.Column="1"
+                                   Text="Exportera databas"
+                                   TextColor="{StaticResource White}"
+                                   FontFamily="Baloo2"
+                                   FontSize="14"
+                                   Padding="40,0,0,0"
+                                   VerticalOptions="Center" />
+                        </Grid>
+                    </VerticalStackLayout>
+
+                    <!-- Inställningar -->
+                    <Grid ColumnDefinitions="4,*" HeightRequest="52">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding NavigateCommand}"
+                                                  CommandParameter="ApiKeySettingsPage" />
+                        </Grid.GestureRecognizers>
+                        <BoxView Grid.Column="0"
+                                 Color="{StaticResource Primary}"
+                                 IsVisible="{Binding IsInstallningarSelected}" />
+                        <Label Grid.Column="1"
+                               Text="Inställningar"
+                               TextColor="{StaticResource White}"
+                               FontFamily="Baloo2Bold"
+                               FontSize="16"
+                               Padding="20,0,0,0"
+                               VerticalOptions="Center" />
+                    </Grid>
+
+                </VerticalStackLayout>
+            </ScrollView>
+        </DataTemplate>
+    </Shell.FlyoutContentTemplate>
+
+    <!-- ShellContent-items är navigationsdestinationerna för //Route absolut navigation
+         från flyout:en. Default-target när appen startar är NightsListPage (första). -->
+    <ShellContent Title="Kvällar"
+                  Route="NightsListPage"
+                  ContentTemplate="{DataTemplate views:NightsListPage}" />
+    <ShellContent Title="Statistik"
+                  Route="HistoryStatsPage"
+                  ContentTemplate="{DataTemplate views:HistoryStatsPage}" />
+    <ShellContent Title="Spelare"
+                  Route="PlayerEditPage"
+                  ContentTemplate="{DataTemplate views:PlayerEditPage}" />
+    <ShellContent Title="Inställningar"
+                  Route="ApiKeySettingsPage"
+                  ContentTemplate="{DataTemplate views:ApiKeySettingsPage}" />
 
 </Shell>

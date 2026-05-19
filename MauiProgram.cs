@@ -56,6 +56,9 @@ public static class MauiProgram
         builder.Services.AddSingleton<IOcrService, NoOpOcrService>();
 #endif
 
+        builder.Services.AddSingleton<AppShell>();
+        builder.Services.AddSingleton<AppShellViewModel>();
+
         builder.Services.AddTransient<NightsListViewModel>();
         builder.Services.AddTransient<NewNightViewModel>();
         builder.Services.AddTransient<NightDetailViewModel>();

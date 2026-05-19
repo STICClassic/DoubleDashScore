@@ -50,7 +50,12 @@ public partial class PlayerEditViewModel : ObservableObject
                     await _players.UpdateNameAsync(item.Id, item.Name.Trim()).ConfigureAwait(true);
                 }
             }
-            await Shell.Current.GoToAsync("..").ConfigureAwait(true);
+            // PlayerEditPage öppnas som root-ShellContent via flyout-menyn
+            // (//PlayerEditPage), så det finns ingen parent att pop:a tillbaka
+            // till — GoToAsync("..") är tyst no-op där. Skicka användaren
+            // tillbaka till huvudvyn (Kvällar) i stället. Diagnostiken som
+            // bekräftade detta togs bort tillsammans med fixen.
+            await Shell.Current.GoToAsync("//NightsListPage").ConfigureAwait(true);
         }
         finally
         {
@@ -61,7 +66,7 @@ public partial class PlayerEditViewModel : ObservableObject
     [RelayCommand]
     private static async Task CancelAsync()
     {
-        await Shell.Current.GoToAsync("..").ConfigureAwait(true);
+        await Shell.Current.GoToAsync("//NightsListPage").ConfigureAwait(true);
     }
 }
 
