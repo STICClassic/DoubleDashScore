@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DoubleDashScore.Views.SplashPage"
+             BackgroundColor="#000000"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <!-- Initialt tillstånd (Scale=0, Opacity=0) sätts i XAML så elementen är
+         osynliga från första frame, sen kör OnAppearing animationen. -->
+    <Grid>
+        <VerticalStackLayout x:Name="ContentStack"
+                             HorizontalOptions="Center"
+                             VerticalOptions="Center"
+                             Spacing="12"
+                             Scale="0"
+                             Opacity="0">
+            <Label Text="🏆"
+                   FontSize="72"
+                   HorizontalOptions="Center" />
+            <Label Text="DoubleDashScore"
+                   TextColor="#FB923C"
+                   FontFamily="Baloo2Bold"
+                   FontSize="28"
+                   HorizontalOptions="Center" />
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>
