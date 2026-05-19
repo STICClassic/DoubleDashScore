@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:DoubleDashScore"
              xmlns:converters="clr-namespace:DoubleDashScore.Converters"
+             xmlns:oxy="clr-namespace:OxyPlot.Maui.Skia;assembly=OxyPlot.Maui.Skia"
              x:Class="DoubleDashScore.App">
     <Application.Resources>
         <ResourceDictionary>
@@ -14,6 +15,28 @@
             <converters:InvertedBoolConverter x:Key="InvertedBoolConverter" />
             <converters:StringNotEmptyConverter x:Key="StringNotEmptyConverter" />
             <converters:IsNullConverter x:Key="IsNullConverter" />
+
+            <!-- Mörk graf-tooltip: ersätter OxyPlot.Maui.Skia:s default ljusgula bakgrund
+                 (#E0FFFFA0) som ger oläsbar vit text. Mörkgrå bakgrund + vit text. -->
+            <ControlTemplate x:Key="DarkChartTracker">
+                <oxy:TrackerControl Position="{Binding Position}"
+                                    LineExtents="{Binding PlotModel.PlotArea}"
+                                    Background="#2A2A2A"
+                                    BorderBrush="#2A2A2A"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Distance="12"
+                                    ShowPointer="True">
+                    <oxy:TrackerControl.Content>
+                        <Label Text="{Binding}"
+                               Margin="12,8"
+                               TextColor="#FFFFFF"
+                               FontFamily="Baloo2"
+                               FontSize="13"
+                               LineBreakMode="WordWrap" />
+                    </oxy:TrackerControl.Content>
+                </oxy:TrackerControl>
+            </ControlTemplate>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

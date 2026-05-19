@@ -11,19 +11,29 @@ namespace DoubleDashScore
         protected override void OnCreate(Bundle? savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
-            if (Window?.DecorView is not null)
-            {
-                // SetStatusBarColor är deprecated från API 35 (edge-to-edge per default),
-                // men appen kör fortfarande mot lägre minSdk och behöver detta för att
-                // matcha Shell-headerns mörka topbar. Edge-to-edge är en separat refaktor.
+            if (Window?.DecorView is null) return;
+
+            // 6a:s SetStatusBarColor räcker inte ensam när target SDK ≥ 35 — Android 15+
+            // enforce:ar edge-to-edge och gör statusbar transparent, vilket gör att
+            // colorPrimary (= orange #FB923C) lyser igenom från splash- och Maui.MainTheme.
+            //
+            // Tre lager för att täcka API 21 → 36 konsekvent:
+            //  1) styles.xml överskuggar Maui.SplashTheme och Maui.MainTheme med
+            //     android:statusBarColor=#1F1F1F + windowLightStatusBar=false.
+            //  2) WindowCompat.SetDecorFitsSystemWindows(true) opt:ar ut ur edge-to-edge
+            //     så statusbar:n förblir opak (deprecated på API 35+ men fungerar
+            //     fortfarande som escape hatch).
+            //  3) Window.SetStatusBarColor sätter färgen i runtime för säkerhets skull.
+            // Edge-to-edge som första klassens lösning (rita själva under transparent
+            // statusbar) ligger utanför scope för Skiva 6.
 #pragma warning disable CA1422
-                Window.SetStatusBarColor(Android.Graphics.Color.ParseColor("#1F1F1F"));
+            WindowCompat.SetDecorFitsSystemWindows(Window, true);
+            Window.SetStatusBarColor(Android.Graphics.Color.ParseColor("#1F1F1F"));
 #pragma warning restore CA1422
-                var controller = WindowCompat.GetInsetsController(Window, Window.DecorView);
-                if (controller is not null)
-                {
-                    controller.AppearanceLightStatusBars = false;
-                }
+            var controller = WindowCompat.GetInsetsController(Window, Window.DecorView);
+            if (controller is not null)
+            {
+                controller.AppearanceLightStatusBars = false;
             }
         }
 

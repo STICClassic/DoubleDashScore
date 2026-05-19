@@ -105,7 +105,8 @@
             <!-- Kvällssnitt graf -->
             <Grid IsVisible="{Binding IsGraphTab}">
                 <oxy:PlotView Model="{Binding PlotModel}"
-                              BackgroundColor="Transparent" />
+                              BackgroundColor="Transparent"
+                              DefaultTrackerTemplate="{StaticResource DarkChartTracker}" />
                 <Button Text="⛶ Helskärm"
                         Command="{Binding OpenFullScreenChartCommand}"
                         FontSize="12"
