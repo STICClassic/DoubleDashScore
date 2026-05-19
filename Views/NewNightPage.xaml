@@ -9,7 +9,7 @@
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="16">
             <Label Text="Datum" />
-            <DatePicker Date="{Binding PlayedOn}" Format="yyyy-MM-dd" />
+            <DatePicker Date="{Binding PlayedOn}" Format="d MMMM yyyy" />
 
             <Label Text="Anteckning (valfritt)" />
             <Editor Text="{Binding Note}" AutoSize="TextChanges" HeightRequest="100" Placeholder="t.ex. Hos Anna" />

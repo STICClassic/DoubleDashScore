@@ -22,7 +22,15 @@ public static class MauiProgram
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+                fonts.AddFont("Baloo2-Regular.ttf", "Baloo2");
+                fonts.AddFont("Baloo2-Medium.ttf", "Baloo2Medium");
+                fonts.AddFont("Baloo2-SemiBold.ttf", "Baloo2SemiBold");
+                fonts.AddFont("Baloo2-Bold.ttf", "Baloo2Bold");
             });
+
+        var svSe = System.Globalization.CultureInfo.GetCultureInfo("sv-SE");
+        System.Globalization.CultureInfo.DefaultThreadCurrentCulture = svSe;
+        System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = svSe;
 
 #if ANDROID
         EntryHandler.Mapper.AppendToMapping("SelectAllOnFocus", (handler, _) =>

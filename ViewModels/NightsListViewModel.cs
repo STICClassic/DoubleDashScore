@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Data;
@@ -9,6 +10,8 @@ namespace DoubleDashScore.ViewModels;
 
 public partial class NightsListViewModel : ObservableObject
 {
+    private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
+
     private readonly GameNightRepository _nights;
     private readonly ExportService _export;
     private readonly PlayerRepository _players;
@@ -45,7 +48,7 @@ public partial class NightsListViewModel : ObservableObject
             {
                 Items.Add(new NightListItem(
                     s.Night.Id,
-                    s.Night.PlayedOn.ToLocalTime().ToString("yyyy-MM-dd"),
+                    s.Night.PlayedOn.ToLocalTime().ToString("d MMMM yyyy", SvSe),
                     s.Night.Note ?? string.Empty,
                     FormatRoundCount(s.RoundCount, s.CompleteRoundCount)));
             }

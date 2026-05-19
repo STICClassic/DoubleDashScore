@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Data;
@@ -8,6 +9,8 @@ namespace DoubleDashScore.ViewModels;
 [QueryProperty(nameof(NightId), "nightId")]
 public partial class NightDetailViewModel : ObservableObject
 {
+    private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
+
     private readonly GameNightRepository _nights;
     private readonly RoundRepository _rounds;
     private readonly OcrCaptureViewModel _capture;
@@ -53,7 +56,7 @@ public partial class NightDetailViewModel : ObservableObject
                 Rounds.Clear();
                 return;
             }
-            Title = $"Kväll {night.PlayedOn.ToLocalTime():yyyy-MM-dd}";
+            Title = $"Kväll {night.PlayedOn.ToLocalTime().ToString("d MMMM yyyy", SvSe)}";
             Note = night.Note ?? string.Empty;
 
             var details = await _rounds.GetRoundsForNightAsync(NightId, ct).ConfigureAwait(true);

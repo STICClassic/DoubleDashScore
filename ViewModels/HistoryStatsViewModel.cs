@@ -303,7 +303,7 @@ public partial class HistoryStatsViewModel : ObservableObject
         }
         if (point.PlayedOnUtc is { } playedOn)
         {
-            return $"Kväll {point.ChronologicalIndex.ToString(SvSe)} — {playedOn.ToLocalTime():yyyy-MM-dd}";
+            return $"Kväll {point.ChronologicalIndex.ToString(SvSe)} — {playedOn.ToLocalTime().ToString("d MMMM yyyy", SvSe)}";
         }
         throw new InvalidOperationException(
             $"Kvällspunkt {point.ChronologicalIndex} saknar både HistoricalNightNumber och PlayedOnUtc — datakorruption misstänks.");
