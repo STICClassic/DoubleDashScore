@@ -18,10 +18,10 @@ public partial class HistoryStatsViewModel : ObservableObject
     // att en spelare alltid får sin egen färg oavsett DisplayOrder. Faller tillbaka
     // till positionell färgmatchning om namnet är okänt.
     //
-    // Valda mot ljusgrå plot-bakgrund (#E8E8E8). Jonas är medvetet mörkare än
-    // ren gul (#FFD700) eftersom ren gul har kontrast ~1.1:1 mot #E8E8E8 och blir
-    // i princip osynlig — #B8860B (DarkGoldenrod) har ~3.0:1 och läser
-    // fortfarande som gul/guld.
+    // Valda mot grå plot-bakgrund (#C8C8C8). Jonas är medvetet mörkare än
+    // ren gul (#FFD700) eftersom ren gul har dålig kontrast mot grått och blir
+    // i princip osynlig — #B8860B (DarkGoldenrod) läser fortfarande som gul/guld
+    // och har god kontrast även mot mörkare grått.
     private static readonly Dictionary<string, OxyColor> PlayerColorsByName =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -46,11 +46,10 @@ public partial class HistoryStatsViewModel : ObservableObject
             : FallbackPlayerColors[displayOrder % FallbackPlayerColors.Length];
     }
 
-    // Fast palett för plot-elementen (axlar, text, gridlines) — vi växlar inte
-    // dark mode-färger längre eftersom bakgrunden är fast ljusgrå.
-    private static readonly OxyColor ChartBackground = OxyColor.FromRgb(0xE8, 0xE8, 0xE8);
+    // Fast palett för plot-elementen (axlar, text, border) — vi växlar inte
+    // dark mode-färger längre eftersom bakgrunden är fast grå.
+    private static readonly OxyColor ChartBackground = OxyColor.FromRgb(0xC8, 0xC8, 0xC8);
     private static readonly OxyColor ChartForeground = OxyColor.FromRgb(0x22, 0x22, 0x22);
-    private static readonly OxyColor ChartGridline   = OxyColor.FromArgb(0x60, 0x00, 0x00, 0x00);
     private static readonly OxyColor ChartBorder     = OxyColor.FromArgb(0x8C, 0x00, 0x00, 0x00);
 
     private readonly GameNightRepository _nights;
@@ -220,8 +219,8 @@ public partial class HistoryStatsViewModel : ObservableObject
                     ? n.ToString(SvSe)
                     : string.Empty;
             },
-            MajorGridlineStyle = LineStyle.Dot,
-            MajorGridlineColor = ChartGridline,
+            MajorGridlineStyle = LineStyle.None,
+            MinorGridlineStyle = LineStyle.None,
             MinorTickSize = 0,
             TextColor = ChartForeground,
             TicklineColor = ChartForeground,
@@ -235,8 +234,8 @@ public partial class HistoryStatsViewModel : ObservableObject
             Maximum = 4,
             MajorStep = 1,
             MinorStep = 0.5,
-            MajorGridlineStyle = LineStyle.Dot,
-            MajorGridlineColor = ChartGridline,
+            MajorGridlineStyle = LineStyle.None,
+            MinorGridlineStyle = LineStyle.None,
             StringFormat = "0.00",
             TextColor = ChartForeground,
             TicklineColor = ChartForeground,

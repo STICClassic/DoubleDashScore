@@ -8,13 +8,19 @@
              Shell.NavBarIsVisible="False"
              Shell.TabBarIsVisible="False"
              Shell.FlyoutBehavior="Disabled"
-             BackgroundColor="#E8E8E8">
+             BackgroundColor="#C8C8C8">
 
     <Grid>
         <oxy:PlotView Model="{Binding PlotModel}"
-                      BackgroundColor="Transparent" />
+                      BackgroundColor="Transparent"
+                      DefaultTrackerTemplate="{StaticResource DarkChartTracker}">
+            <oxy:PlotView.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding TogglePlotTapCommand}" />
+            </oxy:PlotView.GestureRecognizers>
+        </oxy:PlotView>
 
-        <Button Text="↺"
+        <Button x:Name="ResetButton"
+                Text="↺"
                 Command="{Binding ResetZoomCommand}"
                 FontSize="20"
                 FontAttributes="Bold"
@@ -28,7 +34,8 @@
                 VerticalOptions="Start"
                 Margin="16,16,0,0" />
 
-        <Button Text="✕"
+        <Button x:Name="CloseButton"
+                Text="✕"
                 Command="{Binding CloseCommand}"
                 FontSize="18"
                 FontAttributes="Bold"
