@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#FB923C</color>
+    <!-- colorPrimary styr Material:s statusBarColor-kedja (statusBarColor →
+         colorPrimaryVariant → colorPrimary när variant inte sätts explicit).
+         Vi vill ha mörk statusbar, så vi sätter colorPrimary mörk här.
+         MAUI Buttons är opåverkade — deras färg kommer från {StaticResource Primary}
+         i Resources/Styles/Colors.xaml, inte från Android ?attr/colorPrimary.
+         Biverkning: splash-skärmens bakgrund (maui_splash_color = @color/colorPrimary)
+         blir också mörk. Accepterat — splash-ikonens vita paths syns fortfarande.
+         colorAccent förblir orange för native Material-accenter (ripples m.m.). -->
+    <color name="colorPrimary">#1F1F1F</color>
     <color name="colorPrimaryDark">#1F1F1F</color>
     <color name="colorAccent">#FB923C</color>
 </resources>
