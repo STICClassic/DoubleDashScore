@@ -61,7 +61,7 @@ public partial class NightStatsViewModel : ObservableObject
                 StatusMessage = "Kvällen kunde inte hittas.";
                 return;
             }
-            Title = $"Statistik — {night.PlayedOn.ToLocalTime():yyyy-MM-dd}";
+            Title = $"Statistik — {night.PlayedOn.ToLocalTime().ToString("d MMMM yyyy", SvSe)}";
 
             var activePlayers = await _players.GetActivePlayersAsync(ct).ConfigureAwait(true);
             if (activePlayers.Count != 4)

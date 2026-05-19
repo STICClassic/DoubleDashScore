@@ -21,7 +21,7 @@
                     </Label.GestureRecognizers>
                 </Label>
                 <BoxView HeightRequest="2"
-                         Color="{AppThemeBinding Light=#4E9CFF, Dark=#4E9CFF}"
+                         Color="{StaticResource Primary}"
                          IsVisible="{Binding IsTotalsTab}" />
             </VerticalStackLayout>
             <VerticalStackLayout Grid.Column="1" Spacing="4">
@@ -34,7 +34,7 @@
                     </Label.GestureRecognizers>
                 </Label>
                 <BoxView HeightRequest="2"
-                         Color="{AppThemeBinding Light=#4E9CFF, Dark=#4E9CFF}"
+                         Color="{StaticResource Primary}"
                          IsVisible="{Binding IsGraphTab}" />
             </VerticalStackLayout>
             <VerticalStackLayout Grid.Column="2" Spacing="4">
@@ -47,7 +47,7 @@
                     </Label.GestureRecognizers>
                 </Label>
                 <BoxView HeightRequest="2"
-                         Color="{AppThemeBinding Light=#4E9CFF, Dark=#4E9CFF}"
+                         Color="{StaticResource Primary}"
                          IsVisible="{Binding IsPlacementsTab}" />
             </VerticalStackLayout>
         </Grid>
