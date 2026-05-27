@@ -40,6 +40,10 @@ public static class MauiProgram
 #endif
 
         builder.Services.AddSingleton<DatabaseService>();
+        builder.Services.AddSingleton<BackupService>(_ =>
+            new BackupService(
+                DatabaseService.DatabasePath,
+                Path.Combine(FileSystem.AppDataDirectory, "auto-backups")));
         builder.Services.AddSingleton<PlayerRepository>();
         builder.Services.AddSingleton<GameNightRepository>();
         builder.Services.AddSingleton<RoundRepository>();

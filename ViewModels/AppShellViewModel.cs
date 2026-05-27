@@ -17,17 +17,20 @@ public partial class AppShellViewModel : ObservableObject
     private readonly PlayerRepository _players;
     private readonly HistoricalDataRepository _historical;
     private readonly DatabaseService _database;
+    private readonly BackupService _backup;
 
     public AppShellViewModel(
         ExportService export,
         PlayerRepository players,
         HistoricalDataRepository historical,
-        DatabaseService database)
+        DatabaseService database,
+        BackupService backup)
     {
         _export = export;
         _players = players;
         _historical = historical;
         _database = database;
+        _backup = backup;
     }
 
     // Route-segmentet (sista delen av Shell.Current.CurrentState.Location.OriginalString)
@@ -166,6 +169,11 @@ public partial class AppShellViewModel : ObservableObject
             // till UI-tråden innan LoadAsync. Användaren stannar på sin
             // nuvarande vy så att t.ex. Statistik uppdateras in-place.
             WeakReferenceMessenger.Default.Send(new DatabaseImportedMessage());
+
+            // Säkerställ att den importerade DB:n också hamnar i auto-backup-
+            // fönstret — annars börjar rullande backupen om från noll nästa
+            // gång användaren ändrar något.
+            _backup.RequestBackup();
 
             await page.DisplayAlertAsync(
                 "Databasen importerades",

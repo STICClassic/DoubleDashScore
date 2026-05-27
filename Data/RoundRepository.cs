@@ -1,4 +1,5 @@
 using DoubleDashScore.Models;
+using DoubleDashScore.Services;
 using SQLite;
 
 namespace DoubleDashScore.Data;
@@ -6,10 +7,12 @@ namespace DoubleDashScore.Data;
 public class RoundRepository
 {
     private readonly DatabaseService _db;
+    private readonly BackupService _backup;
 
-    public RoundRepository(DatabaseService db)
+    public RoundRepository(DatabaseService db, BackupService backup)
     {
         _db = db;
+        _backup = backup;
     }
 
     public async Task<IReadOnlyList<RoundDetail>> GetRoundsForNightAsync(int gameNightId, CancellationToken ct = default)
@@ -104,6 +107,7 @@ public class RoundRepository
             }
         }).ConfigureAwait(false);
 
+        _backup.RequestBackup();
         return newRoundId;
     }
 
@@ -152,6 +156,8 @@ public class RoundRepository
                 });
             }
         }).ConfigureAwait(false);
+
+        _backup.RequestBackup();
     }
 
     public async Task SoftDeleteRoundAsync(int roundId, CancellationToken ct = default)
@@ -177,6 +183,8 @@ public class RoundRepository
                 tx.Update(rr);
             }
         }).ConfigureAwait(false);
+
+        _backup.RequestBackup();
     }
 
     public async Task<RoundDetail?> GetMostRecentRoundForNightAsync(int gameNightId, CancellationToken ct = default)

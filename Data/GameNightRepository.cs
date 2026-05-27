@@ -1,4 +1,5 @@
 using DoubleDashScore.Models;
+using DoubleDashScore.Services;
 
 namespace DoubleDashScore.Data;
 
@@ -7,10 +8,12 @@ public record GameNightSummary(GameNight Night, int RoundCount, int CompleteRoun
 public class GameNightRepository
 {
     private readonly DatabaseService _db;
+    private readonly BackupService _backup;
 
-    public GameNightRepository(DatabaseService db)
+    public GameNightRepository(DatabaseService db, BackupService backup)
     {
         _db = db;
+        _backup = backup;
     }
 
     public async Task<int> CreateAsync(DateTime playedOnUtc, string? note, CancellationToken ct = default)
@@ -23,6 +26,7 @@ public class GameNightRepository
             CreatedAt = DateTime.UtcNow,
         };
         await conn.InsertAsync(night).ConfigureAwait(false);
+        _backup.RequestBackup();
         return night.Id;
     }
 
@@ -133,6 +137,7 @@ public class GameNightRepository
         }
         night.DeletedAt = DateTime.UtcNow;
         await conn.UpdateAsync(night).ConfigureAwait(false);
+        _backup.RequestBackup();
     }
 
     private static async Task<Dictionary<int, int>> GetResultCountsByRoundAsync(SQLite.SQLiteAsyncConnection conn)
