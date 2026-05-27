@@ -6,10 +6,12 @@ namespace DoubleDashScore.Data;
 public class HistoricalDataRepository
 {
     private readonly DatabaseService _db;
+    private readonly BackupService _backup;
 
-    public HistoricalDataRepository(DatabaseService db)
+    public HistoricalDataRepository(DatabaseService db, BackupService backup)
     {
         _db = db;
+        _backup = backup;
     }
 
     public async Task<IReadOnlyList<HistoricalNightAggregate>> GetAllNightAggregatesAsync(CancellationToken ct = default)
@@ -141,6 +143,7 @@ public class HistoricalDataRepository
             placementsInserted = plan.PlacementsToInsert.Count;
         }).ConfigureAwait(false);
 
+        _backup.RequestBackup();
         return new ImportResult(
             nightsInserted,
             placementsInserted,

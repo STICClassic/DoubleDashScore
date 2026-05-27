@@ -29,6 +29,7 @@
 		<Compile Include="..\Services\IApiKeyStore.cs" LinkBase="Services" />
 		<Compile Include="..\Services\IOcrService.cs" LinkBase="Services" />
 		<Compile Include="..\Services\ClaudeVisionOcrService.cs" LinkBase="Services" />
+		<Compile Include="..\Services\BackupService.cs" LinkBase="Services" />
 	</ItemGroup>
 
 	<ItemGroup>

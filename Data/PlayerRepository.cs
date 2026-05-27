@@ -1,14 +1,17 @@
 using DoubleDashScore.Models;
+using DoubleDashScore.Services;
 
 namespace DoubleDashScore.Data;
 
 public class PlayerRepository
 {
     private readonly DatabaseService _db;
+    private readonly BackupService _backup;
 
-    public PlayerRepository(DatabaseService db)
+    public PlayerRepository(DatabaseService db, BackupService backup)
     {
         _db = db;
+        _backup = backup;
     }
 
     public async Task<IReadOnlyList<Player>> GetActivePlayersAsync(CancellationToken ct = default)
@@ -29,5 +32,6 @@ public class PlayerRepository
             ?? throw new InvalidOperationException($"Player {playerId} not found.");
         player.Name = name;
         await conn.UpdateAsync(player).ConfigureAwait(false);
+        _backup.RequestBackup();
     }
 }
