@@ -1,16 +1,27 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Services;
+using DoubleDashScore.Views;
 
 namespace DoubleDashScore.ViewModels;
 
 public partial class ApiKeySettingsViewModel : ObservableObject
 {
-    private readonly IApiKeyStore _keys;
+    private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
 
-    public ApiKeySettingsViewModel(IApiKeyStore keys)
+    private readonly IApiKeyStore _keys;
+    private readonly BackupService _backup;
+    private readonly IServiceProvider _services;
+
+    public ApiKeySettingsViewModel(
+        IApiKeyStore keys,
+        BackupService backup,
+        IServiceProvider services)
     {
         _keys = keys;
+        _backup = backup;
+        _services = services;
     }
 
     [ObservableProperty]
@@ -22,11 +33,39 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
+    [ObservableProperty]
+    private string _backupLatestLine = "Senaste auto-backup: –";
+
+    [ObservableProperty]
+    private string _backupCountLine = "0 sparade backups";
+
+    [ObservableProperty]
+    private bool _hasBackups;
+
     public async Task LoadAsync(CancellationToken ct = default)
     {
         var existing = await _keys.GetAsync(ct).ConfigureAwait(true);
         CurrentStatus = FormatStatus(existing);
         EntryText = string.Empty;
+        RefreshBackupInfo();
+    }
+
+    private void RefreshBackupInfo()
+    {
+        var backups = _backup.ListAutoBackups();
+        HasBackups = backups.Count > 0;
+        if (backups.Count == 0)
+        {
+            BackupLatestLine = "Inga auto-backups än";
+            BackupCountLine = "0 sparade backups";
+            return;
+        }
+
+        // ListAutoBackups returnerar nyast → äldst, så index 0 är senaste.
+        BackupLatestLine = $"Senaste auto-backup: {BackupFileNaming.FormatTimestamp(backups[0], SvSe)}";
+        BackupCountLine = backups.Count == 1
+            ? "1 sparad backup"
+            : $"{backups.Count} sparade backups";
     }
 
     [RelayCommand]
@@ -80,6 +119,16 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task OpenRestoreAsync()
+    {
+        // Hämta sidan via DI så att VM:n får sina dependencies konstruerade.
+        // När modalen pop:as kör ApiKeySettingsPage.OnAppearing → LoadAsync,
+        // vilket uppdaterar backup-info-raden automatiskt.
+        var page = (RestoreAutoBackupPage)_services.GetService(typeof(RestoreAutoBackupPage))!;
+        await Shell.Current.Navigation.PushModalAsync(page).ConfigureAwait(true);
     }
 
     private static string FormatStatus(string? key)
