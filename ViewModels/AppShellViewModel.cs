@@ -15,15 +15,18 @@ public partial class AppShellViewModel : ObservableObject
     private readonly ExportService _export;
     private readonly PlayerRepository _players;
     private readonly HistoricalDataRepository _historical;
+    private readonly DatabaseService _database;
 
     public AppShellViewModel(
         ExportService export,
         PlayerRepository players,
-        HistoricalDataRepository historical)
+        HistoricalDataRepository historical,
+        DatabaseService database)
     {
         _export = export;
         _players = players;
         _historical = historical;
+        _database = database;
     }
 
     // Route-segmentet (sista delen av Shell.Current.CurrentState.Location.OriginalString)
@@ -98,6 +101,83 @@ public partial class AppShellViewModel : ObservableObject
         catch (InvalidOperationException ex)
         {
             await page.DisplayAlertAsync("Kan inte exportera databas", ex.Message, "OK").ConfigureAwait(true);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportDatabaseAsync()
+    {
+        Shell.Current.FlyoutIsPresented = false;
+        var page = Shell.Current.CurrentPage;
+        try
+        {
+            // .db och .db3 finns inte i Androids standard-MIME-tabell — använd
+            // octet-stream som ett brett filter. På desktop visar vi explicit
+            // .db/.db3-filändelser.
+            var fileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+            {
+                [DevicePlatform.Android] = new[] { "application/octet-stream", "application/x-sqlite3", "application/vnd.sqlite3" },
+                [DevicePlatform.WinUI] = new[] { ".db", ".db3" },
+                [DevicePlatform.iOS] = new[] { "public.database", "public.data" },
+                [DevicePlatform.macOS] = new[] { "db", "db3" },
+            });
+
+            var pick = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Välj .db-fil att importera",
+                FileTypes = fileTypes,
+            }).ConfigureAwait(true);
+            if (pick is null) return;
+
+            var confirmed = await page.DisplayAlertAsync(
+                "Importera databas?",
+                "Detta ersätter ALL nuvarande data med innehållet i filen. Detta kan inte ångras. Fortsätt?",
+                "Ja, ersätt",
+                "Avbryt").ConfigureAwait(true);
+            if (!confirmed) return;
+
+            // FilePicker ger oss en stream — kopiera till en lokal temp-fil först
+            // så DatabaseService kan göra File.Copy mot något stabilt (vissa
+            // platforms-handles går inte att läsa två gånger).
+            var tempPath = Path.Combine(
+                FileSystem.Current.CacheDirectory,
+                $"import-{Guid.NewGuid():N}.db");
+            try
+            {
+                await using (var src = await pick.OpenReadAsync().ConfigureAwait(true))
+                await using (var dst = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    await src.CopyToAsync(dst).ConfigureAwait(true);
+                }
+
+                await _database.ReplaceDatabaseAsync(tempPath).ConfigureAwait(true);
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                {
+                    try { File.Delete(tempPath); } catch { /* ignorera städfel */ }
+                }
+            }
+
+            await page.DisplayAlertAsync(
+                "Databasen importerades",
+                "Backupen är nu aktiv. Appen laddar om din data.",
+                "OK").ConfigureAwait(true);
+
+            await Shell.Current.GoToAsync($"//{nameof(NightsListPage)}").ConfigureAwait(true);
+        }
+        catch (InvalidDataException ex)
+        {
+            await page.DisplayAlertAsync("Ogiltig databasfil", ex.Message, "OK").ConfigureAwait(true);
+        }
+        catch (FileNotFoundException ex)
+        {
+            await page.DisplayAlertAsync("Filen hittades inte", ex.Message, "OK").ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            await page.DisplayAlertAsync("Importfel", ex.Message, "OK").ConfigureAwait(true);
         }
     }
 
