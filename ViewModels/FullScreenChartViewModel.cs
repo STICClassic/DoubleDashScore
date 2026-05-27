@@ -1,6 +1,8 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Services;
+using Microsoft.Maui.Graphics;
 using OxyPlot;
 
 namespace DoubleDashScore.ViewModels;
@@ -19,6 +21,10 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
 
     public PlotModel? PlotModel => _store.CurrentPlotModel;
 
+    // Egen legend, byggs om varje gång sidan visas mot _store.CurrentPlotModel.
+    // Toggling delar HiddenPlayerNames-set med HistoryStatsViewModel via store.
+    public ObservableCollection<PlayerLegendItem> LegendItems { get; } = new();
+
     // True när ✕- och ↺-knapparna ska vara synliga. Sidan kopplar denna till
     // FadeTo + InputTransparent på knapparna.
     [ObservableProperty]
@@ -28,6 +34,7 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     {
         IsControlsVisible = true;
         StartHideTimer();
+        RebuildLegendItems();
     }
 
     public void OnPageDisappearing()
@@ -70,6 +77,42 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
         // Tap på en synlig knapp ska räknas som interaktion: håll knapparna
         // synliga och starta om 3-sekunderstimern.
         StartHideTimer();
+    }
+
+    [RelayCommand]
+    private void TogglePlayerVisibility(PlayerLegendItem? item)
+    {
+        if (item is null) return;
+        var model = _store.CurrentPlotModel;
+        if (model is null) return;
+
+        var nowVisible = _store.TogglePlayerVisibility(item.Name);
+        item.IsVisible = nowVisible;
+
+        var series = model.Series.FirstOrDefault(s => string.Equals(s.Title, item.Name, StringComparison.Ordinal));
+        if (series is null) return;
+        series.IsVisible = nowVisible;
+        model.InvalidatePlot(true);
+
+        // Tap på en legend-rad räknas som interaktion — håll kontrollerna
+        // synliga lite till så användaren kan toggla flera spelare.
+        IsControlsVisible = true;
+        StartHideTimer();
+    }
+
+    private void RebuildLegendItems()
+    {
+        LegendItems.Clear();
+        var model = _store.CurrentPlotModel;
+        if (model is null) return;
+
+        foreach (var series in model.Series)
+        {
+            if (series is not OxyPlot.Series.LineSeries line) continue;
+            var oxy = line.Color;
+            var color = Color.FromRgba(oxy.R, oxy.G, oxy.B, oxy.A);
+            LegendItems.Add(new PlayerLegendItem(line.Title, color, line.IsVisible));
+        }
     }
 
     private void StartHideTimer()

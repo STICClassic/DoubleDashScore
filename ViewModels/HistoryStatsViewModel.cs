@@ -129,6 +129,11 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
 
     public ObservableCollection<PlacementsRow> PlacementsRows { get; } = new();
 
+    // Egen legend under grafen — OxyPlots inbyggda legend exponerar inte
+    // tap-events i MAUI på något användbart sätt. Items synkar IsVisible
+    // mot LineSeries.IsVisible och ChartTransferStore.HiddenPlayerNames.
+    public ObservableCollection<PlayerLegendItem> LegendItems { get; } = new();
+
     [RelayCommand]
     private void SelectTab(string indexText)
     {
@@ -205,6 +210,12 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
 
             PlotModel = BuildPlotModel(stats.Series, orderedIds, nameById);
             _chartStore.CurrentPlotModel = PlotModel;
+            // Applicera tidigare avvalda spelare (kan ha togglats i fullscreen
+            // innan användaren navigerade tillbaka, eller från en tidigare
+            // session sett över datarefreshes). Påverkar series.IsVisible
+            // innan första rendering så grafen inte blinkar.
+            _chartStore.ApplyVisibilityToPlot();
+            RebuildLegendItems(PlotModel, orderedIds, nameById);
             HasData = true;
         }
         catch (InvalidOperationException ex)
@@ -314,13 +325,8 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             model.Series.Add(line);
         }
 
-        model.Legends.Add(new OxyPlot.Legends.Legend
-        {
-            LegendPlacement = OxyPlot.Legends.LegendPlacement.Outside,
-            LegendPosition = OxyPlot.Legends.LegendPosition.BottomCenter,
-            LegendOrientation = OxyPlot.Legends.LegendOrientation.Horizontal,
-            LegendTextColor = ChartForeground,
-        });
+        // Ingen OxyPlot-inbyggd legend — vi renderar en egen tap:bar legend
+        // under grafen i XAML (HistoryStatsPage + FullScreenChartPage).
 
         return model;
     }
@@ -356,6 +362,44 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
         return string.Join(", ", list.Select(p => p.IsTied
             ? $"{p.Position.ToString(SvSe)}*"
             : p.Position.ToString(SvSe)));
+    }
+
+    private void RebuildLegendItems(
+        PlotModel model,
+        IReadOnlyList<int> orderedIds,
+        IReadOnlyDictionary<int, string> nameById)
+    {
+        LegendItems.Clear();
+        for (int i = 0; i < orderedIds.Count; i++)
+        {
+            var name = nameById[orderedIds[i]];
+            // Hämta serie för spelaren — kan saknas om StatsCalculator inte
+            // levererade några punkter för hen, men det är osannolikt med
+            // 4-spelar-invarianten. Skippar då legend-raden.
+            var series = model.Series.FirstOrDefault(s => string.Equals(s.Title, name, StringComparison.Ordinal));
+            if (series is null) continue;
+
+            var oxy = ColorForPlayer(name, i);
+            var mauiColor = Microsoft.Maui.Graphics.Color.FromRgba(oxy.R, oxy.G, oxy.B, oxy.A);
+            LegendItems.Add(new PlayerLegendItem(name, mauiColor, series.IsVisible));
+        }
+    }
+
+    [RelayCommand]
+    private void TogglePlayerVisibility(PlayerLegendItem? item)
+    {
+        if (item is null || PlotModel is null) return;
+
+        var nowVisible = _chartStore.TogglePlayerVisibility(item.Name);
+        item.IsVisible = nowVisible;
+
+        var series = PlotModel.Series.FirstOrDefault(s => string.Equals(s.Title, item.Name, StringComparison.Ordinal));
+        if (series is null) return;
+        series.IsVisible = nowVisible;
+        // true → rebuild punkter också (vi behöver det här eftersom serien
+        // kan dyka upp igen efter att ha varit dold och tracker-cachen kan
+        // vara stale på vissa MAUI/OxyPlot-versioner).
+        PlotModel.InvalidatePlot(true);
     }
 
 }
