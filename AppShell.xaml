@@ -150,6 +150,18 @@
                                    Padding="40,0,0,0"
                                    VerticalOptions="Center" />
                         </Grid>
+                        <Grid ColumnDefinitions="4,*" HeightRequest="44">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding ImportDatabaseCommand}" />
+                            </Grid.GestureRecognizers>
+                            <Label Grid.Column="1"
+                                   Text="Importera databas"
+                                   TextColor="{StaticResource White}"
+                                   FontFamily="Baloo2"
+                                   FontSize="14"
+                                   Padding="40,0,0,0"
+                                   VerticalOptions="Center" />
+                        </Grid>
                     </VerticalStackLayout>
 
                     <!-- Inställningar -->

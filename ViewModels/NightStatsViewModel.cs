@@ -1,13 +1,14 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Messaging;
 using DoubleDashScore.Data;
 using DoubleDashScore.Services;
 
 namespace DoubleDashScore.ViewModels;
 
 [QueryProperty(nameof(NightId), "nightId")]
-public partial class NightStatsViewModel : ObservableObject
+public partial class NightStatsViewModel : ObservableObject, IRecipient<DatabaseImportedMessage>
 {
     private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
 
@@ -23,6 +24,16 @@ public partial class NightStatsViewModel : ObservableObject
         _nights = nights;
         _rounds = rounds;
         _players = players;
+        WeakReferenceMessenger.Default.Register(this);
+    }
+
+    public void Receive(DatabaseImportedMessage message)
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try { await LoadAsync().ConfigureAwait(true); }
+            catch { /* fire-and-forget */ }
+        });
     }
 
     [ObservableProperty]

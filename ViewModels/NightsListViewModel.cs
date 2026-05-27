@@ -2,11 +2,13 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using DoubleDashScore.Data;
+using DoubleDashScore.Services;
 
 namespace DoubleDashScore.ViewModels;
 
-public partial class NightsListViewModel : ObservableObject
+public partial class NightsListViewModel : ObservableObject, IRecipient<DatabaseImportedMessage>
 {
     private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
 
@@ -15,6 +17,19 @@ public partial class NightsListViewModel : ObservableObject
     public NightsListViewModel(GameNightRepository nights)
     {
         _nights = nights;
+        WeakReferenceMessenger.Default.Register(this);
+    }
+
+    // Triggas när AppShellViewModel.ImportDatabaseAsync skickar signalen efter
+    // en lyckad .db-import. Marshall till UI-tråden eftersom LoadAsync rör
+    // ObservableCollection och anroparen kan vara på vilken tråd som helst.
+    public void Receive(DatabaseImportedMessage message)
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try { await LoadAsync().ConfigureAwait(true); }
+            catch { /* fire-and-forget: nästa OnAppearing laddar om igen */ }
+        });
     }
 
     public ObservableCollection<NightListItem> Items { get; } = new();

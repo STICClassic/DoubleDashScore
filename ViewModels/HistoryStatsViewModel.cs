@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using DoubleDashScore.Data;
 using DoubleDashScore.Services;
 using OxyPlot;
@@ -10,7 +11,7 @@ using OxyPlot.Series;
 
 namespace DoubleDashScore.ViewModels;
 
-public partial class HistoryStatsViewModel : ObservableObject
+public partial class HistoryStatsViewModel : ObservableObject, IRecipient<DatabaseImportedMessage>
 {
     private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
 
@@ -67,6 +68,18 @@ public partial class HistoryStatsViewModel : ObservableObject
         _players = players;
         _historical = historical;
         _chartStore = chartStore;
+        WeakReferenceMessenger.Default.Register(this);
+    }
+
+    // Reload när användaren importerar en .db-backup, oavsett vilken tabb som
+    // är aktiv just nu (LoadAsync återskapar Totals, PlacementsRows och PlotModel).
+    public void Receive(DatabaseImportedMessage message)
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try { await LoadAsync().ConfigureAwait(true); }
+            catch { /* fire-and-forget */ }
+        });
     }
 
     [ObservableProperty]
