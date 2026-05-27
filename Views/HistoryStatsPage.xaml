@@ -130,7 +130,7 @@
             </VerticalStackLayout>
 
             <!-- Graf -->
-            <Grid RowDefinitions="*,Auto" IsVisible="{Binding IsGraphTab}">
+            <Grid RowDefinitions="*,Auto,Auto,Auto" IsVisible="{Binding IsGraphTab}">
                 <Grid Grid.Row="0">
                     <oxy:PlotView Model="{Binding PlotModel}"
                                   BackgroundColor="Transparent"
@@ -144,8 +144,68 @@
                             Margin="0,4,4,0" />
                 </Grid>
 
+                <!-- Scrubber-panel: alla fyra spelares kvällssnitt för vald
+                     kväll, sorterat bäst→sämst. Mörkgrå bg + vit text matchar
+                     punkt-tooltipens stil (DarkChartTracker i App.xaml). -->
+                <Border Grid.Row="1"
+                        StrokeThickness="0"
+                        BackgroundColor="#2A2A2A"
+                        Padding="14,10"
+                        Margin="0,6,0,0"
+                        IsVisible="{Binding HasSelectedNightSlice}">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding SelectedNightSlice.DateLabel}"
+                               TextColor="White"
+                               FontFamily="Baloo2Bold"
+                               FontSize="14" />
+                        <CollectionView ItemsSource="{Binding SelectedNightSlice.RowsBestToWorst}"
+                                        SelectionMode="None"
+                                        Margin="0,2,0,0">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PlayerNightAverageRow">
+                                    <Grid ColumnDefinitions="14,*,Auto" ColumnSpacing="10" Padding="0,2">
+                                        <BoxView Grid.Column="0"
+                                                 Color="{Binding Color}"
+                                                 WidthRequest="14"
+                                                 HeightRequest="14"
+                                                 VerticalOptions="Center" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding PlayerName}"
+                                               TextColor="White"
+                                               FontFamily="Baloo2"
+                                               FontSize="13"
+                                               VerticalOptions="Center" />
+                                        <Label Grid.Column="2"
+                                               Text="{Binding AverageDisplay}"
+                                               TextColor="White"
+                                               FontFamily="Baloo2Bold"
+                                               FontSize="13"
+                                               VerticalOptions="Center" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Slider under panelen. Snäpper till heltal via VM:s
+                     OnScrubberValueChanged. Döljs när det bara finns en kväll
+                     (Min == Max gör slidern oanvändbar). -->
+                <Slider Grid.Row="2"
+                        Minimum="0"
+                        Maximum="{Binding ScrubberMaximum}"
+                        Value="{Binding ScrubberValue, Mode=TwoWay}"
+                        MinimumTrackColor="{StaticResource Primary}"
+                        MaximumTrackColor="{StaticResource Gray400}"
+                        ThumbColor="{StaticResource Primary}"
+                        IsVisible="{Binding IsScrubberSliderEnabled}"
+                        Margin="0,6,0,0" />
+
                 <!-- Egen legend: tap på en spelare döljer/visar dess linje. -->
-                <CollectionView Grid.Row="1"
+                <CollectionView Grid.Row="3"
                                 ItemsSource="{Binding LegendItems}"
                                 ItemsLayout="HorizontalList"
                                 SelectionMode="None"

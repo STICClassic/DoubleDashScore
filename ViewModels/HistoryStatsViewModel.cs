@@ -5,7 +5,9 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using DoubleDashScore.Data;
 using DoubleDashScore.Services;
+using Microsoft.Maui.Graphics;
 using OxyPlot;
+using OxyPlot.Annotations;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 
@@ -134,6 +136,54 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     // mot LineSeries.IsVisible och ChartTransferStore.HiddenPlayerNames.
     public ObservableCollection<PlayerLegendItem> LegendItems { get; } = new();
 
+    // ----- Scrubber / vald-kväll-panel -------------------------------------
+
+    // Alla kvällar i kronologisk ordning (historiska först, sen app-kvällar).
+    // SelectedNightIndex är ett index i denna lista. Återbyggs varje LoadAsync.
+    private List<NightScrubberSlice> _allSlices = new();
+
+    // Vertikal markörlinje på grafen vid vald kvälls ChronologicalIndex.
+    // Tilldelas till nuvarande PlotModel:s Annotations. PlotModel:en byggs om
+    // i LoadAsync — då nollas referensen och annotation:en återskapas mot
+    // den nya modellen.
+    private LineAnnotation? _scrubberAnnotation;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsScrubberSliderEnabled))]
+    private int _scrubberMaximum;
+
+    public bool IsScrubberSliderEnabled => ScrubberMaximum > 0;
+
+    [ObservableProperty]
+    private double _scrubberValue;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedNightSlice))]
+    [NotifyPropertyChangedFor(nameof(HasSelectedNightSlice))]
+    private int _selectedNightIndex = -1;
+
+    public NightScrubberSlice? SelectedNightSlice =>
+        SelectedNightIndex >= 0 && SelectedNightIndex < _allSlices.Count
+            ? _allSlices[SelectedNightIndex]
+            : null;
+
+    public bool HasSelectedNightSlice => SelectedNightSlice is not null;
+
+    // Slidern är double-bunden (MAUI Slider) men vi snäppar till heltal —
+    // panel och annotation refererar bara till hela kvällar.
+    partial void OnScrubberValueChanged(double value)
+    {
+        var idx = (int)Math.Round(value);
+        if (idx < 0 || idx > ScrubberMaximum) return;
+        if (idx == SelectedNightIndex) return;
+        SelectedNightIndex = idx;
+    }
+
+    partial void OnSelectedNightIndexChanged(int value)
+    {
+        UpdateScrubberAnnotation();
+    }
+
     [RelayCommand]
     private void SelectTab(string indexText)
     {
@@ -216,6 +266,24 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             // innan första rendering så grafen inte blinkar.
             _chartStore.ApplyVisibilityToPlot();
             RebuildLegendItems(PlotModel, orderedIds, nameById);
+
+            // Scrubber: bygg slice-listan + sätt default-vald kväll till senaste.
+            _allSlices = BuildScrubberSlices(stats.Series, orderedIds, nameById);
+            ScrubberMaximum = Math.Max(_allSlices.Count - 1, 0);
+            // PlotModel är ny — släpp gamla annotation-referensen, UpdateScrubberAnnotation
+            // skapar en ny på nuvarande modell.
+            _scrubberAnnotation = null;
+            var defaultIdx = _allSlices.Count > 0 ? _allSlices.Count - 1 : -1;
+            ScrubberValue = defaultIdx >= 0 ? defaultIdx : 0;
+            // Sätt index efter ScrubberValue så OnScrubberValueChanged inte slår
+            // tillbaka och blockerar (samma värde → ignored).
+            SelectedNightIndex = defaultIdx;
+            // Belt-and-braces: om idx var samma som förra LoadAsync fired ingen
+            // partial — applicera annotation explicit mot nya PlotModel:en.
+            UpdateScrubberAnnotation();
+            OnPropertyChanged(nameof(SelectedNightSlice));
+            OnPropertyChanged(nameof(HasSelectedNightSlice));
+
             HasData = true;
         }
         catch (InvalidOperationException ex)
@@ -385,6 +453,81 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
         }
     }
 
+    private static List<NightScrubberSlice> BuildScrubberSlices(
+        IReadOnlyList<NightAveragePoint> series,
+        IReadOnlyList<int> orderedIds,
+        IReadOnlyDictionary<int, string> nameById)
+    {
+        var slices = new List<NightScrubberSlice>(series.Count);
+        foreach (var point in series)
+        {
+            var rows = new List<PlayerNightAverageRow>(4);
+            for (int i = 0; i < orderedIds.Count; i++)
+            {
+                var id = orderedIds[i];
+                if (!point.AverageByPlayer.TryGetValue(id, out var avg))
+                {
+                    continue;
+                }
+                var name = nameById[id];
+                var oxy = ColorForPlayer(name, i);
+                var color = Color.FromRgba(oxy.R, oxy.G, oxy.B, oxy.A);
+                rows.Add(new PlayerNightAverageRow(
+                    name,
+                    avg,
+                    avg.ToString("0.00", SvSe),
+                    color));
+            }
+            // Bäst → sämst: högt banpoäng-snitt = bra placering (4=alltid 1:a).
+            rows.Sort((a, b) => b.Average.CompareTo(a.Average));
+
+            slices.Add(new NightScrubberSlice(
+                point.ChronologicalIndex,
+                BuildTooltipHeader(point),
+                rows));
+        }
+        return slices;
+    }
+
+    private void UpdateScrubberAnnotation()
+    {
+        if (PlotModel is null) return;
+
+        // Om PlotModel byggts om sedan annotation:en skapades — kasta gamla
+        // referensen så vi inte försöker peka i en stale modell.
+        if (_scrubberAnnotation is not null && !PlotModel.Annotations.Contains(_scrubberAnnotation))
+        {
+            _scrubberAnnotation = null;
+        }
+
+        if (SelectedNightIndex < 0 || SelectedNightIndex >= _allSlices.Count)
+        {
+            if (_scrubberAnnotation is not null)
+            {
+                PlotModel.Annotations.Remove(_scrubberAnnotation);
+                _scrubberAnnotation = null;
+                PlotModel.InvalidatePlot(false);
+            }
+            return;
+        }
+
+        var slice = _allSlices[SelectedNightIndex];
+        if (_scrubberAnnotation is null)
+        {
+            _scrubberAnnotation = new LineAnnotation
+            {
+                Type = LineAnnotationType.Vertical,
+                Color = OxyColor.FromArgb(0xC0, 0x22, 0x22, 0x22),
+                StrokeThickness = 2,
+                LineStyle = LineStyle.Solid,
+                ClipByYAxis = true,
+            };
+            PlotModel.Annotations.Add(_scrubberAnnotation);
+        }
+        _scrubberAnnotation.X = slice.ChronologicalIndex;
+        PlotModel.InvalidatePlot(false);
+    }
+
     [RelayCommand]
     private void TogglePlayerVisibility(PlayerLegendItem? item)
     {
@@ -426,3 +569,16 @@ public sealed record PlacementHeaders(
     string Player2,
     string Player3,
     string Player4);
+
+// En "skiva" i scrubbern — alla fyra spelares kvällssnitt för en given kväll,
+// färdigsorterad bäst → sämst.
+public sealed record NightScrubberSlice(
+    int ChronologicalIndex,
+    string DateLabel,
+    IReadOnlyList<PlayerNightAverageRow> RowsBestToWorst);
+
+public sealed record PlayerNightAverageRow(
+    string PlayerName,
+    decimal Average,
+    string AverageDisplay,
+    Color Color);
