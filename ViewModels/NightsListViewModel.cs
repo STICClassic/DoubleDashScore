@@ -83,8 +83,8 @@ public partial class NightsListViewModel : ObservableObject, IRecipient<Database
         var page = Shell.Current.CurrentPage;
         var confirm = await page.DisplayAlertAsync(
             "Ta bort kväll?",
-            $"Kvällen {item.Date} mjukraderas (kan återskapas via databasen).",
-            "Ta bort",
+            $"Är du säker på att du vill ta bort kväll {item.Date}?",
+            "Ja",
             "Avbryt").ConfigureAwait(true);
         if (!confirm) return;
         await _nights.SoftDeleteAsync(item.Id).ConfigureAwait(true);

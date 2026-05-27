@@ -122,8 +122,8 @@ public partial class NightDetailViewModel : ObservableObject, IRecipient<Databas
         var page = Shell.Current.CurrentPage;
         var confirm = await page.DisplayAlertAsync(
             "Ta bort omgång?",
-            "Omgången mjukraderas.",
-            "Ta bort",
+            "Är du säker på att du vill ta bort den här omgången?",
+            "Ja",
             "Avbryt").ConfigureAwait(true);
         if (!confirm) return;
         await _rounds.SoftDeleteRoundAsync(item.Id).ConfigureAwait(true);
