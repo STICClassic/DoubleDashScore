@@ -154,6 +154,13 @@ public partial class AppShellViewModel : ObservableObject
                     await src.CopyToAsync(dst).ConfigureAwait(true);
                 }
 
+                // Säkerhetskopiera nuvarande läget FÖRST så användaren kan
+                // återställa via "Återställ från auto-backup" om importen
+                // visar sig vara fel fil. Synkront (inte RequestBackup) så
+                // filen finns på disk innan ReplaceDatabaseAsync skriver
+                // över DB:n. Samma mönster som RestoreAutoBackupViewModel.
+                await _backup.RunBackupNowAsync().ConfigureAwait(true);
+
                 await _database.ReplaceDatabaseAsync(tempPath).ConfigureAwait(true);
             }
             finally
