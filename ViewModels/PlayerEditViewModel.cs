@@ -1,17 +1,29 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using DoubleDashScore.Data;
+using DoubleDashScore.Services;
 
 namespace DoubleDashScore.ViewModels;
 
-public partial class PlayerEditViewModel : ObservableObject
+public partial class PlayerEditViewModel : ObservableObject, IRecipient<DatabaseImportedMessage>
 {
     private readonly PlayerRepository _players;
 
     public PlayerEditViewModel(PlayerRepository players)
     {
         _players = players;
+        WeakReferenceMessenger.Default.Register(this);
+    }
+
+    public void Receive(DatabaseImportedMessage message)
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try { await LoadAsync().ConfigureAwait(true); }
+            catch { /* fire-and-forget */ }
+        });
     }
 
     public ObservableCollection<PlayerEditItem> Items { get; } = new();

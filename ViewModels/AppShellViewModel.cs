@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using DoubleDashScore.Data;
 using DoubleDashScore.Services;
 using DoubleDashScore.Views;
@@ -160,12 +161,16 @@ public partial class AppShellViewModel : ObservableObject
                 }
             }
 
+            // Trigga reload i alla datadrivna ViewModels som lyssnar. Skickar
+            // synkront till aktiva prenumeranter; varje VM marshallar själv
+            // till UI-tråden innan LoadAsync. Användaren stannar på sin
+            // nuvarande vy så att t.ex. Statistik uppdateras in-place.
+            WeakReferenceMessenger.Default.Send(new DatabaseImportedMessage());
+
             await page.DisplayAlertAsync(
                 "Databasen importerades",
                 "Backupen är nu aktiv. Appen laddar om din data.",
                 "OK").ConfigureAwait(true);
-
-            await Shell.Current.GoToAsync($"//{nameof(NightsListPage)}").ConfigureAwait(true);
         }
         catch (InvalidDataException ex)
         {

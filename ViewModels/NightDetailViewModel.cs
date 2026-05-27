@@ -2,12 +2,14 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using DoubleDashScore.Data;
+using DoubleDashScore.Services;
 
 namespace DoubleDashScore.ViewModels;
 
 [QueryProperty(nameof(NightId), "nightId")]
-public partial class NightDetailViewModel : ObservableObject
+public partial class NightDetailViewModel : ObservableObject, IRecipient<DatabaseImportedMessage>
 {
     private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
 
@@ -23,6 +25,19 @@ public partial class NightDetailViewModel : ObservableObject
         _nights = nights;
         _rounds = rounds;
         _capture = capture;
+        WeakReferenceMessenger.Default.Register(this);
+    }
+
+    // Efter import kan denna kvälls ID antingen finnas eller saknas i den nya
+    // databasen. LoadAsync hanterar båda fallen (visar "Kväll (saknas)" om
+    // GetAsync returnerar null) så vi kan trygga köra den ovillkorligt.
+    public void Receive(DatabaseImportedMessage message)
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try { await LoadAsync().ConfigureAwait(true); }
+            catch { /* fire-and-forget */ }
+        });
     }
 
     [ObservableProperty]
