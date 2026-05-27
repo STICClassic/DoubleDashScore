@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Maui.Graphics;
 
@@ -9,8 +10,15 @@ namespace DoubleDashScore.ViewModels;
 // NameOpacity och NameDecorations är derived så att XAML kan binda direkt
 // utan converter — opacity dimmar texten när linjen är dold, strikethrough
 // gör avvalet tydligt.
+//
+// NightAverage uppdateras när användaren tap:ar en punkt i grafen
+// (TrackerChanged i HistoryStatsViewModel/FullScreenChartViewModel) och visas
+// under spelarnamnet. Dimmas via NameOpacity för dolda spelare så layouten
+// inte hoppar.
 public partial class PlayerLegendItem : ObservableObject
 {
+    private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
+
     public PlayerLegendItem(string name, Color color, bool isVisible)
     {
         Name = name;
@@ -31,4 +39,11 @@ public partial class PlayerLegendItem : ObservableObject
 
     public TextDecorations NameDecorations =>
         IsVisible ? TextDecorations.None : TextDecorations.Strikethrough;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NightAverageDisplay))]
+    private decimal? _nightAverage;
+
+    public string NightAverageDisplay =>
+        NightAverage is { } avg ? avg.ToString("0.00", SvSe) : "—";
 }

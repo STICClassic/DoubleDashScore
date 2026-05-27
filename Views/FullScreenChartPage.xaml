@@ -14,9 +14,11 @@
     <Grid RowDefinitions="*,Auto">
 
         <Grid Grid.Row="0">
+            <!-- DefaultTrackerTemplate slopad — tooltipens crosshair-linjer +
+                 bubbla ersätts av vertikal LineAnnotation + legend-snitten.
+                 TrackerChanged-eventet fires fortfarande och fångas av VM:n. -->
             <oxy:PlotView Model="{Binding PlotModel}"
-                          BackgroundColor="Transparent"
-                          DefaultTrackerTemplate="{StaticResource DarkChartTracker}">
+                          BackgroundColor="Transparent">
                 <oxy:PlotView.GestureRecognizers>
                     <TapGestureRecognizer Command="{Binding TogglePlotTapCommand}" />
                 </oxy:PlotView.GestureRecognizers>
@@ -53,42 +55,61 @@
                     Margin="0,16,16,0" />
         </Grid>
 
-        <!-- Egen legend, samma toggle-mekanik som i HistoryStatsPage. Synkar
-             via ChartTransferStore.HiddenPlayerNames så avval i ena vyn
-             överlever navigering till den andra. -->
-        <CollectionView Grid.Row="1"
-                        ItemsSource="{Binding LegendItems}"
-                        ItemsLayout="HorizontalList"
-                        SelectionMode="None"
-                        HeightRequest="40"
-                        HorizontalOptions="Center"
-                        Margin="0,2,0,6">
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="vm:PlayerLegendItem">
-                    <Grid Padding="10,6">
-                        <Grid.GestureRecognizers>
-                            <TapGestureRecognizer
-                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
-                                CommandParameter="{Binding .}" />
-                        </Grid.GestureRecognizers>
-                        <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
-                            <BoxView WidthRequest="14"
-                                     HeightRequest="14"
-                                     Color="{Binding Color}"
-                                     VerticalOptions="Center"
-                                     Opacity="{Binding NameOpacity}" />
-                            <Label Text="{Binding Name}"
-                                   FontFamily="Baloo2"
+        <!-- Legend med snitt: "Kväll N" i siffer-radens vänsterkant, fyra
+             spelare med namn (rad 1) + snitt (rad 2). Synkar med vanlig graf
+             via ChartTransferStore (NightSlices + SelectedNightIndex). -->
+        <Grid Grid.Row="1"
+              ColumnDefinitions="Auto,*"
+              ColumnSpacing="8"
+              Margin="0,2,0,6">
+            <Label Grid.Column="0"
+                   Text="{Binding SelectedNightLabel}"
+                   TextColor="#222222"
+                   FontFamily="Baloo2Bold"
+                   FontSize="13"
+                   VerticalOptions="End"
+                   Padding="8,0,0,8"
+                   IsVisible="{Binding HasSelectedNight}" />
+
+            <CollectionView Grid.Column="1"
+                            ItemsSource="{Binding LegendItems}"
+                            ItemsLayout="HorizontalList"
+                            SelectionMode="None"
+                            HorizontalOptions="Center">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PlayerLegendItem">
+                        <Grid Padding="10,4" RowDefinitions="Auto,Auto" RowSpacing="2">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Grid.GestureRecognizers>
+                            <HorizontalStackLayout Grid.Row="0" Spacing="6" HorizontalOptions="Center">
+                                <BoxView WidthRequest="14"
+                                         HeightRequest="14"
+                                         Color="{Binding Color}"
+                                         VerticalOptions="Center"
+                                         Opacity="{Binding NameOpacity}" />
+                                <Label Text="{Binding Name}"
+                                       FontFamily="Baloo2"
+                                       FontSize="13"
+                                       TextColor="#222222"
+                                       VerticalOptions="Center"
+                                       Opacity="{Binding NameOpacity}"
+                                       TextDecorations="{Binding NameDecorations}" />
+                            </HorizontalStackLayout>
+                            <Label Grid.Row="1"
+                                   Text="{Binding NightAverageDisplay}"
+                                   HorizontalOptions="Center"
+                                   FontFamily="Baloo2Bold"
                                    FontSize="13"
                                    TextColor="#222222"
-                                   VerticalOptions="Center"
-                                   Opacity="{Binding NameOpacity}"
-                                   TextDecorations="{Binding NameDecorations}" />
-                        </HorizontalStackLayout>
-                    </Grid>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+                                   Opacity="{Binding NameOpacity}" />
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
 
     </Grid>
 

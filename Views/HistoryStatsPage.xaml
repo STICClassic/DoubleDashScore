@@ -132,9 +132,12 @@
             <!-- Graf -->
             <Grid RowDefinitions="*,Auto" IsVisible="{Binding IsGraphTab}">
                 <Grid Grid.Row="0">
+                    <!-- DefaultTrackerTemplate slopad — tooltipens crosshair-linjer
+                         och bubbla ersätts av vår vertikala LineAnnotation +
+                         legend-snitten. TrackerChanged-eventet fires fortfarande
+                         och fångas av VM:n. -->
                     <oxy:PlotView Model="{Binding PlotModel}"
-                                  BackgroundColor="Transparent"
-                                  DefaultTrackerTemplate="{StaticResource DarkChartTracker}" />
+                                  BackgroundColor="Transparent" />
                     <Button Text="⛶ Helskärm"
                             Command="{Binding OpenFullScreenChartCommand}"
                             FontSize="12"
@@ -144,39 +147,60 @@
                             Margin="0,4,4,0" />
                 </Grid>
 
-                <!-- Egen legend: tap på en spelare döljer/visar dess linje. -->
-                <CollectionView Grid.Row="1"
-                                ItemsSource="{Binding LegendItems}"
-                                ItemsLayout="HorizontalList"
-                                SelectionMode="None"
-                                HeightRequest="36"
-                                HorizontalOptions="Center"
-                                Margin="0,4,0,0">
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="vm:PlayerLegendItem">
-                            <Grid Padding="10,4">
-                                <Grid.GestureRecognizers>
-                                    <TapGestureRecognizer
-                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
-                                        CommandParameter="{Binding .}" />
-                                </Grid.GestureRecognizers>
-                                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
-                                    <BoxView WidthRequest="14"
-                                             HeightRequest="14"
-                                             Color="{Binding Color}"
-                                             VerticalOptions="Center"
-                                             Opacity="{Binding NameOpacity}" />
-                                    <Label Text="{Binding Name}"
-                                           FontFamily="Baloo2"
+                <!-- Legend med snitt: namn-rad orörd (color + name). "Kväll N"-
+                     rubriken sitter i siffer-radens vänsterkant, vertikalt
+                     i linje med snittvärdena. Tap på spelare togglar synlighet
+                     (linjen i grafen); tap på en datapunkt i grafen uppdaterar
+                     snittsiffrorna via TrackerChanged. -->
+                <Grid Grid.Row="1"
+                      ColumnDefinitions="Auto,*"
+                      ColumnSpacing="6"
+                      Margin="0,4,0,0">
+                    <Label Grid.Column="0"
+                           Text="{Binding SelectedNightLabel}"
+                           FontFamily="Baloo2Bold"
+                           FontSize="12"
+                           VerticalOptions="End"
+                           Padding="0,0,0,8"
+                           IsVisible="{Binding HasSelectedNight}" />
+
+                    <CollectionView Grid.Column="1"
+                                    ItemsSource="{Binding LegendItems}"
+                                    ItemsLayout="HorizontalList"
+                                    SelectionMode="None"
+                                    HorizontalOptions="Center">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PlayerLegendItem">
+                                <Grid Padding="8,4" RowDefinitions="Auto,Auto" RowSpacing="2">
+                                    <Grid.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Grid.GestureRecognizers>
+                                    <HorizontalStackLayout Grid.Row="0" Spacing="6" HorizontalOptions="Center">
+                                        <BoxView WidthRequest="14"
+                                                 HeightRequest="14"
+                                                 Color="{Binding Color}"
+                                                 VerticalOptions="Center"
+                                                 Opacity="{Binding NameOpacity}" />
+                                        <Label Text="{Binding Name}"
+                                               FontFamily="Baloo2"
+                                               FontSize="13"
+                                               VerticalOptions="Center"
+                                               Opacity="{Binding NameOpacity}"
+                                               TextDecorations="{Binding NameDecorations}" />
+                                    </HorizontalStackLayout>
+                                    <Label Grid.Row="1"
+                                           Text="{Binding NightAverageDisplay}"
+                                           HorizontalOptions="Center"
+                                           FontFamily="Baloo2Bold"
                                            FontSize="13"
-                                           VerticalOptions="Center"
-                                           Opacity="{Binding NameOpacity}"
-                                           TextDecorations="{Binding NameDecorations}" />
-                                </HorizontalStackLayout>
-                            </Grid>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
+                                           Opacity="{Binding NameOpacity}" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Grid>
             </Grid>
 
             <!-- Placeringar -->
