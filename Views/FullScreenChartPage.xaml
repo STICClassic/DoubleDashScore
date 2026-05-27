@@ -4,50 +4,92 @@
              xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
              xmlns:oxy="clr-namespace:OxyPlot.Maui.Skia;assembly=OxyPlot.Maui.Skia"
              x:Class="DoubleDashScore.Views.FullScreenChartPage"
+             x:Name="PageRoot"
              x:DataType="vm:FullScreenChartViewModel"
              Shell.NavBarIsVisible="False"
              Shell.TabBarIsVisible="False"
              Shell.FlyoutBehavior="Disabled"
              BackgroundColor="#C8C8C8">
 
-    <Grid>
-        <oxy:PlotView Model="{Binding PlotModel}"
-                      BackgroundColor="Transparent"
-                      DefaultTrackerTemplate="{StaticResource DarkChartTracker}">
-            <oxy:PlotView.GestureRecognizers>
-                <TapGestureRecognizer Command="{Binding TogglePlotTapCommand}" />
-            </oxy:PlotView.GestureRecognizers>
-        </oxy:PlotView>
+    <Grid RowDefinitions="*,Auto">
 
-        <Button x:Name="ResetButton"
-                Text="↺"
-                Command="{Binding ResetZoomCommand}"
-                FontSize="20"
-                FontAttributes="Bold"
-                TextColor="#222222"
-                BackgroundColor="#80FFFFFF"
-                WidthRequest="40"
-                HeightRequest="40"
-                Padding="0"
-                CornerRadius="20"
-                HorizontalOptions="Start"
-                VerticalOptions="Start"
-                Margin="16,16,0,0" />
+        <Grid Grid.Row="0">
+            <oxy:PlotView Model="{Binding PlotModel}"
+                          BackgroundColor="Transparent"
+                          DefaultTrackerTemplate="{StaticResource DarkChartTracker}">
+                <oxy:PlotView.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding TogglePlotTapCommand}" />
+                </oxy:PlotView.GestureRecognizers>
+            </oxy:PlotView>
 
-        <Button x:Name="CloseButton"
-                Text="✕"
-                Command="{Binding CloseCommand}"
-                FontSize="18"
-                FontAttributes="Bold"
-                TextColor="#222222"
-                BackgroundColor="#80FFFFFF"
-                WidthRequest="40"
-                HeightRequest="40"
-                Padding="0"
-                CornerRadius="20"
-                HorizontalOptions="End"
-                VerticalOptions="Start"
-                Margin="0,16,16,0" />
+            <Button x:Name="ResetButton"
+                    Text="↺"
+                    Command="{Binding ResetZoomCommand}"
+                    FontSize="20"
+                    FontAttributes="Bold"
+                    TextColor="#222222"
+                    BackgroundColor="#80FFFFFF"
+                    WidthRequest="40"
+                    HeightRequest="40"
+                    Padding="0"
+                    CornerRadius="20"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Start"
+                    Margin="16,16,0,0" />
+
+            <Button x:Name="CloseButton"
+                    Text="✕"
+                    Command="{Binding CloseCommand}"
+                    FontSize="18"
+                    FontAttributes="Bold"
+                    TextColor="#222222"
+                    BackgroundColor="#80FFFFFF"
+                    WidthRequest="40"
+                    HeightRequest="40"
+                    Padding="0"
+                    CornerRadius="20"
+                    HorizontalOptions="End"
+                    VerticalOptions="Start"
+                    Margin="0,16,16,0" />
+        </Grid>
+
+        <!-- Egen legend, samma toggle-mekanik som i HistoryStatsPage. Synkar
+             via ChartTransferStore.HiddenPlayerNames så avval i ena vyn
+             överlever navigering till den andra. -->
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding LegendItems}"
+                        ItemsLayout="HorizontalList"
+                        SelectionMode="None"
+                        HeightRequest="40"
+                        HorizontalOptions="Center"
+                        Margin="0,2,0,6">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:PlayerLegendItem">
+                    <Grid Padding="10,6">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
+                                CommandParameter="{Binding .}" />
+                        </Grid.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                            <BoxView WidthRequest="14"
+                                     HeightRequest="14"
+                                     Color="{Binding Color}"
+                                     VerticalOptions="Center"
+                                     Opacity="{Binding NameOpacity}" />
+                            <Label Text="{Binding Name}"
+                                   FontFamily="Baloo2"
+                                   FontSize="13"
+                                   TextColor="#222222"
+                                   VerticalOptions="Center"
+                                   Opacity="{Binding NameOpacity}"
+                                   TextDecorations="{Binding NameDecorations}" />
+                        </HorizontalStackLayout>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
     </Grid>
 
 </ContentPage>

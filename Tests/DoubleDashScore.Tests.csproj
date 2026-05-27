@@ -31,6 +31,7 @@
 		<Compile Include="..\Services\ClaudeVisionOcrService.cs" LinkBase="Services" />
 		<Compile Include="..\Services\BackupService.cs" LinkBase="Services" />
 		<Compile Include="..\Services\BackupFileNaming.cs" LinkBase="Services" />
+		<Compile Include="..\Services\ChartTransferStore.cs" LinkBase="Services" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -39,6 +40,7 @@
 		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
 		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
 		<PackageReference Include="ClosedXML" Version="0.105.0" />
+		<PackageReference Include="OxyPlot.Core" Version="2.2.0" />
 	</ItemGroup>
 
 </Project>

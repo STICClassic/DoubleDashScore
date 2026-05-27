@@ -130,17 +130,53 @@
             </VerticalStackLayout>
 
             <!-- Graf -->
-            <Grid IsVisible="{Binding IsGraphTab}">
-                <oxy:PlotView Model="{Binding PlotModel}"
-                              BackgroundColor="Transparent"
-                              DefaultTrackerTemplate="{StaticResource DarkChartTracker}" />
-                <Button Text="⛶ Helskärm"
-                        Command="{Binding OpenFullScreenChartCommand}"
-                        FontSize="12"
-                        Padding="10,4"
-                        HorizontalOptions="End"
-                        VerticalOptions="Start"
-                        Margin="0,4,4,0" />
+            <Grid RowDefinitions="*,Auto" IsVisible="{Binding IsGraphTab}">
+                <Grid Grid.Row="0">
+                    <oxy:PlotView Model="{Binding PlotModel}"
+                                  BackgroundColor="Transparent"
+                                  DefaultTrackerTemplate="{StaticResource DarkChartTracker}" />
+                    <Button Text="⛶ Helskärm"
+                            Command="{Binding OpenFullScreenChartCommand}"
+                            FontSize="12"
+                            Padding="10,4"
+                            HorizontalOptions="End"
+                            VerticalOptions="Start"
+                            Margin="0,4,4,0" />
+                </Grid>
+
+                <!-- Egen legend: tap på en spelare döljer/visar dess linje. -->
+                <CollectionView Grid.Row="1"
+                                ItemsSource="{Binding LegendItems}"
+                                ItemsLayout="HorizontalList"
+                                SelectionMode="None"
+                                HeightRequest="36"
+                                HorizontalOptions="Center"
+                                Margin="0,4,0,0">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PlayerLegendItem">
+                            <Grid Padding="10,4">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Grid.GestureRecognizers>
+                                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                    <BoxView WidthRequest="14"
+                                             HeightRequest="14"
+                                             Color="{Binding Color}"
+                                             VerticalOptions="Center"
+                                             Opacity="{Binding NameOpacity}" />
+                                    <Label Text="{Binding Name}"
+                                           FontFamily="Baloo2"
+                                           FontSize="13"
+                                           VerticalOptions="Center"
+                                           Opacity="{Binding NameOpacity}"
+                                           TextDecorations="{Binding NameDecorations}" />
+                                </HorizontalStackLayout>
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
             </Grid>
 
             <!-- Placeringar -->
