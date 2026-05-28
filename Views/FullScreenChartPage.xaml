@@ -55,28 +55,30 @@
                     Margin="0,16,16,0" />
         </Grid>
 
-        <!-- Legend med snitt: "Kväll N" i siffer-radens vänsterkant, fyra
-             spelare med namn (rad 1) + snitt (rad 2). Synkar med vanlig graf
-             via ChartTransferStore (NightSlices + SelectedNightIndex). -->
-        <Grid Grid.Row="1"
-              ColumnDefinitions="Auto,*"
-              ColumnSpacing="8"
-              Margin="0,2,0,6">
-            <Label Grid.Column="0"
-                   Text="{Binding SelectedNightLabel}"
+        <!-- Legend med snitt: "Kväll N" hänger direkt vänster om första
+             snittsiffran (8 dp gap), hela gruppen centreras horisontellt. I
+             landskap (= denna vy) blir det mer luft kring den centrerade
+             gruppen — inget växande glapp mellan rubrik och första siffran.
+             BindableLayout istället för CollectionView eftersom HSL+
+             CollectionView (HorizontalList) inte rapporterar DesiredSize
+             tillförlitligt; vi har alltid 4 spelare så virtualisering ger
+             inget. Synkar med vanlig graf via ChartTransferStore
+             (NightSlices + SelectedNightIndex). -->
+        <HorizontalStackLayout Grid.Row="1"
+                               HorizontalOptions="Center"
+                               Spacing="8"
+                               Margin="0,2,0,6">
+            <Label Text="{Binding SelectedNightLabel}"
                    TextColor="#222222"
                    FontFamily="Baloo2Bold"
                    FontSize="13"
                    VerticalOptions="End"
-                   Padding="8,0,0,8"
+                   Padding="0,0,0,8"
                    IsVisible="{Binding HasSelectedNight}" />
 
-            <CollectionView Grid.Column="1"
-                            ItemsSource="{Binding LegendItems}"
-                            ItemsLayout="HorizontalList"
-                            SelectionMode="None"
-                            HorizontalOptions="Center">
-                <CollectionView.ItemTemplate>
+            <HorizontalStackLayout BindableLayout.ItemsSource="{Binding LegendItems}"
+                                   Spacing="0">
+                <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="vm:PlayerLegendItem">
                         <Grid Padding="10,4" RowDefinitions="Auto,Auto" RowSpacing="2">
                             <Grid.GestureRecognizers>
@@ -107,9 +109,9 @@
                                    Opacity="{Binding NameOpacity}" />
                         </Grid>
                     </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-        </Grid>
+                </BindableLayout.ItemTemplate>
+            </HorizontalStackLayout>
+        </HorizontalStackLayout>
 
     </Grid>
 
