@@ -37,9 +37,9 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
         _store = store;
     }
 
-    public PlotModel? PlotModel => _store.CurrentPlotModel;
+    public PlotModel? PlotModel => _store.Active.PlotModel;
 
-    // Egen legend, byggs om varje gång sidan visas mot _store.CurrentPlotModel.
+    // Egen legend, byggs om varje gång sidan visas mot _store.Active.PlotModel.
     // Toggling delar HiddenPlayerNames-set med HistoryStatsViewModel via store.
     // Varje item:s NightAverage uppdateras när användaren tap:ar en punkt
     // i grafen — synkar med _store.SelectedNightIndex så vald kväll bevaras
@@ -53,8 +53,8 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     private int _selectedNightIndex = -1;
 
     public NightScrubberSlice? SelectedNightSlice =>
-        SelectedNightIndex >= 0 && SelectedNightIndex < _store.NightSlices.Count
-            ? _store.NightSlices[SelectedNightIndex]
+        SelectedNightIndex >= 0 && SelectedNightIndex < _store.Active.NightSlices.Count
+            ? _store.Active.NightSlices[SelectedNightIndex]
             : null;
 
     public string SelectedNightLabel => SelectedNightSlice?.DateLabel ?? string.Empty;
@@ -86,8 +86,8 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
 
     private void UpdateMarkerColor()
     {
-        var ann = _store.MarkerAnnotation;
-        var model = _store.CurrentPlotModel;
+        var ann = _store.Active.MarkerAnnotation;
+        var model = _store.Active.PlotModel;
         if (ann is null || model is null) return;
         ann.Color = IsControlsVisible ? MarkerColorActive : OxyColors.Transparent;
         model.InvalidatePlot(false);
@@ -129,9 +129,9 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
         // Initiera vald kväll från store. HistoryStatsViewModel sätter den
         // när dess LoadAsync körs; default = senaste kvällen.
         var storeIdx = _store.SelectedNightIndex;
-        var defaultIdx = (storeIdx >= 0 && storeIdx < _store.NightSlices.Count)
+        var defaultIdx = (storeIdx >= 0 && storeIdx < _store.Active.NightSlices.Count)
             ? storeIdx
-            : (_store.NightSlices.Count > 0 ? _store.NightSlices.Count - 1 : -1);
+            : (_store.Active.NightSlices.Count > 0 ? _store.Active.NightSlices.Count - 1 : -1);
         // Markörlinjen är delad via store (skapad av portrait första gången
         // PlotModel byggs). UpdateMarkerAnnotation reuse:ar den om den är
         // i nuvarande modell — vi behöver inte nulla något här.
@@ -152,8 +152,8 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
         // ser den permanent synlig när användaren navigerar tillbaka.
         // Utan denna restore skulle markören förbli transparent i portrait
         // om fullscreen stängdes medan controls var auto-dolda.
-        var ann = _store.MarkerAnnotation;
-        var model = _store.CurrentPlotModel;
+        var ann = _store.Active.MarkerAnnotation;
+        var model = _store.Active.PlotModel;
         if (ann is not null && model is not null)
         {
             ann.Color = MarkerColorActive;
@@ -207,7 +207,7 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     [RelayCommand]
     private void ResetZoom()
     {
-        var model = _store.CurrentPlotModel;
+        var model = _store.Active.PlotModel;
         if (model is null) return;
         model.ResetAllAxes();
         // false → behåll data, rita bara om med återställda axlar.
@@ -221,7 +221,7 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     private void TogglePlayerVisibility(PlayerLegendItem? item)
     {
         if (item is null) return;
-        var model = _store.CurrentPlotModel;
+        var model = _store.Active.PlotModel;
         if (model is null) return;
 
         var nowVisible = _store.TogglePlayerVisibility(item.Name);
@@ -241,7 +241,7 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     private void RebuildLegendItems()
     {
         LegendItems.Clear();
-        var model = _store.CurrentPlotModel;
+        var model = _store.Active.PlotModel;
         if (model is null) return;
 
         foreach (var series in model.Series)
@@ -255,7 +255,7 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
 
     private void SubscribeTrackerChanged()
     {
-        var model = _store.CurrentPlotModel;
+        var model = _store.Active.PlotModel;
         if (model is null) return;
         if (ReferenceEquals(_subscribedModel, model)) return;
 
@@ -279,7 +279,7 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
         if (e.HitResult is null) return;
         var x = e.HitResult.DataPoint.X;
         var idx = (int)Math.Round(x) - 1;
-        if (idx < 0 || idx >= _store.NightSlices.Count) return;
+        if (idx < 0 || idx >= _store.Active.NightSlices.Count) return;
         // Samma kväll = behandla som tom-tap → låt TogglePlotTap toggla
         // kontrollerna som vanligt. Lämna flaggan oförändrad.
         if (idx == SelectedNightIndex) return;
@@ -325,17 +325,17 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
         // har inte adb, så Output-fönstret är enda fönstret in i runtime-fel.
         try
         {
-            var model = _store.CurrentPlotModel;
+            var model = _store.Active.PlotModel;
             if (model is null) return;
 
             // Markörlinjen delas via store. Om instansen finns men inte är
             // i nuvarande modells Annotations-lista (modellen byggdes om
             // sedan referensen sparades) → nulla och skapa ny nedan.
-            var ann = _store.MarkerAnnotation;
+            var ann = _store.Active.MarkerAnnotation;
             if (ann is not null && !model.Annotations.Contains(ann))
             {
                 ann = null;
-                _store.MarkerAnnotation = null;
+                _store.Active.MarkerAnnotation = null;
             }
 
             if (slice is null)
@@ -343,7 +343,7 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
                 if (ann is not null)
                 {
                     model.Annotations.Remove(ann);
-                    _store.MarkerAnnotation = null;
+                    _store.Active.MarkerAnnotation = null;
                     model.InvalidatePlot(false);
                 }
                 return;
@@ -364,7 +364,7 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
                     ClipByYAxis = true,
                 };
                 model.Annotations.Add(ann);
-                _store.MarkerAnnotation = ann;
+                _store.Active.MarkerAnnotation = ann;
             }
             ann.X = slice.ChronologicalIndex;
             model.InvalidatePlot(false);
