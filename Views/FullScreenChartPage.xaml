@@ -159,20 +159,21 @@
                     </HorizontalStackLayout>
                 </HorizontalStackLayout>
 
-                <!-- Collapse-flik: alltid synlig, plattare än tidigare
-                     (FontSize 14→12, vertikal Padding 2/4→1/3 → tab ~18 dp
-                     hög) så den ryms inom PlotModel.Padding-topp (20 dp)
-                     ovanför titeln. När innehållet är ihopfällt är fliken
-                     hela det synliga av Border:n; ~2 dp luft mellan flikens
-                     botten och titelns topp gör att "Kvällssnitt över tid"
-                     syns fullt ut. Horisontell Padding bevarad (24 dp) så
-                     tap-target inte krymper för mycket på bredden. -->
+                <!-- Collapse-flik: alltid synlig, ytterligare plattad
+                     (FontSize 12→10, vertikal Padding 1/3→0/2 → tab ~12 dp
+                     hög, ner från ~16 dp). PlotModel.Padding-topp är 32 dp
+                     så flikens ~12 dp lämnar ~20 dp luft ner till titelns
+                     översta baseline — "Kvällssnitt över tid" syns alltid
+                     fullt ut när legend-rutan är ihopfälld. När den fälls
+                     ut växer Border:n ner och täcker titeln (per spec).
+                     Horisontell Padding bevarad (24 dp) så tap-target inte
+                     krymper för mycket på bredden trots smalare höjd. -->
                 <Label Text="{Binding LegendCollapseArrow}"
                        TextColor="White"
                        FontFamily="Baloo2Bold"
-                       FontSize="12"
+                       FontSize="10"
                        HorizontalOptions="Center"
-                       Padding="24,1,24,3">
+                       Padding="24,0,24,2">
                     <Label.GestureRecognizers>
                         <TapGestureRecognizer Command="{Binding ToggleLegendCollapseCommand}" />
                     </Label.GestureRecognizers>
