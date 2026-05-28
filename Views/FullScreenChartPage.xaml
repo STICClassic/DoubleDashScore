@@ -68,12 +68,16 @@
                                HorizontalOptions="Center"
                                Spacing="8"
                                Margin="0,2,0,6">
-            <Label Text="{Binding SelectedNightLabel}"
+            <!-- VerticalOptions="End" + Padding bottom=4 matchar items egna
+                 4 dp bottom-padding så rubriken hamnar på samma baslinje som
+                 snittsiffrorna (rad 2 i items). "Center" skulle hamna mellan
+                 namn-rad och siffer-rad. -->
+            <Label Text="{Binding SelectedNightLabel, StringFormat='{0}:'}"
                    TextColor="#222222"
                    FontFamily="Baloo2Bold"
                    FontSize="13"
                    VerticalOptions="End"
-                   Padding="0,0,0,8"
+                   Padding="0,0,0,4"
                    IsVisible="{Binding HasSelectedNight}" />
 
             <HorizontalStackLayout BindableLayout.ItemsSource="{Binding LegendItems}"
