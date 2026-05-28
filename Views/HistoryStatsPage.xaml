@@ -132,9 +132,17 @@
             <!-- Graf -->
             <Grid RowDefinitions="*,Auto" IsVisible="{Binding IsGraphTab}">
                 <Grid Grid.Row="0">
+                    <!-- DefaultTrackerTemplate=null så OxyPlot.Maui.Skia inte
+                         ritar sin gula tooltip vid tap på en datapunkt.
+                         Tom ControlTemplate kraschar (ShowTracker castar
+                         CreateContent()→View med NullRef); explicit null
+                         hoppar PlotView över rendering helt. PlotModel.
+                         TrackerChanged fires fortfarande, så VM:n får
+                         notifikationen om vald kväll. Vår vertikala
+                         LineAnnotation + legend-snitten ersätter trackern. -->
                     <oxy:PlotView Model="{Binding PlotModel}"
                                   BackgroundColor="Transparent"
-                                  DefaultTrackerTemplate="{StaticResource DarkChartTracker}" />
+                                  DefaultTrackerTemplate="{x:Null}" />
                     <Button Text="⛶ Helskärm"
                             Command="{Binding OpenFullScreenChartCommand}"
                             FontSize="12"
@@ -144,39 +152,65 @@
                             Margin="0,4,4,0" />
                 </Grid>
 
-                <!-- Egen legend: tap på en spelare döljer/visar dess linje. -->
-                <CollectionView Grid.Row="1"
-                                ItemsSource="{Binding LegendItems}"
-                                ItemsLayout="HorizontalList"
-                                SelectionMode="None"
-                                HeightRequest="36"
-                                HorizontalOptions="Center"
-                                Margin="0,4,0,0">
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="vm:PlayerLegendItem">
-                            <Grid Padding="10,4">
-                                <Grid.GestureRecognizers>
-                                    <TapGestureRecognizer
-                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
-                                        CommandParameter="{Binding .}" />
-                                </Grid.GestureRecognizers>
-                                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
-                                    <BoxView WidthRequest="14"
-                                             HeightRequest="14"
-                                             Color="{Binding Color}"
-                                             VerticalOptions="Center"
-                                             Opacity="{Binding NameOpacity}" />
-                                    <Label Text="{Binding Name}"
-                                           FontFamily="Baloo2"
+                <!-- Legend med snitt: namn-rad orörd (color + name). "Kväll N"-
+                     rubriken hänger direkt vänster om första snittsiffran (8 dp
+                     gap), och hela gruppen centreras horisontellt så landskap
+                     bara ger mer luft runt om — inte ett växande glapp mellan
+                     rubrik och första siffran. BindableLayout istället för
+                     CollectionView eftersom HSL+CollectionView (HorizontalList)
+                     inte rapporterar DesiredSize tillförlitligt; vi har alltid
+                     4 spelare så virtualisering ger inget. Tap på spelare
+                     togglar synlighet; tap på en datapunkt i grafen uppdaterar
+                     snittsiffrorna via TrackerChanged. -->
+                <HorizontalStackLayout Grid.Row="1"
+                                       HorizontalOptions="Center"
+                                       Spacing="8"
+                                       Margin="0,4,0,0">
+                    <!-- VerticalOptions="End" + Padding bottom=4 matchar items
+                         egna 4 dp bottom-padding så rubriken hamnar på samma
+                         baslinje som snittsiffrorna (rad 2 i items). "Center"
+                         skulle hamna mellan namn-rad och siffer-rad. -->
+                    <Label Text="{Binding SelectedNightLabel, StringFormat='{0}:'}"
+                           FontFamily="Baloo2Bold"
+                           FontSize="12"
+                           VerticalOptions="End"
+                           Padding="0,0,0,4"
+                           IsVisible="{Binding HasSelectedNight}" />
+
+                    <HorizontalStackLayout BindableLayout.ItemsSource="{Binding LegendItems}"
+                                           Spacing="0">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PlayerLegendItem">
+                                <Grid Padding="8,4" RowDefinitions="Auto,Auto" RowSpacing="2">
+                                    <Grid.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Grid.GestureRecognizers>
+                                    <HorizontalStackLayout Grid.Row="0" Spacing="6" HorizontalOptions="Center">
+                                        <BoxView WidthRequest="14"
+                                                 HeightRequest="14"
+                                                 Color="{Binding Color}"
+                                                 VerticalOptions="Center"
+                                                 Opacity="{Binding NameOpacity}" />
+                                        <Label Text="{Binding Name}"
+                                               FontFamily="Baloo2"
+                                               FontSize="13"
+                                               VerticalOptions="Center"
+                                               Opacity="{Binding NameOpacity}"
+                                               TextDecorations="{Binding NameDecorations}" />
+                                    </HorizontalStackLayout>
+                                    <Label Grid.Row="1"
+                                           Text="{Binding NightAverageDisplay}"
+                                           HorizontalOptions="Center"
+                                           FontFamily="Baloo2Bold"
                                            FontSize="13"
-                                           VerticalOptions="Center"
-                                           Opacity="{Binding NameOpacity}"
-                                           TextDecorations="{Binding NameDecorations}" />
-                                </HorizontalStackLayout>
-                            </Grid>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
+                                           Opacity="{Binding NameOpacity}" />
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </HorizontalStackLayout>
+                </HorizontalStackLayout>
             </Grid>
 
             <!-- Placeringar -->

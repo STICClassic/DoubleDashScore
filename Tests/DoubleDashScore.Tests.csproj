@@ -32,6 +32,7 @@
 		<Compile Include="..\Services\BackupService.cs" LinkBase="Services" />
 		<Compile Include="..\Services\BackupFileNaming.cs" LinkBase="Services" />
 		<Compile Include="..\Services\ChartTransferStore.cs" LinkBase="Services" />
+		<Compile Include="..\Services\NightScrubberSlice.cs" LinkBase="Services" />
 	</ItemGroup>
 
 	<ItemGroup>

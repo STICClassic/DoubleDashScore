@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -6,6 +7,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using DoubleDashScore.Data;
 using DoubleDashScore.Services;
 using OxyPlot;
+using OxyPlot.Annotations;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 
@@ -132,7 +134,37 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     // Egen legend under grafen — OxyPlots inbyggda legend exponerar inte
     // tap-events i MAUI på något användbart sätt. Items synkar IsVisible
     // mot LineSeries.IsVisible och ChartTransferStore.HiddenPlayerNames.
+    // Varje item:s NightAverage uppdateras när användaren tap:ar en punkt
+    // i grafen (Skiva 15) så snitten visas under spelarnamnen.
     public ObservableCollection<PlayerLegendItem> LegendItems { get; } = new();
+
+    // ----- Vald kväll (legend visar snitt + vertikal markörlinje) ----------
+
+    // OBS: Markörlinje-instansen ägs av ChartTransferStore (delas med
+    // FullScreenChartViewModel). Lokal _markerAnnotation finns inte längre
+    // — annars skulle båda VM:erna lägga till varsin LineAnnotation i samma
+    // PlotModel och fullscreen:s auto-hide-toggle skulle bara dölja sin
+    // egen kopia (portrait:s syntes igenom).
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedNightSlice))]
+    [NotifyPropertyChangedFor(nameof(SelectedNightLabel))]
+    [NotifyPropertyChangedFor(nameof(HasSelectedNight))]
+    private int _selectedNightIndex = -1;
+
+    public NightScrubberSlice? SelectedNightSlice =>
+        SelectedNightIndex >= 0 && SelectedNightIndex < _chartStore.NightSlices.Count
+            ? _chartStore.NightSlices[SelectedNightIndex]
+            : null;
+
+    public string SelectedNightLabel => SelectedNightSlice?.DateLabel ?? string.Empty;
+
+    public bool HasSelectedNight => SelectedNightSlice is not null;
+
+    partial void OnSelectedNightIndexChanged(int value)
+    {
+        ApplySelection();
+    }
 
     [RelayCommand]
     private void SelectTab(string indexText)
@@ -216,6 +248,34 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             // innan första rendering så grafen inte blinkar.
             _chartStore.ApplyVisibilityToPlot();
             RebuildLegendItems(PlotModel, orderedIds, nameById);
+
+            // Bygg kväll-slices och prenumerera på TrackerChanged så att tap
+            // på en datapunkt uppdaterar SelectedNightIndex → legend-snitt +
+            // markörlinje. Gamla PlotModel:en GC:as med sin event-subscription;
+            // nya får en färsk subscription.
+            _chartStore.NightSlices = BuildNightSlices(stats.Series, orderedIds, nameById);
+            PlotModel.TrackerChanged += OnPlotTrackerChanged;
+            // Ny PlotModel-instans (Annotations-listan tom) → släpp ev. gamla
+            // store-annotation-referensen så ApplySelection skapar en ny på
+            // den nya modellen.
+            _chartStore.MarkerAnnotation = null;
+
+            // Behåll användarens val över LoadAsync-rebuilds; default = senaste
+            // kvällen vid första laddning eller om sparade indexet är out-of-range.
+            var storeIdx = _chartStore.SelectedNightIndex;
+            var defaultIdx = (storeIdx >= 0 && storeIdx < _chartStore.NightSlices.Count)
+                ? storeIdx
+                : (_chartStore.NightSlices.Count > 0 ? _chartStore.NightSlices.Count - 1 : -1);
+
+            // Sätt index → triggar OnSelectedNightIndexChanged → ApplySelection.
+            // Om idx samma som föregående LoadAsync fired ingen partial — kör
+            // ApplySelection explicit som belt-and-braces.
+            SelectedNightIndex = defaultIdx;
+            ApplySelection();
+            OnPropertyChanged(nameof(SelectedNightSlice));
+            OnPropertyChanged(nameof(SelectedNightLabel));
+            OnPropertyChanged(nameof(HasSelectedNight));
+
             HasData = true;
         }
         catch (InvalidOperationException ex)
@@ -238,6 +298,20 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             Title = "Kvällssnitt över tid",
             TitleFontSize = 14,
             TitleColor = ChartForeground,
+            // Padding runt hela modellen ger axel-etiketter och titel
+            // andningsrum mot PlotView:s ytterkant:
+            // - 8 dp vänster: Y-axelns "1/2/3/4" klipps inte vid kanten
+            // - 32 dp topp: titeln "Kvällssnitt över tid" får ~20 dp luft
+            //   ovanför sig (mellan top-edge och titel-baseline), OCH den
+            //   plattare pulldown-fliken (~12 dp hög, FontSize 10) får
+            //   plats ovanför titeln med ~8 dp gap så titeln inte krockar
+            //   med flikens nederkant när legend-overlayn är ihopfälld
+            // - 16 dp höger: sista X-axel-värdet (t.ex. "90") tätar inte
+            //   mot högerkanten
+            // - 22 dp botten: X-axel-etiketterna (10, 20, 30...) får
+            //   ordentligt med mellanrum under sig istället för att
+            //   klistras mot botten-kanten
+            Padding = new OxyThickness(8, 32, 16, 22),
             TextColor = ChartForeground,
             PlotAreaBorderColor = ChartBorder,
             Background = ChartBackground,
@@ -320,7 +394,9 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
                 MarkerType = MarkerType.None,
                 StrokeThickness = 2,
                 Color = color,
-                TrackerFormatString = "{0}\n{Header}\nKvällssnitt: {Average:0.00}",
+                // TrackerFormatString slopad — DefaultTrackerTemplate i XAML är
+                // tom så ingen tooltip renderas; vi använder bara TrackerChanged-
+                // eventet för att snäppa SelectedNightIndex.
             };
             model.Series.Add(line);
         }
@@ -400,6 +476,118 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
         // kan dyka upp igen efter att ha varit dold och tracker-cachen kan
         // vara stale på vissa MAUI/OxyPlot-versioner).
         PlotModel.InvalidatePlot(true);
+    }
+
+    private static List<NightScrubberSlice> BuildNightSlices(
+        IReadOnlyList<NightAveragePoint> series,
+        IReadOnlyList<int> orderedIds,
+        IReadOnlyDictionary<int, string> nameById)
+    {
+        var slices = new List<NightScrubberSlice>(series.Count);
+        foreach (var point in series)
+        {
+            var byName = new Dictionary<string, decimal>(4, StringComparer.OrdinalIgnoreCase);
+            foreach (var id in orderedIds)
+            {
+                if (point.AverageByPlayer.TryGetValue(id, out var avg))
+                {
+                    byName[nameById[id]] = avg;
+                }
+            }
+            slices.Add(new NightScrubberSlice(
+                point.ChronologicalIndex,
+                BuildNightLabel(point),
+                byName));
+        }
+        return slices;
+    }
+
+    private void OnPlotTrackerChanged(object? sender, OxyPlot.TrackerEventArgs e)
+    {
+        if (e.HitResult is null) return;
+        var x = e.HitResult.DataPoint.X;
+        // X-axeln är 1-baserad (ChronologicalIndex) — slice-listan 0-baserad.
+        var idx = (int)Math.Round(x) - 1;
+        if (idx < 0 || idx >= _chartStore.NightSlices.Count) return;
+        if (idx == SelectedNightIndex) return;
+        // OxyPlot:s tracker-event kan fyra från valfri tråd; marshalla till UI
+        // eftersom ApplySelection rör ObservableProperties + PlotModel-state.
+        MainThread.BeginInvokeOnMainThread(() => SelectedNightIndex = idx);
+    }
+
+    private void ApplySelection()
+    {
+        var slice = SelectedNightSlice;
+
+        foreach (var item in LegendItems)
+        {
+            item.NightAverage = slice is not null
+                && slice.AverageByPlayerName.TryGetValue(item.Name, out var avg)
+                ? avg
+                : (decimal?)null;
+        }
+
+        UpdateMarkerAnnotation(slice);
+
+        // Spara valet i store så fullscreen tar över korrekt vald kväll
+        // (och tvärtom när användaren går tillbaka).
+        _chartStore.SelectedNightIndex = SelectedNightIndex;
+    }
+
+    private void UpdateMarkerAnnotation(NightScrubberSlice? slice)
+    {
+        // Try/catch + Debug.WriteLine så ev. crash i annotation-pipelinen
+        // surfar i VS Output istället för att ta ner appen — användaren
+        // har inte adb, så Output-fönstret är enda fönstret in i runtime-fel.
+        try
+        {
+            if (PlotModel is null) return;
+
+            // Markörlinjen delas via store. Stale-referens (annotation som
+            // inte längre är i nuvarande modells Annotations-lista) nullas
+            // så vi inte försöker peka i fel modell.
+            var ann = _chartStore.MarkerAnnotation;
+            if (ann is not null && !PlotModel.Annotations.Contains(ann))
+            {
+                ann = null;
+                _chartStore.MarkerAnnotation = null;
+            }
+
+            if (slice is null)
+            {
+                if (ann is not null)
+                {
+                    PlotModel.Annotations.Remove(ann);
+                    _chartStore.MarkerAnnotation = null;
+                    PlotModel.InvalidatePlot(false);
+                }
+                return;
+            }
+
+            if (ann is null)
+            {
+                ann = new LineAnnotation
+                {
+                    Type = LineAnnotationType.Vertical,
+                    // Diskret markör: tunn (1 px) medelgrå med ~55 % alpha så
+                    // den syns tydligt mot grå plot-bakgrund (#C8C8C8) men
+                    // ändå sekundärt mot spelarlinjernas mättade färger.
+                    Color = OxyColor.FromAColor(140, OxyColors.Gray),
+                    StrokeThickness = 1,
+                    LineStyle = LineStyle.Solid,
+                    ClipByYAxis = true,
+                };
+                PlotModel.Annotations.Add(ann);
+                _chartStore.MarkerAnnotation = ann;
+            }
+            ann.X = slice.ChronologicalIndex;
+            PlotModel.InvalidatePlot(false);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[UpdateMarkerAnnotation] {ex.GetType().Name}: {ex.Message}");
+            Debug.WriteLine(ex.StackTrace);
+        }
     }
 
 }

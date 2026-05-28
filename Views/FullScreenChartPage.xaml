@@ -11,85 +11,268 @@
              Shell.FlyoutBehavior="Disabled"
              BackgroundColor="#C8C8C8">
 
-    <Grid RowDefinitions="*,Auto">
+    <!-- Singel Grid-cell: PlotView + ↺/✕-knappar + legend-overlay som
+         syskon. MAUI z-orderar efter child-ordning så overlay:n (sist)
+         ritas ovanpå. PlotView fyller hela cellen, övriga element
+         positioneras med HorizontalOptions/VerticalOptions + Margin.
+         OxyPlot:s nativa titel ("Kvällssnitt över tid") ritas centrerad
+         i toppen av PlotView — overlay:n får täcka den när den är synlig
+         (per spec). -->
+    <Grid>
+        <!-- DefaultTrackerTemplate=null så OxyPlot.Maui.Skia inte ritar sin
+             gula tooltip vid tap på en datapunkt. Tom ControlTemplate
+             kraschar (ShowTracker castar CreateContent()→View med NullRef);
+             explicit null hoppar PlotView över rendering helt. PlotModel.
+             TrackerChanged fires fortfarande, så VM:n får notifikationen om
+             vald kväll. Vår vertikala LineAnnotation + legend-overlayn
+             ersätter trackern. -->
+        <oxy:PlotView Model="{Binding PlotModel}"
+                      BackgroundColor="Transparent"
+                      DefaultTrackerTemplate="{x:Null}">
+            <oxy:PlotView.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding TogglePlotTapCommand}" />
+            </oxy:PlotView.GestureRecognizers>
+        </oxy:PlotView>
 
-        <Grid Grid.Row="0">
-            <oxy:PlotView Model="{Binding PlotModel}"
-                          BackgroundColor="Transparent"
-                          DefaultTrackerTemplate="{StaticResource DarkChartTracker}">
-                <oxy:PlotView.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding TogglePlotTapCommand}" />
-                </oxy:PlotView.GestureRecognizers>
-            </oxy:PlotView>
+        <Button x:Name="ResetButton"
+                Text="↺"
+                Command="{Binding ResetZoomCommand}"
+                FontSize="20"
+                FontAttributes="Bold"
+                TextColor="#222222"
+                BackgroundColor="#80FFFFFF"
+                WidthRequest="40"
+                HeightRequest="40"
+                Padding="0"
+                CornerRadius="20"
+                HorizontalOptions="Start"
+                VerticalOptions="Start"
+                Margin="16,16,0,0" />
 
-            <Button x:Name="ResetButton"
-                    Text="↺"
-                    Command="{Binding ResetZoomCommand}"
-                    FontSize="20"
-                    FontAttributes="Bold"
-                    TextColor="#222222"
-                    BackgroundColor="#80FFFFFF"
-                    WidthRequest="40"
-                    HeightRequest="40"
-                    Padding="0"
-                    CornerRadius="20"
-                    HorizontalOptions="Start"
-                    VerticalOptions="Start"
-                    Margin="16,16,0,0" />
+        <!-- ✕ tillbaka i top-right (HorizontalOptions=End) — overlay:n är nu
+             centrerad horisontellt så hörnen är fria. -->
+        <Button x:Name="CloseButton"
+                Text="✕"
+                Command="{Binding CloseCommand}"
+                FontSize="18"
+                FontAttributes="Bold"
+                TextColor="#222222"
+                BackgroundColor="#80FFFFFF"
+                WidthRequest="40"
+                HeightRequest="40"
+                Padding="0"
+                CornerRadius="20"
+                HorizontalOptions="End"
+                VerticalOptions="Start"
+                Margin="0,16,16,0" />
 
-            <Button x:Name="CloseButton"
-                    Text="✕"
-                    Command="{Binding CloseCommand}"
-                    FontSize="18"
-                    FontAttributes="Bold"
-                    TextColor="#222222"
-                    BackgroundColor="#80FFFFFF"
-                    WidthRequest="40"
-                    HeightRequest="40"
-                    Padding="0"
-                    CornerRadius="20"
-                    HorizontalOptions="End"
-                    VerticalOptions="Start"
-                    Margin="0,16,16,0" />
+        <!-- Legend-overlay som pulldown från övre kanten. Centrerad
+             horisontellt (HorizontalOptions=Center), klistrad mot top
+             (VerticalOptions=Start, Margin top=0).
+
+             Default: IsLegendExpanded=false → bara pil-fliken (▼) syns
+             som en liten chip-form hängande från top-edge. Tap → innehållet
+             fälls ut, Border:n växer ner, pilen vänder ▲. Animation
+             utelämnad (per PRD:s fallback) — TranslateTo skulle kräva
+             känd höjd i förväg vilket är race:y mot layout-passet.
+
+             CornerRadius "0,0,10,10" → toppen kantig (sitter mot skärmens
+             top-edge), botten rundad → ser ut som en panel som hänger ner.
+             Bakgrund #E61A1A1A = ~90 % alpha på #1A1A1A: lätt transparens
+             utan att tunna ut text.
+
+             Tap-hantering: pil-fliken och spelarkolumnerna har egna Tap-
+             GestureRecognizers (toggle resp. visibility). Border absorberar
+             tap på padding-ytan så det inte propagerar ned till PlotView. -->
+        <Border x:Name="LegendBorder"
+                BackgroundColor="#E61A1A1A"
+                StrokeThickness="0"
+                Padding="0"
+                HorizontalOptions="Center"
+                VerticalOptions="Start"
+                Margin="0,0,0,0">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="0,0,10,10" />
+            </Border.StrokeShape>
+
+            <VerticalStackLayout Spacing="0">
+                <!-- Innehåll: Kväll N: + spelarkolumner. IsVisible bundet
+                     till IsLegendExpanded — när false läggs HSL ut med
+                     bredd 0 (Maui behandlar IsVisible=false som "gone")
+                     och Border:n krymper till bara flikens höjd. -->
+                <HorizontalStackLayout Spacing="10"
+                                       Padding="14,10,14,6"
+                                       IsVisible="{Binding IsLegendExpanded}">
+                    <!-- VerticalOptions="End" + Padding bottom=2 matchar
+                         items egna 2 dp bottom-padding så rubriken hamnar
+                         på samma baslinje som snittsiffrorna. -->
+                    <Label Text="{Binding SelectedNightLabel, StringFormat='{0}:'}"
+                           TextColor="White"
+                           FontFamily="Baloo2Bold"
+                           FontSize="13"
+                           VerticalOptions="End"
+                           Padding="0,0,0,2"
+                           IsVisible="{Binding HasSelectedNight}" />
+
+                    <!-- BindableLayout istället för CollectionView: HSL+
+                         CollectionView rapporterar inte DesiredSize
+                         tillförlitligt i MAUI. Vi har alltid 4 spelare så
+                         virtualisering ger inget. Ordning kommer från
+                         LegendItems → PlotModel.Series → activePlayers
+                         sorterade på DisplayOrder = Claes/Aleksi/Jonas/Robin. -->
+                    <HorizontalStackLayout BindableLayout.ItemsSource="{Binding LegendItems}"
+                                           Spacing="0">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PlayerLegendItem">
+                                <Grid Padding="10,2" RowDefinitions="Auto,Auto" RowSpacing="2">
+                                    <Grid.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Grid.GestureRecognizers>
+                                    <HorizontalStackLayout Grid.Row="0" Spacing="5" HorizontalOptions="Center">
+                                        <!-- BoxView med CornerRadius=5 på 10×10 = filled cirkel.
+                                             Färg = spelarens färg (samma som linjen i grafen). -->
+                                        <BoxView WidthRequest="10"
+                                                 HeightRequest="10"
+                                                 CornerRadius="5"
+                                                 Color="{Binding Color}"
+                                                 VerticalOptions="Center"
+                                                 Opacity="{Binding NameOpacity}" />
+                                        <Label Text="{Binding Name}"
+                                               FontFamily="Baloo2Bold"
+                                               FontSize="13"
+                                               TextColor="{Binding Color}"
+                                               VerticalOptions="Center"
+                                               Opacity="{Binding NameOpacity}"
+                                               TextDecorations="{Binding NameDecorations}" />
+                                    </HorizontalStackLayout>
+                                    <Label Grid.Row="1"
+                                           Text="{Binding NightAverageDisplay}"
+                                           HorizontalOptions="Center"
+                                           FontFamily="Baloo2Bold"
+                                           FontSize="13"
+                                           TextColor="White"
+                                           Opacity="{Binding NameOpacity}" />
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </HorizontalStackLayout>
+                </HorizontalStackLayout>
+
+                <!-- Collapse-flik: alltid synlig. Tidigare 10/0,2 var för svår
+                     att tap:a precist — bumpad till FontSize 12 + vertikal
+                     Padding 4/4 så tab-höjden går från ~12 dp till ~20 dp.
+                     Bredden bevarad (Padding-X 24 dp). PlotModel.Padding-
+                     topp är 32 dp; med ~20 dp tab lämnas ~12 dp luft till
+                     titelns ovankant — den syns fortfarande när rutan är
+                     ihopfälld, även om fliken nu sitter närmare titeln.
+                     Utfälld: hela Border:n växer ner och täcker titeln
+                     (per spec). -->
+                <Label Text="{Binding LegendCollapseArrow}"
+                       TextColor="White"
+                       FontFamily="Baloo2Bold"
+                       FontSize="12"
+                       HorizontalOptions="Center"
+                       Padding="24,4,24,4">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding ToggleLegendCollapseCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- Färgförklaring 2×2: liten diskret nyckel som visar vilken färg
+             som hör till vilken spelare. Ska flyta i "mellanrummet" mellan
+             titeln "Kvällssnitt över tid" (centrerad i title-zonen) och
+             skärmens högerkant — varken klistrad i hörnet eller på toppen
+             av titeln.
+
+             Positioneringstrick: en wrapper-Grid med ColumnDefinitions
+             "*,180,*" där den mittersta 180 dp-kolumnen "reserveras" för
+             titeln (≈ titelns bredd vid FontSize 14). Höger-* fyller resten
+             och färgnyckeln placeras i Grid.Column=2 med HorizontalOptions
+             =Center — då hamnar dess mittpunkt på ~75 % av screen width
+             oavsett enhet, alltså mitt emellan titelns högerkant och
+             skärmens högerkant. Mer responsivt än en absolut högermarginal.
+
+             Vertikalt: titeln ritas av OxyPlot just NEDANFÖR Padding-top,
+             inte inom den (TitleArea.Top = Padding.Top = 32 dp i OxyPlots
+             render-pipeline). Titel-textens visuella mitt vid FontSize 14
+             ligger då på ungefär y = 32 + 14*0.55 ≈ 40 dp från modellens
+             top-edge. Färgnyckeln är ~26 dp hög (två rader om 12 dp +
+             RowSpacing 2), så för att dess mittpunkt (mellan rad 1 och
+             rad 2) ska linjera med titelns mitt behöver dess top-kant
+             ligga vid y = 40 - 13 ≈ 27. Lös detta genom Margin top = 24
+             dp på wrappern (RowDefinitions="32" + VerticalOptions=Center
+             ger inner-grid top-kant vid 24 + (32-26)/2 = 27 dp,
+             mittpunkt vid 40 dp). Titeln och nyckeln delar nu samma
+             horisontella mittlinje, även om de ligger i olika
+             koordinatsystem (OxyPlot vs MAUI).
+
+             Layout inuti själva nyckeln (oförändrad): ColumnSpacing 14 dp,
+             Kol 1 = Claes/Aleksi, Kol 2 = Robin/Jonas. Färgerna hardcodade
+             — samma hex som PlayerColorsByName i HistoryStatsViewModel
+             (spelarna är fasta per CLAUDE.md). Textfärg #222222
+             = ChartForeground; ingen bakgrund eftersom grafens grå #C8C8C8
+             ger tillräcklig kontrast och en bakgrundsfri etikett ser
+             renare ut än en pillbox här. FontSize 10 + Baloo2Bold matchar
+             flikens stil.
+
+             IsVisible bunden till IsLegendCollapsed: när användaren fäller
+             ut legenden döljs nyckeln (legenden visar då redan namn + färg
+             med snitt-värden, så dubbel info undviks). Auto-hide-fade på
+             ✕/↺/flik påverkar INTE den här — färgkodningen ska alltid
+             vara läsbar så länge legenden är infälld.
+
+             InputTransparent=True på både wrapper och inner-grid så
+             tap-events går rakt igenom till PlotView. -->
+        <Grid HorizontalOptions="Fill"
+              VerticalOptions="Start"
+              Margin="0,24,0,0"
+              ColumnDefinitions="*,180,*"
+              RowDefinitions="32"
+              InputTransparent="True"
+              IsVisible="{Binding IsLegendCollapsed}">
+
+            <Grid Grid.Column="2"
+                  HorizontalOptions="Center"
+                  VerticalOptions="Center"
+                  ColumnDefinitions="Auto,Auto"
+                  RowDefinitions="Auto,Auto"
+                  ColumnSpacing="14"
+                  RowSpacing="2"
+                  InputTransparent="True">
+
+                <HorizontalStackLayout Grid.Row="0" Grid.Column="0" Spacing="5">
+                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                             Color="#E55A1F" VerticalOptions="Center" />
+                    <Label Text="Claes" FontFamily="Baloo2Bold" FontSize="10"
+                           TextColor="#222222" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+
+                <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Spacing="5">
+                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                             Color="#2CA02C" VerticalOptions="Center" />
+                    <Label Text="Aleksi" FontFamily="Baloo2Bold" FontSize="10"
+                           TextColor="#222222" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+
+                <HorizontalStackLayout Grid.Row="0" Grid.Column="1" Spacing="5">
+                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                             Color="#1F77B4" VerticalOptions="Center" />
+                    <Label Text="Robin" FontFamily="Baloo2Bold" FontSize="10"
+                           TextColor="#222222" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+
+                <HorizontalStackLayout Grid.Row="1" Grid.Column="1" Spacing="5">
+                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                             Color="#B8860B" VerticalOptions="Center" />
+                    <Label Text="Jonas" FontFamily="Baloo2Bold" FontSize="10"
+                           TextColor="#222222" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Grid>
         </Grid>
-
-        <!-- Egen legend, samma toggle-mekanik som i HistoryStatsPage. Synkar
-             via ChartTransferStore.HiddenPlayerNames så avval i ena vyn
-             överlever navigering till den andra. -->
-        <CollectionView Grid.Row="1"
-                        ItemsSource="{Binding LegendItems}"
-                        ItemsLayout="HorizontalList"
-                        SelectionMode="None"
-                        HeightRequest="40"
-                        HorizontalOptions="Center"
-                        Margin="0,2,0,6">
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="vm:PlayerLegendItem">
-                    <Grid Padding="10,6">
-                        <Grid.GestureRecognizers>
-                            <TapGestureRecognizer
-                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
-                                CommandParameter="{Binding .}" />
-                        </Grid.GestureRecognizers>
-                        <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
-                            <BoxView WidthRequest="14"
-                                     HeightRequest="14"
-                                     Color="{Binding Color}"
-                                     VerticalOptions="Center"
-                                     Opacity="{Binding NameOpacity}" />
-                            <Label Text="{Binding Name}"
-                                   FontFamily="Baloo2"
-                                   FontSize="13"
-                                   TextColor="#222222"
-                                   VerticalOptions="Center"
-                                   Opacity="{Binding NameOpacity}"
-                                   TextDecorations="{Binding NameDecorations}" />
-                        </HorizontalStackLayout>
-                    </Grid>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
-
     </Grid>
 
 </ContentPage>
