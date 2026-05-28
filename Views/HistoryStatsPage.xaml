@@ -10,8 +10,11 @@
 
     <Grid RowDefinitions="Auto,Auto,*" Padding="0">
 
-        <!-- Tab header -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,*,*" Padding="0,8,0,0">
+        <!-- Tab header: 4 tabbar i Skiva 16. Tab-namnen kortades till
+             "Kvällsgraf"/"Karriärgraf" (från "Graf"/"Graf (kväll)"-mer-
+             beskrivande varianter) för att rymmas på smal portrait-skärm
+             (~360 dp / 4 ≈ 90 dp per tab). "Graf (karriär)" hade klippts. -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*" Padding="0,8,0,0">
             <VerticalStackLayout Grid.Column="0" Spacing="4">
                 <Label Text="Totalscore"
                        HorizontalTextAlignment="Center"
@@ -39,7 +42,7 @@
                          IsVisible="{Binding IsPlacementsTab}" />
             </VerticalStackLayout>
             <VerticalStackLayout Grid.Column="2" Spacing="4">
-                <Label Text="Graf"
+                <Label Text="Kvällsgraf"
                        HorizontalTextAlignment="Center"
                        Padding="8"
                        FontAttributes="Bold">
@@ -49,7 +52,20 @@
                 </Label>
                 <BoxView HeightRequest="2"
                          Color="{StaticResource Primary}"
-                         IsVisible="{Binding IsGraphTab}" />
+                         IsVisible="{Binding IsNightGraphTab}" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="3" Spacing="4">
+                <Label Text="Karriärgraf"
+                       HorizontalTextAlignment="Center"
+                       Padding="8"
+                       FontAttributes="Bold">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding SelectTabCommand}" CommandParameter="3" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <BoxView HeightRequest="2"
+                         Color="{StaticResource Primary}"
+                         IsVisible="{Binding IsCareerGraphTab}" />
             </VerticalStackLayout>
         </Grid>
 
@@ -129,8 +145,8 @@
                 </CollectionView>
             </VerticalStackLayout>
 
-            <!-- Graf -->
-            <Grid RowDefinitions="*,Auto" IsVisible="{Binding IsGraphTab}">
+            <!-- Kvällsgraf — varje kvälls eget kvällssnitt per spelare. -->
+            <Grid RowDefinitions="*,Auto" IsVisible="{Binding IsNightGraphTab}">
                 <Grid Grid.Row="0">
                     <!-- DefaultTrackerTemplate=null så OxyPlot.Maui.Skia inte
                          ritar sin gula tooltip vid tap på en datapunkt.
@@ -144,7 +160,7 @@
                                   BackgroundColor="Transparent"
                                   DefaultTrackerTemplate="{x:Null}" />
                     <Button Text="⛶ Helskärm"
-                            Command="{Binding OpenFullScreenChartCommand}"
+                            Command="{Binding OpenFullScreenNightChartCommand}"
                             FontSize="12"
                             Padding="10,4"
                             HorizontalOptions="End"
@@ -166,10 +182,6 @@
                                        HorizontalOptions="Center"
                                        Spacing="8"
                                        Margin="0,4,0,0">
-                    <!-- VerticalOptions="End" + Padding bottom=4 matchar items
-                         egna 4 dp bottom-padding så rubriken hamnar på samma
-                         baslinje som snittsiffrorna (rad 2 i items). "Center"
-                         skulle hamna mellan namn-rad och siffer-rad. -->
                     <Label Text="{Binding SelectedNightLabel, StringFormat='{0}:'}"
                            FontFamily="Baloo2Bold"
                            FontSize="12"
@@ -178,6 +190,73 @@
                            IsVisible="{Binding HasSelectedNight}" />
 
                     <HorizontalStackLayout BindableLayout.ItemsSource="{Binding LegendItems}"
+                                           Spacing="0">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PlayerLegendItem">
+                                <Grid Padding="8,4" RowDefinitions="Auto,Auto" RowSpacing="2">
+                                    <Grid.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Grid.GestureRecognizers>
+                                    <HorizontalStackLayout Grid.Row="0" Spacing="6" HorizontalOptions="Center">
+                                        <BoxView WidthRequest="14"
+                                                 HeightRequest="14"
+                                                 Color="{Binding Color}"
+                                                 VerticalOptions="Center"
+                                                 Opacity="{Binding NameOpacity}" />
+                                        <Label Text="{Binding Name}"
+                                               FontFamily="Baloo2"
+                                               FontSize="13"
+                                               VerticalOptions="Center"
+                                               Opacity="{Binding NameOpacity}"
+                                               TextDecorations="{Binding NameDecorations}" />
+                                    </HorizontalStackLayout>
+                                    <Label Grid.Row="1"
+                                           Text="{Binding NightAverageDisplay}"
+                                           HorizontalOptions="Center"
+                                           FontFamily="Baloo2Bold"
+                                           FontSize="13"
+                                           Opacity="{Binding NameOpacity}" />
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </HorizontalStackLayout>
+                </HorizontalStackLayout>
+            </Grid>
+
+            <!-- Karriärgraf — löpande karriärsnitt per spelare (kumulativt
+                 medel av kvällssnitten t.o.m. respektive kväll). Strukturen
+                 är en klon av kvällsgrafen ovan med separata bindings:
+                 CareerPlotModel, OpenFullScreenCareerChartCommand, Career-
+                 LegendItems. TogglePlayerVisibilityCommand är gemensam
+                 (togglar samtidigt i båda graferna via store:n). -->
+            <Grid RowDefinitions="*,Auto" IsVisible="{Binding IsCareerGraphTab}">
+                <Grid Grid.Row="0">
+                    <oxy:PlotView Model="{Binding CareerPlotModel}"
+                                  BackgroundColor="Transparent"
+                                  DefaultTrackerTemplate="{x:Null}" />
+                    <Button Text="⛶ Helskärm"
+                            Command="{Binding OpenFullScreenCareerChartCommand}"
+                            FontSize="12"
+                            Padding="10,4"
+                            HorizontalOptions="End"
+                            VerticalOptions="Start"
+                            Margin="0,4,4,0" />
+                </Grid>
+
+                <HorizontalStackLayout Grid.Row="1"
+                                       HorizontalOptions="Center"
+                                       Spacing="8"
+                                       Margin="0,4,0,0">
+                    <Label Text="{Binding SelectedNightLabel, StringFormat='{0}:'}"
+                           FontFamily="Baloo2Bold"
+                           FontSize="12"
+                           VerticalOptions="End"
+                           Padding="0,0,0,4"
+                           IsVisible="{Binding HasSelectedNight}" />
+
+                    <HorizontalStackLayout BindableLayout.ItemsSource="{Binding CareerLegendItems}"
                                            Spacing="0">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:PlayerLegendItem">
