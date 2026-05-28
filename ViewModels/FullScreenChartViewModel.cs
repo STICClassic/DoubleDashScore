@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DoubleDashScore.Services;
@@ -206,42 +207,53 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
 
     private void UpdateMarkerAnnotation(NightScrubberSlice? slice)
     {
-        var model = _store.CurrentPlotModel;
-        if (model is null) return;
-
-        if (_markerAnnotation is not null && !model.Annotations.Contains(_markerAnnotation))
+        // Try/catch + Debug.WriteLine så ev. crash i annotation-pipelinen
+        // surfar i VS Output istället för att ta ner appen — användaren
+        // har inte adb, så Output-fönstret är enda fönstret in i runtime-fel.
+        try
         {
-            _markerAnnotation = null;
-        }
+            var model = _store.CurrentPlotModel;
+            if (model is null) return;
 
-        if (slice is null)
-        {
-            if (_markerAnnotation is not null)
+            if (_markerAnnotation is not null && !model.Annotations.Contains(_markerAnnotation))
             {
-                model.Annotations.Remove(_markerAnnotation);
                 _markerAnnotation = null;
-                model.InvalidatePlot(false);
             }
-            return;
-        }
 
-        if (_markerAnnotation is null)
-        {
-            _markerAnnotation = new LineAnnotation
+            if (slice is null)
             {
-                Type = LineAnnotationType.Vertical,
-                // Diskret markör: tunn (1 px) ljusgrå med låg alpha så den
-                // syns mot grå plot-bakgrund utan att konkurrera med
-                // spelarlinjernas mättade färger.
-                Color = OxyColor.FromAColor(80, OxyColors.LightGray),
-                StrokeThickness = 1,
-                LineStyle = LineStyle.Solid,
-                ClipByYAxis = true,
-            };
-            model.Annotations.Add(_markerAnnotation);
+                if (_markerAnnotation is not null)
+                {
+                    model.Annotations.Remove(_markerAnnotation);
+                    _markerAnnotation = null;
+                    model.InvalidatePlot(false);
+                }
+                return;
+            }
+
+            if (_markerAnnotation is null)
+            {
+                _markerAnnotation = new LineAnnotation
+                {
+                    Type = LineAnnotationType.Vertical,
+                    // Diskret markör: tunn (1 px) ljusgrå med låg alpha så
+                    // den syns mot grå plot-bakgrund utan att konkurrera
+                    // med spelarlinjernas mättade färger.
+                    Color = OxyColor.FromAColor(80, OxyColors.LightGray),
+                    StrokeThickness = 1,
+                    LineStyle = LineStyle.Solid,
+                    ClipByYAxis = true,
+                };
+                model.Annotations.Add(_markerAnnotation);
+            }
+            _markerAnnotation.X = slice.ChronologicalIndex;
+            model.InvalidatePlot(false);
         }
-        _markerAnnotation.X = slice.ChronologicalIndex;
-        model.InvalidatePlot(false);
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[UpdateMarkerAnnotation] {ex.GetType().Name}: {ex.Message}");
+            Debug.WriteLine(ex.StackTrace);
+        }
     }
 
     private void StartHideTimer()

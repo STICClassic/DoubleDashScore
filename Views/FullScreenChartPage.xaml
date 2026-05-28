@@ -16,16 +16,16 @@
          ritas ovanpå. AbsoluteLayout är overkill för en enda fast
          hörnposition. -->
     <Grid>
-        <!-- DefaultTrackerTemplate = tom ControlTemplate så OxyPlot.Maui.Skia
-             inte ritar sin gula tooltip vid tap på en datapunkt. PlotModel.
-             TrackerChanged fires fortfarande, så VM:n får ändå sin
-             notifikation om vald kväll. Vår vertikala LineAnnotation +
-             legend-snitten ersätter trackerns visualisering. -->
+        <!-- DefaultTrackerTemplate=null så OxyPlot.Maui.Skia inte ritar sin
+             gula tooltip vid tap på en datapunkt. Tom ControlTemplate
+             kraschar (ShowTracker castar CreateContent()→View med NullRef);
+             explicit null hoppar PlotView över rendering helt. PlotModel.
+             TrackerChanged fires fortfarande, så VM:n får notifikationen om
+             vald kväll. Vår vertikala LineAnnotation + legend-overlayn
+             ersätter trackern. -->
         <oxy:PlotView Model="{Binding PlotModel}"
-                      BackgroundColor="Transparent">
-            <oxy:PlotView.DefaultTrackerTemplate>
-                <ControlTemplate />
-            </oxy:PlotView.DefaultTrackerTemplate>
+                      BackgroundColor="Transparent"
+                      DefaultTrackerTemplate="{x:Null}">
             <oxy:PlotView.GestureRecognizers>
                 <TapGestureRecognizer Command="{Binding TogglePlotTapCommand}" />
             </oxy:PlotView.GestureRecognizers>

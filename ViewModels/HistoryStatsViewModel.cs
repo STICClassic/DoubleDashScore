@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -518,44 +519,54 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
 
     private void UpdateMarkerAnnotation(NightScrubberSlice? slice)
     {
-        if (PlotModel is null) return;
-
-        // Om PlotModel byggts om sedan annotation:en skapades — kasta gamla
-        // referensen så vi inte försöker peka i en stale modell.
-        if (_markerAnnotation is not null && !PlotModel.Annotations.Contains(_markerAnnotation))
+        // Try/catch + Debug.WriteLine så ev. crash i annotation-pipelinen
+        // surfar i VS Output istället för att ta ner appen — användaren
+        // har inte adb, så Output-fönstret är enda fönstret in i runtime-fel.
+        try
         {
-            _markerAnnotation = null;
-        }
+            if (PlotModel is null) return;
 
-        if (slice is null)
-        {
-            if (_markerAnnotation is not null)
+            // Om PlotModel byggts om sedan annotation:en skapades — kasta
+            // gamla referensen så vi inte försöker peka i en stale modell.
+            if (_markerAnnotation is not null && !PlotModel.Annotations.Contains(_markerAnnotation))
             {
-                PlotModel.Annotations.Remove(_markerAnnotation);
                 _markerAnnotation = null;
-                PlotModel.InvalidatePlot(false);
             }
-            return;
-        }
 
-        if (_markerAnnotation is null)
-        {
-            _markerAnnotation = new LineAnnotation
+            if (slice is null)
             {
-                Type = LineAnnotationType.Vertical,
-                // Diskret markör: tunn (1 px) ljusgrå med låg alpha så den
-                // syns mot grå plot-bakgrund (#C8C8C8) utan att konkurrera
-                // med spelarlinjernas mättade färger. Funktion: visa vilken
-                // kväll som är vald, inget mer.
-                Color = OxyColor.FromAColor(80, OxyColors.LightGray),
-                StrokeThickness = 1,
-                LineStyle = LineStyle.Solid,
-                ClipByYAxis = true,
-            };
-            PlotModel.Annotations.Add(_markerAnnotation);
+                if (_markerAnnotation is not null)
+                {
+                    PlotModel.Annotations.Remove(_markerAnnotation);
+                    _markerAnnotation = null;
+                    PlotModel.InvalidatePlot(false);
+                }
+                return;
+            }
+
+            if (_markerAnnotation is null)
+            {
+                _markerAnnotation = new LineAnnotation
+                {
+                    Type = LineAnnotationType.Vertical,
+                    // Diskret markör: tunn (1 px) ljusgrå med låg alpha så
+                    // den syns mot grå plot-bakgrund (#C8C8C8) utan att
+                    // konkurrera med spelarlinjernas mättade färger.
+                    Color = OxyColor.FromAColor(80, OxyColors.LightGray),
+                    StrokeThickness = 1,
+                    LineStyle = LineStyle.Solid,
+                    ClipByYAxis = true,
+                };
+                PlotModel.Annotations.Add(_markerAnnotation);
+            }
+            _markerAnnotation.X = slice.ChronologicalIndex;
+            PlotModel.InvalidatePlot(false);
         }
-        _markerAnnotation.X = slice.ChronologicalIndex;
-        PlotModel.InvalidatePlot(false);
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[UpdateMarkerAnnotation] {ex.GetType().Name}: {ex.Message}");
+            Debug.WriteLine(ex.StackTrace);
+        }
     }
 
 }
