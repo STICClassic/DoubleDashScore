@@ -196,11 +196,19 @@
              oavsett enhet, alltså mitt emellan titelns högerkant och
              skärmens högerkant. Mer responsivt än en absolut högermarginal.
 
-             RowDefinitions="32" = exakt PlotModel.Padding-top så Vertical
-             Options=Center på nyckeln centrerar den vertikalt i samma
-             32 dp-zon som OxyPlot ritar titeln i — nyckelns mittlinje
-             linjerar med titelns mittlinje (som om titeln vore "över-
-             struken").
+             Vertikalt: titeln ritas av OxyPlot just NEDANFÖR Padding-top,
+             inte inom den (TitleArea.Top = Padding.Top = 32 dp i OxyPlots
+             render-pipeline). Titel-textens visuella mitt vid FontSize 14
+             ligger då på ungefär y = 32 + 14*0.55 ≈ 40 dp från modellens
+             top-edge. Färgnyckeln är ~26 dp hög (två rader om 12 dp +
+             RowSpacing 2), så för att dess mittpunkt (mellan rad 1 och
+             rad 2) ska linjera med titelns mitt behöver dess top-kant
+             ligga vid y = 40 - 13 ≈ 27. Lös detta genom Margin top = 24
+             dp på wrappern (RowDefinitions="32" + VerticalOptions=Center
+             ger inner-grid top-kant vid 24 + (32-26)/2 = 27 dp,
+             mittpunkt vid 40 dp). Titeln och nyckeln delar nu samma
+             horisontella mittlinje, även om de ligger i olika
+             koordinatsystem (OxyPlot vs MAUI).
 
              Layout inuti själva nyckeln (oförändrad): ColumnSpacing 14 dp,
              Kol 1 = Claes/Aleksi, Kol 2 = Robin/Jonas. Färgerna hardcodade
@@ -221,6 +229,7 @@
              tap-events går rakt igenom till PlotView. -->
         <Grid HorizontalOptions="Fill"
               VerticalOptions="Start"
+              Margin="0,24,0,0"
               ColumnDefinitions="*,180,*"
               RowDefinitions="32"
               InputTransparent="True"
