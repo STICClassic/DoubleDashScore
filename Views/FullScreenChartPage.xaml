@@ -160,21 +160,21 @@
                     </HorizontalStackLayout>
                 </HorizontalStackLayout>
 
-                <!-- Collapse-flik: alltid synlig, ytterligare plattad
-                     (FontSize 12→10, vertikal Padding 1/3→0/2 → tab ~12 dp
-                     hög, ner från ~16 dp). PlotModel.Padding-topp är 32 dp
-                     så flikens ~12 dp lämnar ~20 dp luft ner till titelns
-                     översta baseline — "Kvällssnitt över tid" syns alltid
-                     fullt ut när legend-rutan är ihopfälld. När den fälls
-                     ut växer Border:n ner och täcker titeln (per spec).
-                     Horisontell Padding bevarad (24 dp) så tap-target inte
-                     krymper för mycket på bredden trots smalare höjd. -->
+                <!-- Collapse-flik: alltid synlig. Tidigare 10/0,2 var för svår
+                     att tap:a precist — bumpad till FontSize 12 + vertikal
+                     Padding 4/4 så tab-höjden går från ~12 dp till ~20 dp.
+                     Bredden bevarad (Padding-X 24 dp). PlotModel.Padding-
+                     topp är 32 dp; med ~20 dp tab lämnas ~12 dp luft till
+                     titelns ovankant — den syns fortfarande när rutan är
+                     ihopfälld, även om fliken nu sitter närmare titeln.
+                     Utfälld: hela Border:n växer ner och täcker titeln
+                     (per spec). -->
                 <Label Text="{Binding LegendCollapseArrow}"
                        TextColor="White"
                        FontFamily="Baloo2Bold"
-                       FontSize="10"
+                       FontSize="12"
                        HorizontalOptions="Center"
-                       Padding="24,0,24,2">
+                       Padding="24,4,24,4">
                     <Label.GestureRecognizers>
                         <TapGestureRecognizer Command="{Binding ToggleLegendCollapseCommand}" />
                     </Label.GestureRecognizers>
@@ -182,69 +182,87 @@
             </VerticalStackLayout>
         </Border>
 
-        <!-- Färgförklaring 2×2 (top-right): liten diskret nyckel som visar
-             vilken färg som hör till vilken spelare. Sitter i title-zonen
-             (PlotModel.Padding-top = 32 dp) till höger om "Kvällssnitt
-             över tid", som är centrerad i samma zon. Margin höger=16 dp
-             matchar PlotModel.Padding-right så nyckeln linjerar med
-             plot-area:n; top=4 dp ger den lite luft från skärmkanten utan
-             att hamna lägre än titeln.
+        <!-- Färgförklaring 2×2: liten diskret nyckel som visar vilken färg
+             som hör till vilken spelare. Ska flyta i "mellanrummet" mellan
+             titeln "Kvällssnitt över tid" (centrerad i title-zonen) och
+             skärmens högerkant — varken klistrad i hörnet eller på toppen
+             av titeln.
 
-             Layout: ColumnDefinitions Auto,Auto = bara så breda kolumner
-             som behövs. ColumnSpacing 14 dp mellan kolumnerna.
-             Kol 1: Claes (rad 0), Aleksi (rad 1).
-             Kol 2: Robin (rad 0), Jonas (rad 1).
-             Färger hardcodade här (samma hex som PlayerColorsByName i
-             HistoryStatsViewModel) — spelarna är fasta per CLAUDE.md.
+             Positioneringstrick: en wrapper-Grid med ColumnDefinitions
+             "*,180,*" där den mittersta 180 dp-kolumnen "reserveras" för
+             titeln (≈ titelns bredd vid FontSize 14). Höger-* fyller resten
+             och färgnyckeln placeras i Grid.Column=2 med HorizontalOptions
+             =Center — då hamnar dess mittpunkt på ~75 % av screen width
+             oavsett enhet, alltså mitt emellan titelns högerkant och
+             skärmens högerkant. Mer responsivt än en absolut högermarginal.
 
-             Textfärg #222222 = ChartForeground; ingen bakgrund alls
-             (BackgroundColor saknas) eftersom grafens grå (#C8C8C8)
-             ger tillräcklig kontrast och bakgrundsfri text ser renare ut
-             än en mörk pillbox här. FontSize 10 + Baloo2Bold matchar
+             RowDefinitions="32" = exakt PlotModel.Padding-top så Vertical
+             Options=Center på nyckeln centrerar den vertikalt i samma
+             32 dp-zon som OxyPlot ritar titeln i — nyckelns mittlinje
+             linjerar med titelns mittlinje (som om titeln vore "över-
+             struken").
+
+             Layout inuti själva nyckeln (oförändrad): ColumnSpacing 14 dp,
+             Kol 1 = Claes/Aleksi, Kol 2 = Robin/Jonas. Färgerna hardcodade
+             — samma hex som PlayerColorsByName i HistoryStatsViewModel
+             (spelarna är fasta per CLAUDE.md). Textfärg #222222
+             = ChartForeground; ingen bakgrund eftersom grafens grå #C8C8C8
+             ger tillräcklig kontrast och en bakgrundsfri etikett ser
+             renare ut än en pillbox här. FontSize 10 + Baloo2Bold matchar
              flikens stil.
 
              IsVisible bunden till IsLegendCollapsed: när användaren fäller
-             ut legenden döljs nyckeln (legenden visar redan namn + färg
+             ut legenden döljs nyckeln (legenden visar då redan namn + färg
              med snitt-värden, så dubbel info undviks). Auto-hide-fade på
              ✕/↺/flik påverkar INTE den här — färgkodningen ska alltid
-             vara läsbar så länge legenden är infälld. -->
-        <Grid HorizontalOptions="End"
+             vara läsbar så länge legenden är infälld.
+
+             InputTransparent=True på både wrapper och inner-grid så
+             tap-events går rakt igenom till PlotView. -->
+        <Grid HorizontalOptions="Fill"
               VerticalOptions="Start"
-              Margin="0,4,16,0"
-              ColumnDefinitions="Auto,Auto"
-              RowDefinitions="Auto,Auto"
-              ColumnSpacing="14"
-              RowSpacing="2"
+              ColumnDefinitions="*,180,*"
+              RowDefinitions="32"
               InputTransparent="True"
               IsVisible="{Binding IsLegendCollapsed}">
 
-            <HorizontalStackLayout Grid.Row="0" Grid.Column="0" Spacing="5">
-                <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
-                         Color="#E55A1F" VerticalOptions="Center" />
-                <Label Text="Claes" FontFamily="Baloo2Bold" FontSize="10"
-                       TextColor="#222222" VerticalOptions="Center" />
-            </HorizontalStackLayout>
+            <Grid Grid.Column="2"
+                  HorizontalOptions="Center"
+                  VerticalOptions="Center"
+                  ColumnDefinitions="Auto,Auto"
+                  RowDefinitions="Auto,Auto"
+                  ColumnSpacing="14"
+                  RowSpacing="2"
+                  InputTransparent="True">
 
-            <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Spacing="5">
-                <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
-                         Color="#2CA02C" VerticalOptions="Center" />
-                <Label Text="Aleksi" FontFamily="Baloo2Bold" FontSize="10"
-                       TextColor="#222222" VerticalOptions="Center" />
-            </HorizontalStackLayout>
+                <HorizontalStackLayout Grid.Row="0" Grid.Column="0" Spacing="5">
+                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                             Color="#E55A1F" VerticalOptions="Center" />
+                    <Label Text="Claes" FontFamily="Baloo2Bold" FontSize="10"
+                           TextColor="#222222" VerticalOptions="Center" />
+                </HorizontalStackLayout>
 
-            <HorizontalStackLayout Grid.Row="0" Grid.Column="1" Spacing="5">
-                <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
-                         Color="#1F77B4" VerticalOptions="Center" />
-                <Label Text="Robin" FontFamily="Baloo2Bold" FontSize="10"
-                       TextColor="#222222" VerticalOptions="Center" />
-            </HorizontalStackLayout>
+                <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Spacing="5">
+                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                             Color="#2CA02C" VerticalOptions="Center" />
+                    <Label Text="Aleksi" FontFamily="Baloo2Bold" FontSize="10"
+                           TextColor="#222222" VerticalOptions="Center" />
+                </HorizontalStackLayout>
 
-            <HorizontalStackLayout Grid.Row="1" Grid.Column="1" Spacing="5">
-                <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
-                         Color="#B8860B" VerticalOptions="Center" />
-                <Label Text="Jonas" FontFamily="Baloo2Bold" FontSize="10"
-                       TextColor="#222222" VerticalOptions="Center" />
-            </HorizontalStackLayout>
+                <HorizontalStackLayout Grid.Row="0" Grid.Column="1" Spacing="5">
+                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                             Color="#1F77B4" VerticalOptions="Center" />
+                    <Label Text="Robin" FontFamily="Baloo2Bold" FontSize="10"
+                           TextColor="#222222" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+
+                <HorizontalStackLayout Grid.Row="1" Grid.Column="1" Spacing="5">
+                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                             Color="#B8860B" VerticalOptions="Center" />
+                    <Label Text="Jonas" FontFamily="Baloo2Bold" FontSize="10"
+                           TextColor="#222222" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Grid>
         </Grid>
     </Grid>
 
