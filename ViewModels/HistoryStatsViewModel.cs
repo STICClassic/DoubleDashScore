@@ -295,12 +295,17 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             Title = "Kvällssnitt över tid",
             TitleFontSize = 14,
             TitleColor = ChartForeground,
-            // Padding ger axel-etiketterna andningsrum mot PlotView:s ytter-
-            // kant: 8 dp vänster så Y-axelns "1/2/3/4" inte klipps vid
-            // skärmkanten i fullscreen, 16 dp höger så sista X-axel-värdet
-            // (t.ex. "90") inte hamnar tätt mot högerkanten. Top/bottom = 0
-            // så titeln + X-axel-etiketterna behåller sina default-positioner.
-            Padding = new OxyThickness(8, 0, 16, 0),
+            // Padding runt hela modellen ger axel-etiketter och titel
+            // andningsrum mot PlotView:s ytterkant:
+            // - 8 dp vänster: Y-axelns "1/2/3/4" klipps inte vid kanten
+            // - 20 dp topp: titeln "Kvällssnitt över tid" trycks ner från
+            //   topp-edge, OCH pulldown-fliken (~18 dp hög) får plats
+            //   ovanför titeln när legend-overlayn är ihopfälld
+            // - 16 dp höger: sista X-axel-värdet (t.ex. "90") tätar inte
+            //   mot högerkanten
+            // - 12 dp botten: X-axel-etiketterna (10, 20, 30...) får
+            //   mellanrum under sig istället för att klistras mot botten
+            Padding = new OxyThickness(8, 20, 16, 12),
             TextColor = ChartForeground,
             PlotAreaBorderColor = ChartBorder,
             Background = ChartBackground,
