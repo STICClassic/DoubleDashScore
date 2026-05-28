@@ -45,7 +45,11 @@ public partial class FullScreenChartPage : ContentPage
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(FullScreenChartViewModel.IsControlsVisible))
+        // Både controls- och legend-state påverkar Border:ns synlighet:
+        // när legenden är utfälld ska den alltid synas; när infälld följer
+        // den ✕/↺-knapparnas auto-hide.
+        if (e.PropertyName == nameof(FullScreenChartViewModel.IsControlsVisible)
+            || e.PropertyName == nameof(FullScreenChartViewModel.IsLegendExpanded))
         {
             ApplyControlsVisibility(_vm.IsControlsVisible, animate: true);
         }
@@ -59,14 +63,24 @@ public partial class FullScreenChartPage : ContentPage
         ResetButton.InputTransparent = !visible;
         CloseButton.InputTransparent = !visible;
 
+        // Pulldown-overlay:n följer auto-hide när legenden är infälld
+        // (bara fliken syns, beter sig som ✕/↺). När legenden är utfälld
+        // ska hela panelen ligga kvar och vara opåverkad av tap-toggle —
+        // den auto-döljs alltså inte. legendVisible reflekterar detta.
+        var legendVisible = _vm.IsLegendExpanded || visible;
+        LegendBorder.InputTransparent = !legendVisible;
+
         var target = visible ? 1.0 : 0.0;
+        var legendTarget = legendVisible ? 1.0 : 0.0;
         if (!animate)
         {
             ResetButton.Opacity = target;
             CloseButton.Opacity = target;
+            LegendBorder.Opacity = legendTarget;
             return;
         }
         _ = ResetButton.FadeToAsync(target, FadeDurationMs);
         _ = CloseButton.FadeToAsync(target, FadeDurationMs);
+        _ = LegendBorder.FadeToAsync(legendTarget, FadeDurationMs);
     }
 }

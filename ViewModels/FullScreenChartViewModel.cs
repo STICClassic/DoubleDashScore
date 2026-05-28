@@ -63,10 +63,16 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     // Border:n så den glider med när panelen växer/krymper.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LegendCollapseArrow))]
+    [NotifyPropertyChangedFor(nameof(IsLegendCollapsed))]
     private bool _isLegendExpanded = false;
 
     // ▼ när dold (tap → glid in uppifrån), ▲ när synlig (tap → glid upp/dölj).
     public string LegendCollapseArrow => IsLegendExpanded ? "▲" : "▼";
+
+    // Invers av IsLegendExpanded — bunden till färgförklaringens IsVisible
+    // i XAML. När legenden är utfälld täcker den innehållet (spelarrutorna
+    // visar namn + färg), så färgförklaringen behövs inte och döljs.
+    public bool IsLegendCollapsed => !IsLegendExpanded;
 
     [RelayCommand]
     private void ToggleLegendCollapse()

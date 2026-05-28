@@ -84,7 +84,8 @@
              Tap-hantering: pil-fliken och spelarkolumnerna har egna Tap-
              GestureRecognizers (toggle resp. visibility). Border absorberar
              tap på padding-ytan så det inte propagerar ned till PlotView. -->
-        <Border BackgroundColor="#E61A1A1A"
+        <Border x:Name="LegendBorder"
+                BackgroundColor="#E61A1A1A"
                 StrokeThickness="0"
                 Padding="0"
                 HorizontalOptions="Center"
@@ -180,6 +181,71 @@
                 </Label>
             </VerticalStackLayout>
         </Border>
+
+        <!-- Färgförklaring 2×2 (top-right): liten diskret nyckel som visar
+             vilken färg som hör till vilken spelare. Sitter i title-zonen
+             (PlotModel.Padding-top = 32 dp) till höger om "Kvällssnitt
+             över tid", som är centrerad i samma zon. Margin höger=16 dp
+             matchar PlotModel.Padding-right så nyckeln linjerar med
+             plot-area:n; top=4 dp ger den lite luft från skärmkanten utan
+             att hamna lägre än titeln.
+
+             Layout: ColumnDefinitions Auto,Auto = bara så breda kolumner
+             som behövs. ColumnSpacing 14 dp mellan kolumnerna.
+             Kol 1: Claes (rad 0), Aleksi (rad 1).
+             Kol 2: Robin (rad 0), Jonas (rad 1).
+             Färger hardcodade här (samma hex som PlayerColorsByName i
+             HistoryStatsViewModel) — spelarna är fasta per CLAUDE.md.
+
+             Textfärg #222222 = ChartForeground; ingen bakgrund alls
+             (BackgroundColor saknas) eftersom grafens grå (#C8C8C8)
+             ger tillräcklig kontrast och bakgrundsfri text ser renare ut
+             än en mörk pillbox här. FontSize 10 + Baloo2Bold matchar
+             flikens stil.
+
+             IsVisible bunden till IsLegendCollapsed: när användaren fäller
+             ut legenden döljs nyckeln (legenden visar redan namn + färg
+             med snitt-värden, så dubbel info undviks). Auto-hide-fade på
+             ✕/↺/flik påverkar INTE den här — färgkodningen ska alltid
+             vara läsbar så länge legenden är infälld. -->
+        <Grid HorizontalOptions="End"
+              VerticalOptions="Start"
+              Margin="0,4,16,0"
+              ColumnDefinitions="Auto,Auto"
+              RowDefinitions="Auto,Auto"
+              ColumnSpacing="14"
+              RowSpacing="2"
+              InputTransparent="True"
+              IsVisible="{Binding IsLegendCollapsed}">
+
+            <HorizontalStackLayout Grid.Row="0" Grid.Column="0" Spacing="5">
+                <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                         Color="#E55A1F" VerticalOptions="Center" />
+                <Label Text="Claes" FontFamily="Baloo2Bold" FontSize="10"
+                       TextColor="#222222" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Spacing="5">
+                <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                         Color="#2CA02C" VerticalOptions="Center" />
+                <Label Text="Aleksi" FontFamily="Baloo2Bold" FontSize="10"
+                       TextColor="#222222" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Grid.Row="0" Grid.Column="1" Spacing="5">
+                <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                         Color="#1F77B4" VerticalOptions="Center" />
+                <Label Text="Robin" FontFamily="Baloo2Bold" FontSize="10"
+                       TextColor="#222222" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Grid.Row="1" Grid.Column="1" Spacing="5">
+                <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                         Color="#B8860B" VerticalOptions="Center" />
+                <Label Text="Jonas" FontFamily="Baloo2Bold" FontSize="10"
+                       TextColor="#222222" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+        </Grid>
     </Grid>
 
 </ContentPage>
