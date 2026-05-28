@@ -21,8 +21,16 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
 
     private readonly ChartTransferStore _store;
     private CancellationTokenSource? _hideCts;
-    private LineAnnotation? _markerAnnotation;
     private PlotModel? _subscribedModel;
+
+    // Sätts synkront av OnPlotTrackerChanged när en datapunkt-tap har valt
+    // en NY kväll. TogglePlotTap defer:as via dispatchern och kollar
+    // flaggan — om satt skippar den toggle:n (tracker har redan satt
+    // IsControlsVisible=true + startat timer). Konflikten beror på att
+    // TapGestureRecognizer + OxyPlot:s tracker triggas båda av samma
+    // touch utan garanterad ordning; flaggan + defer ger deterministisk
+    // hantering oavsett vem som fyrar först.
+    private bool _trackerHandledRecentTap;
 
     public FullScreenChartViewModel(ChartTransferStore store)
     {
@@ -78,9 +86,10 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
 
     private void UpdateMarkerColor()
     {
+        var ann = _store.MarkerAnnotation;
         var model = _store.CurrentPlotModel;
-        if (_markerAnnotation is null || model is null) return;
-        _markerAnnotation.Color = IsControlsVisible ? MarkerColorActive : OxyColors.Transparent;
+        if (ann is null || model is null) return;
+        ann.Color = IsControlsVisible ? MarkerColorActive : OxyColors.Transparent;
         model.InvalidatePlot(false);
     }
 
@@ -123,7 +132,9 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
         var defaultIdx = (storeIdx >= 0 && storeIdx < _store.NightSlices.Count)
             ? storeIdx
             : (_store.NightSlices.Count > 0 ? _store.NightSlices.Count - 1 : -1);
-        _markerAnnotation = null; // refresh mot nuvarande PlotModel
+        // Markörlinjen är delad via store (skapad av portrait första gången
+        // PlotModel byggs). UpdateMarkerAnnotation reuse:ar den om den är
+        // i nuvarande modell — vi behöver inte nulla något här.
         SelectedNightIndex = defaultIdx;
         ApplySelection();
         OnPropertyChanged(nameof(SelectedNightSlice));
@@ -135,23 +146,55 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     {
         CancelHideTimer();
         UnsubscribeTrackerChanged();
+
+        // Auto-hide hör bara till fullscreen-vyn. Återställ markörens färg
+        // till MarkerColorActive så portrait-vyn (som inte har auto-hide)
+        // ser den permanent synlig när användaren navigerar tillbaka.
+        // Utan denna restore skulle markören förbli transparent i portrait
+        // om fullscreen stängdes medan controls var auto-dolda.
+        var ann = _store.MarkerAnnotation;
+        var model = _store.CurrentPlotModel;
+        if (ann is not null && model is not null)
+        {
+            ann.Color = MarkerColorActive;
+            model.InvalidatePlot(false);
+        }
     }
 
     // Tap på själva grafen togglar — knapparna har egna commands och
-    // restart:ar i stället för att toggle:a.
+    // restart:ar i stället för att toggle:a. OBS: TogglePlotTap fyrar
+    // för ALLA taps inkl. taps som träffar en datapunkt (där OxyPlot:s
+    // TrackerChanged också fyrar). Vi defer:ar via BeginInvokeOnMainThread
+    // så _trackerHandledRecentTap-flaggan hinner sättas synkront av
+    // OnPlotTrackerChanged om den fyrade — då skippar vi toggle:n och
+    // låter tracker-handlern äga visningen (den sätter IsControlsVisible
+    // =true + startar timer för att visa kontrollerna vid den nya valda
+    // kvällen). Defer:n är robust mot ordningen mellan TapGestureRecognizer
+    // och OxyPlot:s interna tracker — vem som än fyrar först, kollas
+    // flaggan när dispatchern processar lambda:n.
     [RelayCommand]
     private void TogglePlotTap()
     {
-        if (IsControlsVisible)
+        MainThread.BeginInvokeOnMainThread(() =>
         {
-            CancelHideTimer();
-            IsControlsVisible = false;
-        }
-        else
-        {
-            IsControlsVisible = true;
-            StartHideTimer();
-        }
+            if (_trackerHandledRecentTap)
+            {
+                // Tracker valde redan en ny kväll och visade kontrollerna —
+                // toggla inte bort dem. Reset så nästa tap utvärderas rent.
+                _trackerHandledRecentTap = false;
+                return;
+            }
+            if (IsControlsVisible)
+            {
+                CancelHideTimer();
+                IsControlsVisible = false;
+            }
+            else
+            {
+                IsControlsVisible = true;
+                StartHideTimer();
+            }
+        });
     }
 
     [RelayCommand]
@@ -237,8 +280,25 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
         var x = e.HitResult.DataPoint.X;
         var idx = (int)Math.Round(x) - 1;
         if (idx < 0 || idx >= _store.NightSlices.Count) return;
+        // Samma kväll = behandla som tom-tap → låt TogglePlotTap toggla
+        // kontrollerna som vanligt. Lämna flaggan oförändrad.
         if (idx == SelectedNightIndex) return;
-        MainThread.BeginInvokeOnMainThread(() => SelectedNightIndex = idx);
+
+        // Synkront: markera att tracker hanterar denna touch så TogglePlotTap
+        // skippar sin toggle. Måste sättas FÖRE BeginInvokeOnMainThread så
+        // den syns för tap-handlern oavsett vem som dispatchas först.
+        _trackerHandledRecentTap = true;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            SelectedNightIndex = idx;
+            // Ny kväll vald: visa kontroller + markörlinjen vid nya kvällen
+            // och starta om 3 s-timern. ApplySelection (via partial method)
+            // har redan flyttat markörens X; här synkar vi även visnings-
+            // state så markören blir grå och knapparna fadar in.
+            IsControlsVisible = true;
+            StartHideTimer();
+        });
     }
 
     private void ApplySelection()
@@ -268,25 +328,30 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
             var model = _store.CurrentPlotModel;
             if (model is null) return;
 
-            if (_markerAnnotation is not null && !model.Annotations.Contains(_markerAnnotation))
+            // Markörlinjen delas via store. Om instansen finns men inte är
+            // i nuvarande modells Annotations-lista (modellen byggdes om
+            // sedan referensen sparades) → nulla och skapa ny nedan.
+            var ann = _store.MarkerAnnotation;
+            if (ann is not null && !model.Annotations.Contains(ann))
             {
-                _markerAnnotation = null;
+                ann = null;
+                _store.MarkerAnnotation = null;
             }
 
             if (slice is null)
             {
-                if (_markerAnnotation is not null)
+                if (ann is not null)
                 {
-                    model.Annotations.Remove(_markerAnnotation);
-                    _markerAnnotation = null;
+                    model.Annotations.Remove(ann);
+                    _store.MarkerAnnotation = null;
                     model.InvalidatePlot(false);
                 }
                 return;
             }
 
-            if (_markerAnnotation is null)
+            if (ann is null)
             {
-                _markerAnnotation = new LineAnnotation
+                ann = new LineAnnotation
                 {
                     Type = LineAnnotationType.Vertical,
                     // Initial färg följer auto-hide-state: synlig (MarkerColor-
@@ -298,9 +363,10 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
                     LineStyle = LineStyle.Solid,
                     ClipByYAxis = true,
                 };
-                model.Annotations.Add(_markerAnnotation);
+                model.Annotations.Add(ann);
+                _store.MarkerAnnotation = ann;
             }
-            _markerAnnotation.X = slice.ChronologicalIndex;
+            ann.X = slice.ChronologicalIndex;
             model.InvalidatePlot(false);
         }
         catch (Exception ex)

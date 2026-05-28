@@ -140,9 +140,11 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
 
     // ----- Vald kväll (legend visar snitt + vertikal markörlinje) ----------
 
-    // Vertikal markörlinje på grafen vid vald kvälls ChronologicalIndex.
-    // Återskapas mot ny PlotModel varje LoadAsync (modellen byggs om).
-    private LineAnnotation? _markerAnnotation;
+    // OBS: Markörlinje-instansen ägs av ChartTransferStore (delas med
+    // FullScreenChartViewModel). Lokal _markerAnnotation finns inte längre
+    // — annars skulle båda VM:erna lägga till varsin LineAnnotation i samma
+    // PlotModel och fullscreen:s auto-hide-toggle skulle bara dölja sin
+    // egen kopia (portrait:s syntes igenom).
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedNightSlice))]
@@ -253,9 +255,10 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             // nya får en färsk subscription.
             _chartStore.NightSlices = BuildNightSlices(stats.Series, orderedIds, nameById);
             PlotModel.TrackerChanged += OnPlotTrackerChanged;
-            // Ny PlotModel → släpp gamla annotation-referensen så
-            // ApplySelection skapar en på den nya.
-            _markerAnnotation = null;
+            // Ny PlotModel-instans (Annotations-listan tom) → släpp ev. gamla
+            // store-annotation-referensen så ApplySelection skapar en ny på
+            // den nya modellen.
+            _chartStore.MarkerAnnotation = null;
 
             // Behåll användarens val över LoadAsync-rebuilds; default = senaste
             // kvällen vid första laddning eller om sparade indexet är out-of-range.
@@ -540,43 +543,44 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
         {
             if (PlotModel is null) return;
 
-            // Om PlotModel byggts om sedan annotation:en skapades — kasta
-            // gamla referensen så vi inte försöker peka i en stale modell.
-            if (_markerAnnotation is not null && !PlotModel.Annotations.Contains(_markerAnnotation))
+            // Markörlinjen delas via store. Stale-referens (annotation som
+            // inte längre är i nuvarande modells Annotations-lista) nullas
+            // så vi inte försöker peka i fel modell.
+            var ann = _chartStore.MarkerAnnotation;
+            if (ann is not null && !PlotModel.Annotations.Contains(ann))
             {
-                _markerAnnotation = null;
+                ann = null;
+                _chartStore.MarkerAnnotation = null;
             }
 
             if (slice is null)
             {
-                if (_markerAnnotation is not null)
+                if (ann is not null)
                 {
-                    PlotModel.Annotations.Remove(_markerAnnotation);
-                    _markerAnnotation = null;
+                    PlotModel.Annotations.Remove(ann);
+                    _chartStore.MarkerAnnotation = null;
                     PlotModel.InvalidatePlot(false);
                 }
                 return;
             }
 
-            if (_markerAnnotation is null)
+            if (ann is null)
             {
-                _markerAnnotation = new LineAnnotation
+                ann = new LineAnnotation
                 {
                     Type = LineAnnotationType.Vertical,
                     // Diskret markör: tunn (1 px) medelgrå med ~55 % alpha så
                     // den syns tydligt mot grå plot-bakgrund (#C8C8C8) men
                     // ändå sekundärt mot spelarlinjernas mättade färger.
-                    // Tidigare LightGray@80 var i princip osynlig mot
-                    // bakgrunden — Gray (#808080) är mörkare än bakgrund
-                    // och högre alpha gör den läsbar utan att dominera.
                     Color = OxyColor.FromAColor(140, OxyColors.Gray),
                     StrokeThickness = 1,
                     LineStyle = LineStyle.Solid,
                     ClipByYAxis = true,
                 };
-                PlotModel.Annotations.Add(_markerAnnotation);
+                PlotModel.Annotations.Add(ann);
+                _chartStore.MarkerAnnotation = ann;
             }
-            _markerAnnotation.X = slice.ChronologicalIndex;
+            ann.X = slice.ChronologicalIndex;
             PlotModel.InvalidatePlot(false);
         }
         catch (Exception ex)

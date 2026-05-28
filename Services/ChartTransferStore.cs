@@ -1,4 +1,5 @@
 using OxyPlot;
+using OxyPlot.Annotations;
 
 namespace DoubleDashScore.Services;
 
@@ -15,6 +16,19 @@ namespace DoubleDashScore.Services;
 public sealed class ChartTransferStore
 {
     public PlotModel? CurrentPlotModel { get; set; }
+
+    // Delad markörlinje för "vald kväll". HistoryStatsViewModel och
+    // FullScreenChartViewModel måste peka på SAMMA LineAnnotation-instans
+    // eftersom båda läser/skriver Annotations på samma PlotModel — utan
+    // delning skapar varje VM sin egen kopia, vilket ger två överlappande
+    // grå linjer renderade på samma X. Symptomet: fullscreen:s auto-hide
+    // sätter bara sin egen kopia till transparent → portrait:s "leftover"-
+    // linje syns kvar och markören verkar inte försvinna efter 3 s.
+    //
+    // Nullas vid varje LoadAsync i HistoryStatsViewModel (ny PlotModel-
+    // instans → gamla annotation-referensen död). Återanvänds av båda
+    // VM:erna via reuse-check i deras UpdateMarkerAnnotation.
+    public LineAnnotation? MarkerAnnotation { get; set; }
 
     public HashSet<string> HiddenPlayerNames { get; } =
         new(StringComparer.OrdinalIgnoreCase);
