@@ -14,11 +14,16 @@
     <Grid RowDefinitions="*,Auto">
 
         <Grid Grid.Row="0">
-            <!-- DefaultTrackerTemplate slopad — tooltipens crosshair-linjer +
-                 bubbla ersätts av vertikal LineAnnotation + legend-snitten.
-                 TrackerChanged-eventet fires fortfarande och fångas av VM:n. -->
+            <!-- DefaultTrackerTemplate = tom ControlTemplate så OxyPlot.Maui.Skia
+                 inte ritar sin gula tooltip vid tap på en datapunkt. PlotModel.
+                 TrackerChanged fires fortfarande, så VM:n får ändå sin
+                 notifikation om vald kväll. Vår vertikala LineAnnotation +
+                 legend-snitten ersätter trackerns visualisering. -->
             <oxy:PlotView Model="{Binding PlotModel}"
                           BackgroundColor="Transparent">
+                <oxy:PlotView.DefaultTrackerTemplate>
+                    <ControlTemplate />
+                </oxy:PlotView.DefaultTrackerTemplate>
                 <oxy:PlotView.GestureRecognizers>
                     <TapGestureRecognizer Command="{Binding TogglePlotTapCommand}" />
                 </oxy:PlotView.GestureRecognizers>

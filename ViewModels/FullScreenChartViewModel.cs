@@ -230,8 +230,11 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
             _markerAnnotation = new LineAnnotation
             {
                 Type = LineAnnotationType.Vertical,
-                Color = OxyColor.FromArgb(0xC0, 0x22, 0x22, 0x22),
-                StrokeThickness = 2,
+                // Diskret markör: tunn (1 px) ljusgrå med låg alpha så den
+                // syns mot grå plot-bakgrund utan att konkurrera med
+                // spelarlinjernas mättade färger.
+                Color = OxyColor.FromAColor(80, OxyColors.LightGray),
+                StrokeThickness = 1,
                 LineStyle = LineStyle.Solid,
                 ClipByYAxis = true,
             };

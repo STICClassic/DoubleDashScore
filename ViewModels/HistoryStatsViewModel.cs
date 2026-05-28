@@ -376,7 +376,9 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
                 MarkerType = MarkerType.None,
                 StrokeThickness = 2,
                 Color = color,
-                TrackerFormatString = "{0}\n{Header}\nKvällssnitt: {Average:0.00}",
+                // TrackerFormatString slopad — DefaultTrackerTemplate i XAML är
+                // tom så ingen tooltip renderas; vi använder bara TrackerChanged-
+                // eventet för att snäppa SelectedNightIndex.
             };
             model.Series.Add(line);
         }
@@ -541,8 +543,12 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             _markerAnnotation = new LineAnnotation
             {
                 Type = LineAnnotationType.Vertical,
-                Color = OxyColor.FromArgb(0xC0, 0x22, 0x22, 0x22),
-                StrokeThickness = 2,
+                // Diskret markör: tunn (1 px) ljusgrå med låg alpha så den
+                // syns mot grå plot-bakgrund (#C8C8C8) utan att konkurrera
+                // med spelarlinjernas mättade färger. Funktion: visa vilken
+                // kväll som är vald, inget mer.
+                Color = OxyColor.FromAColor(80, OxyColors.LightGray),
+                StrokeThickness = 1,
                 LineStyle = LineStyle.Solid,
                 ClipByYAxis = true,
             };
