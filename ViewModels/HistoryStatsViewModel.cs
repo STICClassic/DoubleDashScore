@@ -55,6 +55,11 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     private static readonly OxyColor ChartForeground = OxyColor.FromRgb(0x22, 0x22, 0x22);
     private static readonly OxyColor ChartBorder     = OxyColor.FromArgb(0x8C, 0x00, 0x00, 0x00);
 
+    // Markörlinjens default-färg (samma alfa-grå som FullScreenChartViewModels
+    // MarkerColorActive). I portrait-vyn är markören permanent synlig — det är
+    // bara helskärm som auto-döljer den.
+    private static readonly OxyColor MarkerColor = OxyColor.FromAColor(140, OxyColors.Gray);
+
     private readonly GameNightRepository _nights;
     private readonly PlayerRepository _players;
     private readonly HistoricalDataRepository _historical;
@@ -74,7 +79,8 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     }
 
     // Reload när användaren importerar en .db-backup, oavsett vilken tabb som
-    // är aktiv just nu (LoadAsync återskapar Totals, PlacementsRows och PlotModel).
+    // är aktiv just nu (LoadAsync återskapar Totals, PlacementsRows och båda
+    // PlotModels).
     public void Receive(DatabaseImportedMessage message)
     {
         MainThread.BeginInvokeOnMainThread(async () =>
@@ -93,18 +99,27 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     [ObservableProperty]
     private bool _hasData;
 
+    // Kvällsgrafens PlotModel — varje kvälls eget kvällssnitt per spelare.
     [ObservableProperty]
     private PlotModel? _plotModel;
 
+    // Karriärgrafens PlotModel — löpande karriärsnitt per spelare
+    // (kumulativt medelvärde av kvällssnitten t.o.m. respektive kväll).
+    // Tab-index 3, ny i Skiva 16.
+    [ObservableProperty]
+    private PlotModel? _careerPlotModel;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsTotalsTab))]
-    [NotifyPropertyChangedFor(nameof(IsGraphTab))]
     [NotifyPropertyChangedFor(nameof(IsPlacementsTab))]
+    [NotifyPropertyChangedFor(nameof(IsNightGraphTab))]
+    [NotifyPropertyChangedFor(nameof(IsCareerGraphTab))]
     private int _selectedTabIndex;
 
     public bool IsTotalsTab => SelectedTabIndex == 0;
     public bool IsPlacementsTab => SelectedTabIndex == 1;
-    public bool IsGraphTab => SelectedTabIndex == 2;
+    public bool IsNightGraphTab => SelectedTabIndex == 2;
+    public bool IsCareerGraphTab => SelectedTabIndex == 3;
 
     // Karriärsnitt:et är dolt som default — användaren vill kunna se sitt
     // eget snitt privat men inte ha det synligt by default. Togglas via
@@ -114,7 +129,6 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     [NotifyPropertyChangedFor(nameof(CareerAverageToggleLabel))]
     private bool _isCareerAverageVisible;
 
-    // Text för toggle-knappen ovanför Totalscore-listan.
     public string CareerAverageToggleLabel =>
         IsCareerAverageVisible ? "Dölj karriärsnitt" : "Visa karriärsnitt";
 
@@ -131,20 +145,19 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
 
     public ObservableCollection<PlacementsRow> PlacementsRows { get; } = new();
 
-    // Egen legend under grafen — OxyPlots inbyggda legend exponerar inte
-    // tap-events i MAUI på något användbart sätt. Items synkar IsVisible
-    // mot LineSeries.IsVisible och ChartTransferStore.HiddenPlayerNames.
-    // Varje item:s NightAverage uppdateras när användaren tap:ar en punkt
-    // i grafen (Skiva 15) så snitten visas under spelarnamnen.
+    // Egna legender per graf-tab. Båda renderar samma fyra spelare med samma
+    // färger, men NightAverage-värdena skiljer sig: kvällsgrafens legend visar
+    // varje kvälls eget snitt, karriärgrafens visar det löpande karriärsnittet
+    // vid samma kväll. Spelartoggle togglar synlighet i båda samtidigt.
     public ObservableCollection<PlayerLegendItem> LegendItems { get; } = new();
+    public ObservableCollection<PlayerLegendItem> CareerLegendItems { get; } = new();
 
-    // ----- Vald kväll (legend visar snitt + vertikal markörlinje) ----------
+    // ----- Vald kväll (legenderna visar snitt + vertikal markörlinje) ------
 
-    // OBS: Markörlinje-instansen ägs av ChartTransferStore (delas med
-    // FullScreenChartViewModel). Lokal _markerAnnotation finns inte längre
-    // — annars skulle båda VM:erna lägga till varsin LineAnnotation i samma
-    // PlotModel och fullscreen:s auto-hide-toggle skulle bara dölja sin
-    // egen kopia (portrait:s syntes igenom).
+    // Markörlinjerna ägs av ChartTransferStore.NightAverage.MarkerAnnotation
+    // resp. CareerAverage.MarkerAnnotation — delas med FullScreenChartViewModel
+    // för att undvika dubbel-annotation per modell (annars syns två
+    // överlappande grå linjer + bara fullscreen:s kopia auto-döljs).
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedNightSlice))]
@@ -152,9 +165,12 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     [NotifyPropertyChangedFor(nameof(HasSelectedNight))]
     private int _selectedNightIndex = -1;
 
+    // Slice för "Kväll N:"-etiketten i legenden. NightAverage-slot räcker —
+    // DateLabel ("Kväll 35") är identisk i båda slots (samma kronologi);
+    // skillnaden är bara värdena, som hanteras per-collection i ApplySelection.
     public NightScrubberSlice? SelectedNightSlice =>
-        SelectedNightIndex >= 0 && SelectedNightIndex < _chartStore.NightSlices.Count
-            ? _chartStore.NightSlices[SelectedNightIndex]
+        SelectedNightIndex >= 0 && SelectedNightIndex < _chartStore.NightAverage.NightSlices.Count
+            ? _chartStore.NightAverage.NightSlices[SelectedNightIndex]
             : null;
 
     public string SelectedNightLabel => SelectedNightSlice?.DateLabel ?? string.Empty;
@@ -175,9 +191,20 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
         }
     }
 
+    // Två separata fullscreen-commands. Sätter ActiveGraph på store:n innan
+    // navigering så FullScreenChartViewModel läser rätt slot. Tidigare static
+    // OpenFullScreenChart kan inte längre vara static (måste röra _chartStore).
     [RelayCommand]
-    private static async Task OpenFullScreenChart()
+    private async Task OpenFullScreenNightChart()
     {
+        _chartStore.ActiveGraph = GraphKind.NightAverage;
+        await Shell.Current.GoToAsync("FullScreenChartPage").ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private async Task OpenFullScreenCareerChart()
+    {
+        _chartStore.ActiveGraph = GraphKind.CareerAverage;
         await Shell.Current.GoToAsync("FullScreenChartPage").ConfigureAwait(true);
     }
 
@@ -191,6 +218,7 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             HasData = false;
             StatusMessage = string.Empty;
             PlotModel = null;
+            CareerPlotModel = null;
 
             var activePlayers = await _players.GetActivePlayersAsync(ct).ConfigureAwait(true);
             if (activePlayers.Count != 4)
@@ -240,32 +268,74 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
                     FormatPlacements(point, orderedIds[3])));
             }
 
-            PlotModel = BuildPlotModel(stats.Series, orderedIds, nameById);
-            _chartStore.CurrentPlotModel = PlotModel;
-            // Applicera tidigare avvalda spelare (kan ha togglats i fullscreen
-            // innan användaren navigerade tillbaka, eller från en tidigare
-            // session sett över datarefreshes). Påverkar series.IsVisible
-            // innan första rendering så grafen inte blinkar.
-            _chartStore.ApplyVisibilityToPlot();
-            RebuildLegendItems(PlotModel, orderedIds, nameById);
+            // Beräkna löpande karriärsnitt per spelare per kväll. Oviktat
+            // medelvärde av kvällssnitten — inte points/tracks som CLAUDE.md:s
+            // karriärsnitt-formel, eftersom historisk seed-data inte har
+            // banantal per kväll. Oviktat är enda formeln som funkar för
+            // både seed + live; matchar också användarens spec ("medelvärdet
+            // av kvällssnitten").
+            var cumulativeByChrono = BuildCumulativeCareerAverages(stats.Series, orderedIds);
 
-            // Bygg kväll-slices och prenumerera på TrackerChanged så att tap
-            // på en datapunkt uppdaterar SelectedNightIndex → legend-snitt +
-            // markörlinje. Gamla PlotModel:en GC:as med sin event-subscription;
-            // nya får en färsk subscription.
-            _chartStore.NightSlices = BuildNightSlices(stats.Series, orderedIds, nameById);
+            // Bygg båda PlotModels. valueSelector väljer vilken decimal som
+            // hamnar på Y-axeln per (kväll, spelare).
+            PlotModel = BuildPlotModel(
+                title: "Kvällssnitt över tid",
+                stats.Series,
+                valueSelector: (point, playerId) =>
+                    point.AverageByPlayer.TryGetValue(playerId, out var v) ? v : (decimal?)null,
+                orderedIds,
+                nameById);
+
+            CareerPlotModel = BuildPlotModel(
+                title: "Karriärsnitt över tid",
+                stats.Series,
+                valueSelector: (point, playerId) =>
+                    cumulativeByChrono.TryGetValue(point.ChronologicalIndex, out var byPlayer)
+                        && byPlayer.TryGetValue(playerId, out var v)
+                        ? v
+                        : (decimal?)null,
+                orderedIds,
+                nameById);
+
+            // Lagra båda i store:n så fullscreen kan plocka rätt slot.
+            _chartStore.NightAverage.PlotModel = PlotModel;
+            _chartStore.CareerAverage.PlotModel = CareerPlotModel;
+            _chartStore.NightAverage.NightSlices = BuildSlicesFromSeries(stats.Series, orderedIds, nameById,
+                valueSelector: (point, playerId) =>
+                    point.AverageByPlayer.TryGetValue(playerId, out var v) ? v : (decimal?)null);
+            _chartStore.CareerAverage.NightSlices = BuildSlicesFromSeries(stats.Series, orderedIds, nameById,
+                valueSelector: (point, playerId) =>
+                    cumulativeByChrono.TryGetValue(point.ChronologicalIndex, out var byPlayer)
+                        && byPlayer.TryGetValue(playerId, out var v)
+                        ? v
+                        : (decimal?)null);
+
+            // Nya PlotModels → kasta gamla annotation-referenser så
+            // ApplySelection skapar nya på rätt slots.
+            _chartStore.NightAverage.MarkerAnnotation = null;
+            _chartStore.CareerAverage.MarkerAnnotation = null;
+
+            // Applicera tidigare avvalda spelare på BÅDA grafer (kan ha
+            // togglats i fullscreen innan användaren navigerade tillbaka,
+            // eller från en tidigare session sett över datarefreshes).
+            _chartStore.ApplyVisibilityToPlots();
+
+            RebuildLegendItems(LegendItems, PlotModel, orderedIds, nameById);
+            RebuildLegendItems(CareerLegendItems, CareerPlotModel, orderedIds, nameById);
+
+            // Tracker-prenumeration på BÅDA modellerna så att tap på en
+            // datapunkt i endera grafen uppdaterar SelectedNightIndex →
+            // legend-snitt + markör i båda.
             PlotModel.TrackerChanged += OnPlotTrackerChanged;
-            // Ny PlotModel-instans (Annotations-listan tom) → släpp ev. gamla
-            // store-annotation-referensen så ApplySelection skapar en ny på
-            // den nya modellen.
-            _chartStore.MarkerAnnotation = null;
+            CareerPlotModel.TrackerChanged += OnPlotTrackerChanged;
 
             // Behåll användarens val över LoadAsync-rebuilds; default = senaste
             // kvällen vid första laddning eller om sparade indexet är out-of-range.
             var storeIdx = _chartStore.SelectedNightIndex;
-            var defaultIdx = (storeIdx >= 0 && storeIdx < _chartStore.NightSlices.Count)
+            var nightCount = _chartStore.NightAverage.NightSlices.Count;
+            var defaultIdx = (storeIdx >= 0 && storeIdx < nightCount)
                 ? storeIdx
-                : (_chartStore.NightSlices.Count > 0 ? _chartStore.NightSlices.Count - 1 : -1);
+                : (nightCount > 0 ? nightCount - 1 : -1);
 
             // Sätt index → triggar OnSelectedNightIndexChanged → ApplySelection.
             // Om idx samma som föregående LoadAsync fired ingen partial — kör
@@ -288,29 +358,45 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
         }
     }
 
-    private static PlotModel BuildPlotModel(
+    // Beräknar löpande karriärsnitt per spelare per kväll. Returnerar map:
+    // ChronologicalIndex → (PlayerId → kumulativt medel av kvällssnitten
+    // för kväll 1..N). Med 4-spelar-invarianten har alla spelare värde varje
+    // kväll, men vi gör defensiv null-check ändå.
+    private static Dictionary<int, Dictionary<int, decimal>> BuildCumulativeCareerAverages(
         IReadOnlyList<NightAveragePoint> series,
+        IReadOnlyList<int> orderedIds)
+    {
+        var sumByPlayer = orderedIds.ToDictionary(id => id, _ => 0m);
+        var countByPlayer = orderedIds.ToDictionary(id => id, _ => 0);
+        var result = new Dictionary<int, Dictionary<int, decimal>>(series.Count);
+
+        foreach (var point in series)
+        {
+            var byPlayer = new Dictionary<int, decimal>(orderedIds.Count);
+            foreach (var id in orderedIds)
+            {
+                if (!point.AverageByPlayer.TryGetValue(id, out var avg)) continue;
+                sumByPlayer[id] += avg;
+                countByPlayer[id]++;
+                byPlayer[id] = sumByPlayer[id] / countByPlayer[id];
+            }
+            result[point.ChronologicalIndex] = byPlayer;
+        }
+        return result;
+    }
+
+    private static PlotModel BuildPlotModel(
+        string title,
+        IReadOnlyList<NightAveragePoint> series,
+        Func<NightAveragePoint, int, decimal?> valueSelector,
         IReadOnlyList<int> orderedIds,
         IReadOnlyDictionary<int, string> nameById)
     {
         var model = new PlotModel
         {
-            Title = "Kvällssnitt över tid",
+            Title = title,
             TitleFontSize = 14,
             TitleColor = ChartForeground,
-            // Padding runt hela modellen ger axel-etiketter och titel
-            // andningsrum mot PlotView:s ytterkant:
-            // - 8 dp vänster: Y-axelns "1/2/3/4" klipps inte vid kanten
-            // - 32 dp topp: titeln "Kvällssnitt över tid" får ~20 dp luft
-            //   ovanför sig (mellan top-edge och titel-baseline), OCH den
-            //   plattare pulldown-fliken (~12 dp hög, FontSize 10) får
-            //   plats ovanför titeln med ~8 dp gap så titeln inte krockar
-            //   med flikens nederkant när legend-overlayn är ihopfälld
-            // - 16 dp höger: sista X-axel-värdet (t.ex. "90") tätar inte
-            //   mot högerkanten
-            // - 22 dp botten: X-axel-etiketterna (10, 20, 30...) får
-            //   ordentligt med mellanrum under sig istället för att
-            //   klistras mot botten-kanten
             Padding = new OxyThickness(8, 32, 16, 22),
             TextColor = ChartForeground,
             PlotAreaBorderColor = ChartBorder,
@@ -325,7 +411,6 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             Position = AxisPosition.Bottom,
             Minimum = 0.5,
             Maximum = nightCount + 0.5,
-            // Etiketter bara var 10:e kväll så att 91+ punkter inte fyller axeln helt.
             MajorStep = 10,
             MinorStep = 1,
             LabelFormatter = v =>
@@ -367,10 +452,11 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             var header = BuildTooltipHeader(point);
             foreach (var id in orderedIds)
             {
-                if (!point.AverageByPlayer.TryGetValue(id, out var avg)) continue;
+                var value = valueSelector(point, id);
+                if (value is null) continue;
                 pointsByPlayer[id].Add(new NightSeriesPoint(
                     point.ChronologicalIndex,
-                    (double)avg,
+                    (double)value.Value,
                     header));
             }
         }
@@ -389,20 +475,12 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
                 ItemsSource = items,
                 DataFieldX = nameof(NightSeriesPoint.NightNumber),
                 DataFieldY = nameof(NightSeriesPoint.Average),
-                // Inga cirkelmarkörer — med 91+ punkter blir det helt grötigt.
-                // Tracker fungerar fortfarande utan synliga markörer.
                 MarkerType = MarkerType.None,
                 StrokeThickness = 2,
                 Color = color,
-                // TrackerFormatString slopad — DefaultTrackerTemplate i XAML är
-                // tom så ingen tooltip renderas; vi använder bara TrackerChanged-
-                // eventet för att snäppa SelectedNightIndex.
             };
             model.Series.Add(line);
         }
-
-        // Ingen OxyPlot-inbyggd legend — vi renderar en egen tap:bar legend
-        // under grafen i XAML (HistoryStatsPage + FullScreenChartPage).
 
         return model;
     }
@@ -423,8 +501,6 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
 
     private static string BuildNightLabel(NightAveragePoint point)
     {
-        // Placerings-tabellen vill ha kort etikett ("Kväll 35"). Använd historiens
-        // egna nummer när det finns, annars unified-index för app-kvällar.
         var n = point.HistoricalNightNumber ?? point.ChronologicalIndex;
         return $"Kväll {n.ToString(SvSe)}";
     }
@@ -440,48 +516,62 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             : p.Position.ToString(SvSe)));
     }
 
-    private void RebuildLegendItems(
+    private static void RebuildLegendItems(
+        ObservableCollection<PlayerLegendItem> target,
         PlotModel model,
         IReadOnlyList<int> orderedIds,
         IReadOnlyDictionary<int, string> nameById)
     {
-        LegendItems.Clear();
+        target.Clear();
         for (int i = 0; i < orderedIds.Count; i++)
         {
             var name = nameById[orderedIds[i]];
-            // Hämta serie för spelaren — kan saknas om StatsCalculator inte
-            // levererade några punkter för hen, men det är osannolikt med
-            // 4-spelar-invarianten. Skippar då legend-raden.
             var series = model.Series.FirstOrDefault(s => string.Equals(s.Title, name, StringComparison.Ordinal));
             if (series is null) continue;
 
             var oxy = ColorForPlayer(name, i);
             var mauiColor = Microsoft.Maui.Graphics.Color.FromRgba(oxy.R, oxy.G, oxy.B, oxy.A);
-            LegendItems.Add(new PlayerLegendItem(name, mauiColor, series.IsVisible));
+            target.Add(new PlayerLegendItem(name, mauiColor, series.IsVisible));
         }
     }
 
+    // Toggle på en spelarrad — synkar både legenders item.IsVisible och
+    // båda PlotModels' Series.IsVisible. ApplyVisibilityToPlots iterar
+    // store:ns slots; vi InvalidatePlot:ar båda så Skia renderar om.
     [RelayCommand]
     private void TogglePlayerVisibility(PlayerLegendItem? item)
     {
-        if (item is null || PlotModel is null) return;
+        if (item is null) return;
 
         var nowVisible = _chartStore.TogglePlayerVisibility(item.Name);
-        item.IsVisible = nowVisible;
 
-        var series = PlotModel.Series.FirstOrDefault(s => string.Equals(s.Title, item.Name, StringComparison.Ordinal));
-        if (series is null) return;
-        series.IsVisible = nowVisible;
-        // true → rebuild punkter också (vi behöver det här eftersom serien
-        // kan dyka upp igen efter att ha varit dold och tracker-cachen kan
-        // vara stale på vissa MAUI/OxyPlot-versioner).
-        PlotModel.InvalidatePlot(true);
+        SyncLegendEntry(LegendItems, item.Name, nowVisible);
+        SyncLegendEntry(CareerLegendItems, item.Name, nowVisible);
+
+        _chartStore.ApplyVisibilityToPlots();
+        _chartStore.NightAverage.PlotModel?.InvalidatePlot(true);
+        _chartStore.CareerAverage.PlotModel?.InvalidatePlot(true);
     }
 
-    private static List<NightScrubberSlice> BuildNightSlices(
+    private static void SyncLegendEntry(
+        ObservableCollection<PlayerLegendItem> legend,
+        string playerName,
+        bool nowVisible)
+    {
+        var entry = legend.FirstOrDefault(l => string.Equals(l.Name, playerName, StringComparison.Ordinal));
+        if (entry is not null)
+        {
+            entry.IsVisible = nowVisible;
+        }
+    }
+
+    // Slices för legenden: en per kväll med (DateLabel, per-spelar-värde).
+    // Värdet bestäms av valueSelector — kvällssnitt eller löpande karriärsnitt.
+    private static List<NightScrubberSlice> BuildSlicesFromSeries(
         IReadOnlyList<NightAveragePoint> series,
         IReadOnlyList<int> orderedIds,
-        IReadOnlyDictionary<int, string> nameById)
+        IReadOnlyDictionary<int, string> nameById,
+        Func<NightAveragePoint, int, decimal?> valueSelector)
     {
         var slices = new List<NightScrubberSlice>(series.Count);
         foreach (var point in series)
@@ -489,9 +579,10 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             var byName = new Dictionary<string, decimal>(4, StringComparer.OrdinalIgnoreCase);
             foreach (var id in orderedIds)
             {
-                if (point.AverageByPlayer.TryGetValue(id, out var avg))
+                var value = valueSelector(point, id);
+                if (value.HasValue)
                 {
-                    byName[nameById[id]] = avg;
+                    byName[nameById[id]] = value.Value;
                 }
             }
             slices.Add(new NightScrubberSlice(
@@ -506,60 +597,73 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     {
         if (e.HitResult is null) return;
         var x = e.HitResult.DataPoint.X;
-        // X-axeln är 1-baserad (ChronologicalIndex) — slice-listan 0-baserad.
         var idx = (int)Math.Round(x) - 1;
-        if (idx < 0 || idx >= _chartStore.NightSlices.Count) return;
+        var nightCount = _chartStore.NightAverage.NightSlices.Count;
+        if (idx < 0 || idx >= nightCount) return;
         if (idx == SelectedNightIndex) return;
-        // OxyPlot:s tracker-event kan fyra från valfri tråd; marshalla till UI
-        // eftersom ApplySelection rör ObservableProperties + PlotModel-state.
         MainThread.BeginInvokeOnMainThread(() => SelectedNightIndex = idx);
     }
 
     private void ApplySelection()
     {
-        var slice = SelectedNightSlice;
+        // Synka legend-värdena per slot — kvällssnitt vs löpande karriärsnitt
+        // sitter i respektive slots NightSlices, indexerat med samma
+        // SelectedNightIndex (gemensam kronologi).
+        UpdateLegendValues(_chartStore.NightAverage, LegendItems);
+        UpdateLegendValues(_chartStore.CareerAverage, CareerLegendItems);
 
-        foreach (var item in LegendItems)
-        {
-            item.NightAverage = slice is not null
-                && slice.AverageByPlayerName.TryGetValue(item.Name, out var avg)
-                ? avg
-                : (decimal?)null;
-        }
-
-        UpdateMarkerAnnotation(slice);
+        // Markörlinjen i båda PlotModels rör sig till samma kväll.
+        UpdateMarkerAnnotation(_chartStore.NightAverage);
+        UpdateMarkerAnnotation(_chartStore.CareerAverage);
 
         // Spara valet i store så fullscreen tar över korrekt vald kväll
         // (och tvärtom när användaren går tillbaka).
         _chartStore.SelectedNightIndex = SelectedNightIndex;
     }
 
-    private void UpdateMarkerAnnotation(NightScrubberSlice? slice)
+    private void UpdateLegendValues(GraphSlot slot, ObservableCollection<PlayerLegendItem> legend)
+    {
+        var slice = SelectedNightIndex >= 0 && SelectedNightIndex < slot.NightSlices.Count
+            ? slot.NightSlices[SelectedNightIndex]
+            : null;
+        foreach (var item in legend)
+        {
+            item.NightAverage = slice is not null
+                && slice.AverageByPlayerName.TryGetValue(item.Name, out var avg)
+                ? avg
+                : (decimal?)null;
+        }
+    }
+
+    private void UpdateMarkerAnnotation(GraphSlot slot)
     {
         // Try/catch + Debug.WriteLine så ev. crash i annotation-pipelinen
         // surfar i VS Output istället för att ta ner appen — användaren
         // har inte adb, så Output-fönstret är enda fönstret in i runtime-fel.
         try
         {
-            if (PlotModel is null) return;
+            if (slot.PlotModel is null) return;
 
-            // Markörlinjen delas via store. Stale-referens (annotation som
-            // inte längre är i nuvarande modells Annotations-lista) nullas
-            // så vi inte försöker peka i fel modell.
-            var ann = _chartStore.MarkerAnnotation;
-            if (ann is not null && !PlotModel.Annotations.Contains(ann))
+            var slice = SelectedNightIndex >= 0 && SelectedNightIndex < slot.NightSlices.Count
+                ? slot.NightSlices[SelectedNightIndex]
+                : null;
+
+            // Om PlotModel byggts om sedan annotation:en skapades — kasta
+            // gamla referensen så vi inte försöker peka i en stale modell.
+            var ann = slot.MarkerAnnotation;
+            if (ann is not null && !slot.PlotModel.Annotations.Contains(ann))
             {
                 ann = null;
-                _chartStore.MarkerAnnotation = null;
+                slot.MarkerAnnotation = null;
             }
 
             if (slice is null)
             {
                 if (ann is not null)
                 {
-                    PlotModel.Annotations.Remove(ann);
-                    _chartStore.MarkerAnnotation = null;
-                    PlotModel.InvalidatePlot(false);
+                    slot.PlotModel.Annotations.Remove(ann);
+                    slot.MarkerAnnotation = null;
+                    slot.PlotModel.InvalidatePlot(false);
                 }
                 return;
             }
@@ -569,19 +673,16 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
                 ann = new LineAnnotation
                 {
                     Type = LineAnnotationType.Vertical,
-                    // Diskret markör: tunn (1 px) medelgrå med ~55 % alpha så
-                    // den syns tydligt mot grå plot-bakgrund (#C8C8C8) men
-                    // ändå sekundärt mot spelarlinjernas mättade färger.
-                    Color = OxyColor.FromAColor(140, OxyColors.Gray),
+                    Color = MarkerColor,
                     StrokeThickness = 1,
                     LineStyle = LineStyle.Solid,
                     ClipByYAxis = true,
                 };
-                PlotModel.Annotations.Add(ann);
-                _chartStore.MarkerAnnotation = ann;
+                slot.PlotModel.Annotations.Add(ann);
+                slot.MarkerAnnotation = ann;
             }
             ann.X = slice.ChronologicalIndex;
-            PlotModel.InvalidatePlot(false);
+            slot.PlotModel.InvalidatePlot(false);
         }
         catch (Exception ex)
         {

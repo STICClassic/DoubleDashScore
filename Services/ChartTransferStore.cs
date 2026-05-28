@@ -3,52 +3,79 @@ using OxyPlot.Annotations;
 
 namespace DoubleDashScore.Services;
 
-/// Singleton som delar den senast byggda PlotModel mellan HistoryStatsViewModel
-/// (som bygger den) och FullScreenChartViewModel (som visar den på helskärm).
-/// Anledningen till stuget: PlotModel går inte att skicka via Shell-navigations-
-/// query-string, och att bygga om den i fullscreen-vyn skulle innebära dubbel
-/// repo-laddning + duplicerad BuildPlotModel-kod.
-///
-/// Lagrar också:
-/// - Vilka spelarlinjer som är avvalda i grafen (toggle-state, Skiva 12).
-/// - Slice-listan + vald kväll-index (Skiva 15) så att tap-i-grafen-→-uppdatera-
-///   legend-snitt synkar mellan vanlig graf och fullscreen.
-public sealed class ChartTransferStore
+/// Vilken graf som ska visas i helskärm. Sätts av respektive tabbs
+/// Helskärm-knapp innan navigering. FullScreenChartViewModel läser
+/// store.Active baserat på detta värde — fullscreen-koden är annars
+/// grafagnostisk (samma interaktion, auto-hide, markörlinje för båda).
+public enum GraphKind
 {
-    public PlotModel? CurrentPlotModel { get; set; }
+    NightAverage,
+    CareerAverage,
+}
 
-    // Delad markörlinje för "vald kväll". HistoryStatsViewModel och
-    // FullScreenChartViewModel måste peka på SAMMA LineAnnotation-instans
-    // eftersom båda läser/skriver Annotations på samma PlotModel — utan
-    // delning skapar varje VM sin egen kopia, vilket ger två överlappande
-    // grå linjer renderade på samma X. Symptomet: fullscreen:s auto-hide
-    // sätter bara sin egen kopia till transparent → portrait:s "leftover"-
-    // linje syns kvar och markören verkar inte försvinna efter 3 s.
-    //
-    // Nullas vid varje LoadAsync i HistoryStatsViewModel (ny PlotModel-
-    // instans → gamla annotation-referensen död). Återanvänds av båda
-    // VM:erna via reuse-check i deras UpdateMarkerAnnotation.
+/// Per-graf-state: den specifika PlotModel:en, dess markörlinje, samt
+/// listan av kvällar med snittsiffror som legenden använder. Två
+/// instanser hålls av ChartTransferStore (en per graf-kind).
+public sealed class GraphSlot
+{
+    public PlotModel? PlotModel { get; set; }
+
+    /// Markörlinjen för vald kväll. Måste ligga i denna slots PlotModel.
+    /// Anvanvänds av både HistoryStatsViewModel (bygger den vid LoadAsync)
+    /// och FullScreenChartViewModel (togglar färgen för auto-hide).
     public LineAnnotation? MarkerAnnotation { get; set; }
 
+    /// Kvällar i kronologisk ordning + spelarsnitten den kvällen som ska
+    /// renderas i legenden. För kvällsgrafen: kvällssnittet. För karriär-
+    /// grafen: löpande karriärsnitt (kumulativt medelvärde t.o.m. den
+    /// kvällen). SelectedNightIndex indexerar BÅDA listorna eftersom
+    /// kvällarna är samma och i samma ordning.
+    public IReadOnlyList<NightScrubberSlice> NightSlices { get; set; } =
+        Array.Empty<NightScrubberSlice>();
+}
+
+/// Singleton som delar graf-state mellan HistoryStatsViewModel (bygger
+/// båda grafernas PlotModels + slices vid LoadAsync) och FullScreen-
+/// ChartViewModel (visar EN av dem i helskärm). Anledningen till stuget:
+/// PlotModel går inte att skicka via Shell-navigations-query-string, och
+/// att bygga om modellerna i fullscreen-vyn skulle innebära dubbel repo-
+/// laddning + duplicerad BuildPlotModel-kod.
+///
+/// Skiva 16 utökade detta från en enskild "current"-PlotModel till två
+/// slots (NightAverage + CareerAverage). ActiveGraph säger vilken slot
+/// fullscreen visar.
+public sealed class ChartTransferStore
+{
+    /// Slot för kvällsgrafen — varje kvälls eget kvällssnitt per spelare.
+    public GraphSlot NightAverage { get; } = new();
+
+    /// Slot för karriärgrafen — löpande karriärsnitt per spelare (kumulativt
+    /// medelvärde av kvällssnitten t.o.m. respektive kväll).
+    public GraphSlot CareerAverage { get; } = new();
+
+    /// Vilken slot helskärm ska rendera. Sätts av tabbens Helskärm-knapp
+    /// före Shell-navigeringen; FullScreenChartViewModel läser Active.
+    public GraphKind ActiveGraph { get; set; } = GraphKind.NightAverage;
+
+    public GraphSlot Active =>
+        ActiveGraph == GraphKind.NightAverage ? NightAverage : CareerAverage;
+
+    /// Delad spelartoggle. Att gömma Jonas i ena grafen gömmer honom
+    /// även i den andra — båda visar samma fyra spelare med samma färger,
+    /// så användarens "fokusera på Claes vs Robin"-läge är globalt.
     public HashSet<string> HiddenPlayerNames { get; } =
         new(StringComparer.OrdinalIgnoreCase);
 
-    // Alla kvällar i kronologisk ordning, projicerade från stats.Series.
-    // Återbyggs varje LoadAsync i HistoryStatsViewModel. FullScreenChartViewModel
-    // läser denna när dess sida visas så att tap-på-punkt-→-legend-snitt
-    // fungerar utan att fullscreen behöver dubbel-läsa repo:t.
-    public IReadOnlyList<NightScrubberSlice> NightSlices { get; set; } =
-        Array.Empty<NightScrubberSlice>();
-
-    // Vald kväll-index i NightSlices. -1 om inget val. Bevaras över navigering
-    // mellan vanlig graf och fullscreen så användaren inte tappar sin valda
-    // kväll vid fullscreen-toggle.
+    /// Delad vald kväll. Båda graferna har samma kronologiska kväll-axel
+    /// (samma stats.Series), så indexet pekar på "kväll N" i båda slots'
+    /// NightSlices-listor. När användaren rör SelectedNightIndex i ena
+    /// grafens tab uppdateras markörlinjen i båda PlotModels och
+    /// snitt-siffrorna i båda legenderna.
     public int SelectedNightIndex { get; set; } = -1;
 
     public bool IsVisible(string playerName) =>
         !HiddenPlayerNames.Contains(playerName);
 
-    // Returnerar den nya synligheten (true = visible) efter toggle.
     public bool TogglePlayerVisibility(string playerName)
     {
         if (HiddenPlayerNames.Contains(playerName))
@@ -60,21 +87,32 @@ public sealed class ChartTransferStore
         return false;
     }
 
-    // Synkar synligheten i PlotModel.Series mot HiddenPlayerNames. Returnerar
-    // antal series som ändrades så caller kan undvika onödig InvalidatePlot.
-    public int ApplyVisibilityToPlot()
+    /// Synkar synligheten i BÅDA slots' PlotModel.Series mot
+    /// HiddenPlayerNames. Anropas av båda VM:erna när toggle ändras så
+    /// vi inte glömmer den ena grafen. Returnerar antal series som
+    /// ändrades (summerat över båda) så caller kan undvika onödig
+    /// InvalidatePlot om inget ändrades.
+    public int ApplyVisibilityToPlots()
     {
-        if (CurrentPlotModel is null) return 0;
         int changed = 0;
-        foreach (var series in CurrentPlotModel.Series)
-        {
-            var shouldBeVisible = IsVisible(series.Title);
-            if (series.IsVisible != shouldBeVisible)
-            {
-                series.IsVisible = shouldBeVisible;
-                changed++;
-            }
-        }
+        changed += ApplyToSlot(NightAverage);
+        changed += ApplyToSlot(CareerAverage);
         return changed;
+
+        int ApplyToSlot(GraphSlot slot)
+        {
+            if (slot.PlotModel is null) return 0;
+            int c = 0;
+            foreach (var series in slot.PlotModel.Series)
+            {
+                var shouldBeVisible = IsVisible(series.Title);
+                if (series.IsVisible != shouldBeVisible)
+                {
+                    series.IsVisible = shouldBeVisible;
+                    c++;
+                }
+            }
+            return c;
+        }
     }
 }
