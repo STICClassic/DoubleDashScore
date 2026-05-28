@@ -13,6 +13,12 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
 {
     private static readonly TimeSpan AutoHideDelay = TimeSpan.FromSeconds(3);
 
+    // Markörlinjens "synlig"-färg. Diskret tunn grå med ~55 % alfa — syns
+    // mot grå plot-bakgrund (#C8C8C8) men dominerar inte över spelarlinjerna.
+    // Extraherad till konstant så toggle mellan synlig och dold (transparent)
+    // inte duplicerar magiska värden.
+    private static readonly OxyColor MarkerColorActive = OxyColor.FromAColor(140, OxyColors.Gray);
+
     private readonly ChartTransferStore _store;
     private CancellationTokenSource? _hideCts;
     private LineAnnotation? _markerAnnotation;
@@ -53,9 +59,30 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     }
 
     // True när ✕- och ↺-knapparna ska vara synliga. Sidan kopplar denna till
-    // FadeTo + InputTransparent på knapparna.
+    // FadeTo + InputTransparent på knapparna. Markörlinjen (vertikal
+    // LineAnnotation) följer också detta state via OnIsControlsVisibleChanged
+    // → UpdateMarkerColor, så den auto-döljs tillsammans med knapparna.
     [ObservableProperty]
     private bool _isControlsVisible = true;
+
+    // Markörlinjen är en OxyPlot-annotation och kan inte fadas via MAUI
+    // Opacity. Vi togglar Color mellan alfagrå och transparent + invaliderar
+    // plotten — visuellt blir det en hård av/på som sker i takt med
+    // ✕/↺ FadeTo-animationen. Renare än add/remove från Annotations-listan
+    // (som skulle tappa referensen och tvinga oss att återskapa annotationen
+    // för varje toggle).
+    partial void OnIsControlsVisibleChanged(bool value)
+    {
+        UpdateMarkerColor();
+    }
+
+    private void UpdateMarkerColor()
+    {
+        var model = _store.CurrentPlotModel;
+        if (_markerAnnotation is null || model is null) return;
+        _markerAnnotation.Color = IsControlsVisible ? MarkerColorActive : OxyColors.Transparent;
+        model.InvalidatePlot(false);
+    }
 
     // Pulldown-overlay från övre kanten: dold som default (bara pil-fliken
     // syns). Innehållet (Kväll N: + spelarkolumnerna) togglas via IsVisible.
@@ -262,13 +289,11 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
                 _markerAnnotation = new LineAnnotation
                 {
                     Type = LineAnnotationType.Vertical,
-                    // Diskret markör: tunn (1 px) medelgrå med ~55 % alpha så
-                    // den syns tydligt mot grå plot-bakgrund men ändå
-                    // sekundärt mot spelarlinjernas mättade färger.
-                    // Tidigare LightGray@80 var i princip osynlig — Gray
-                    // (#808080) är mörkare än bakgrund och högre alpha gör
-                    // den läsbar utan att dominera.
-                    Color = OxyColor.FromAColor(140, OxyColors.Gray),
+                    // Initial färg följer auto-hide-state: synlig (MarkerColor-
+                    // Active = grå alpha 140) vid start, transparent om controls
+                    // redan hunnit fadas ut innan annotationen hann skapas
+                    // (osannolikt i praktiken men billigt att hantera).
+                    Color = IsControlsVisible ? MarkerColorActive : OxyColors.Transparent,
                     StrokeThickness = 1,
                     LineStyle = LineStyle.Solid,
                     ClipByYAxis = true,
