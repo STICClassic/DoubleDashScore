@@ -143,18 +143,6 @@
                     <oxy:PlotView Model="{Binding PlotModel}"
                                   BackgroundColor="Transparent"
                                   DefaultTrackerTemplate="{x:Null}" />
-                    <!-- Vänsterjusterad MAUI-titel — OxyPlot 2.2.0:s
-                         TitleHorizontalAlignment har bara Centered-varianter.
-                         VM tömmer PlotModel.Title och reserverar 32 dp
-                         toppstrip via Padding så denna Label får plats
-                         ovanför plot-arean utan att täcka linjer. -->
-                    <Label Text="Kvällssnitt över tid"
-                           FontFamily="Baloo2Bold"
-                           FontSize="14"
-                           TextColor="#222222"
-                           HorizontalOptions="Start"
-                           VerticalOptions="Start"
-                           Margin="4,4,0,0" />
                     <Button Text="⛶ Helskärm"
                             Command="{Binding OpenFullScreenChartCommand}"
                             FontSize="12"

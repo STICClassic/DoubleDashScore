@@ -292,14 +292,15 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     {
         var model = new PlotModel
         {
-            // Title tom + Padding top=32 — OxyPlot 2.2.0:s TitleHorizontal-
-            // Alignment har bara Centered-varianter (ingen Left), så native
-            // titel går inte att vänster-justera. XAML lägger en MAUI Label
-            // "Kvällssnitt över tid" top-left i båda vyerna istället;
-            // Padding reserverar 32 dp toppstrip så plot-arean inte börjar
-            // direkt under labeln.
-            Title = string.Empty,
-            Padding = new OxyThickness(0, 32, 0, 0),
+            Title = "Kvällssnitt över tid",
+            TitleFontSize = 14,
+            TitleColor = ChartForeground,
+            // Padding ger axel-etiketterna andningsrum mot PlotView:s ytter-
+            // kant: 8 dp vänster så Y-axelns "1/2/3/4" inte klipps vid
+            // skärmkanten i fullscreen, 16 dp höger så sista X-axel-värdet
+            // (t.ex. "90") inte hamnar tätt mot högerkanten. Top/bottom = 0
+            // så titeln + X-axel-etiketterna behåller sina default-positioner.
+            Padding = new OxyThickness(8, 0, 16, 0),
             TextColor = ChartForeground,
             PlotAreaBorderColor = ChartBorder,
             Background = ChartBackground,

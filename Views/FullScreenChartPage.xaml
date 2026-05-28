@@ -11,10 +11,13 @@
              Shell.FlyoutBehavior="Disabled"
              BackgroundColor="#C8C8C8">
 
-    <!-- Singel Grid-cell: PlotView + ↺/✕-knappar + titel + legend-overlay
-         som syskon. MAUI z-orderar efter child-ordning så overlay:n (sist)
+    <!-- Singel Grid-cell: PlotView + ↺/✕-knappar + legend-overlay som
+         syskon. MAUI z-orderar efter child-ordning så overlay:n (sist)
          ritas ovanpå. PlotView fyller hela cellen, övriga element
-         positioneras med HorizontalOptions/VerticalOptions + Margin. -->
+         positioneras med HorizontalOptions/VerticalOptions + Margin.
+         OxyPlot:s nativa titel ("Kvällssnitt över tid") ritas centrerad
+         i toppen av PlotView — overlay:n får täcka den när den är synlig
+         (per spec). -->
     <Grid>
         <!-- DefaultTrackerTemplate=null så OxyPlot.Maui.Skia inte ritar sin
              gula tooltip vid tap på en datapunkt. Tom ControlTemplate
@@ -31,9 +34,6 @@
             </oxy:PlotView.GestureRecognizers>
         </oxy:PlotView>
 
-        <!-- ↺ och ✕ båda i top-left-kolumnen (stacked) så top-right-hörnet
-             är fritt för legend-overlay:n. Tidigare layout hade ✕ i top-right
-             vilket blockerade overlay:n från att klistras i hörnet. -->
         <Button x:Name="ResetButton"
                 Text="↺"
                 Command="{Binding ResetZoomCommand}"
@@ -49,6 +49,8 @@
                 VerticalOptions="Start"
                 Margin="16,16,0,0" />
 
+        <!-- ✕ tillbaka i top-right (HorizontalOptions=End) — overlay:n är nu
+             centrerad horisontellt så hörnen är fria. -->
         <Button x:Name="CloseButton"
                 Text="✕"
                 Command="{Binding CloseCommand}"
@@ -60,65 +62,45 @@
                 HeightRequest="40"
                 Padding="0"
                 CornerRadius="20"
-                HorizontalOptions="Start"
-                VerticalOptions="Start"
-                Margin="16,72,0,0" />
-
-        <!-- Graf-titel (vänsterjusterad). OxyPlot 2.2.0 saknar Left-
-             alignment för PlotModel.Title — VM tömmer Title och reserverar
-             32 dp toppstrip via Padding så denna MAUI Label kan ligga där
-             utan att kollidera med plot-arean. Margin left=72 så den hamnar
-             höger om ↺-knappen. -->
-        <Label Text="Kvällssnitt över tid"
-               FontFamily="Baloo2Bold"
-               FontSize="14"
-               TextColor="#222222"
-               HorizontalOptions="Start"
-               VerticalOptions="Start"
-               Margin="72,20,0,0" />
-
-        <!-- Legend-overlay (variant C2) — KLISTRAD i top-right-hörnet
-             (Margin "0,8,8,0"). Tidigare Margin top=68 valdes för att duka
-             undan ✕-knappen men tryckte ned overlay:n i plot-arean — nu när
-             ✕ är flyttad till top-left kan overlay:n gå max upp.
-
-             Bakgrundsfärg #E61A1A1A = ~90 % alpha på #1A1A1A: ger lätt
-             transparens utan att tunna ut text.
-
-             Collapse-to-edge: pil-fliken (◄/►) är alltid synlig på vänster-
-             kanten. Innehållet (Kväll N: + 4 spelarkolumner) togglas via
-             IsVisible bundet till IsLegendExpanded. Border:n krymper då
-             till bara fliken + padding och stannar mot högerkanten
-             (HorizontalOptions=End). -->
-        <Border BackgroundColor="#E61A1A1A"
-                StrokeThickness="0"
-                Padding="6,8,14,8"
                 HorizontalOptions="End"
                 VerticalOptions="Start"
-                Margin="0,8,8,0">
+                Margin="0,16,16,0" />
+
+        <!-- Legend-overlay som pulldown från övre kanten. Centrerad
+             horisontellt (HorizontalOptions=Center), klistrad mot top
+             (VerticalOptions=Start, Margin top=0).
+
+             Default: IsLegendExpanded=false → bara pil-fliken (▼) syns
+             som en liten chip-form hängande från top-edge. Tap → innehållet
+             fälls ut, Border:n växer ner, pilen vänder ▲. Animation
+             utelämnad (per PRD:s fallback) — TranslateTo skulle kräva
+             känd höjd i förväg vilket är race:y mot layout-passet.
+
+             CornerRadius "0,0,10,10" → toppen kantig (sitter mot skärmens
+             top-edge), botten rundad → ser ut som en panel som hänger ner.
+             Bakgrund #E61A1A1A = ~90 % alpha på #1A1A1A: lätt transparens
+             utan att tunna ut text.
+
+             Tap-hantering: pil-fliken och spelarkolumnerna har egna Tap-
+             GestureRecognizers (toggle resp. visibility). Border absorberar
+             tap på padding-ytan så det inte propagerar ned till PlotView. -->
+        <Border BackgroundColor="#E61A1A1A"
+                StrokeThickness="0"
+                Padding="0"
+                HorizontalOptions="Center"
+                VerticalOptions="Start"
+                Margin="0,0,0,0">
             <Border.StrokeShape>
-                <RoundRectangle CornerRadius="10" />
+                <RoundRectangle CornerRadius="0,0,10,10" />
             </Border.StrokeShape>
 
-            <HorizontalStackLayout Spacing="6">
-                <!-- Collapse-flik. Tap-target får extra Padding så den blir
-                     bekväm att träffa (12 dp horisontellt totalt). -->
-                <Label Text="{Binding LegendCollapseArrow}"
-                       TextColor="White"
-                       FontFamily="Baloo2Bold"
-                       FontSize="14"
-                       VerticalOptions="Center"
-                       Padding="6,4">
-                    <Label.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding ToggleLegendCollapseCommand}" />
-                    </Label.GestureRecognizers>
-                </Label>
-
+            <VerticalStackLayout Spacing="0">
                 <!-- Innehåll: Kväll N: + spelarkolumner. IsVisible bundet
                      till IsLegendExpanded — när false läggs HSL ut med
                      bredd 0 (Maui behandlar IsVisible=false som "gone")
-                     och Border:n krymper till bara fliken. -->
+                     och Border:n krymper till bara flikens höjd. -->
                 <HorizontalStackLayout Spacing="10"
+                                       Padding="14,10,14,6"
                                        IsVisible="{Binding IsLegendExpanded}">
                     <!-- VerticalOptions="End" + Padding bottom=2 matchar
                          items egna 2 dp bottom-padding så rubriken hamnar
@@ -176,7 +158,24 @@
                         </BindableLayout.ItemTemplate>
                     </HorizontalStackLayout>
                 </HorizontalStackLayout>
-            </HorizontalStackLayout>
+
+                <!-- Collapse-flik: alltid synlig. Padding ger bekvämt tap-
+                     target och horisontell breddning så Border:n inte
+                     krymper till en olästbar pil-bredd när panelen är
+                     kollapsad. HorizontalOptions=Center → fliken sitter
+                     centrerad i Border:n både när panelen är ut- och
+                     ihopfälld. -->
+                <Label Text="{Binding LegendCollapseArrow}"
+                       TextColor="White"
+                       FontFamily="Baloo2Bold"
+                       FontSize="14"
+                       HorizontalOptions="Center"
+                       Padding="24,2,24,4">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding ToggleLegendCollapseCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </VerticalStackLayout>
         </Border>
     </Grid>
 
