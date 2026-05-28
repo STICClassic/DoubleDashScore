@@ -11,117 +11,141 @@
              Shell.FlyoutBehavior="Disabled"
              BackgroundColor="#C8C8C8">
 
-    <Grid RowDefinitions="*,Auto">
+    <!-- Singel Grid-cell: PlotView + ✕/↺-knappar + legend-overlay som
+         syskon. MAUI z-orderar efter child-ordning så overlay:n (sist)
+         ritas ovanpå. AbsoluteLayout är overkill för en enda fast
+         hörnposition. -->
+    <Grid>
+        <!-- DefaultTrackerTemplate = tom ControlTemplate så OxyPlot.Maui.Skia
+             inte ritar sin gula tooltip vid tap på en datapunkt. PlotModel.
+             TrackerChanged fires fortfarande, så VM:n får ändå sin
+             notifikation om vald kväll. Vår vertikala LineAnnotation +
+             legend-snitten ersätter trackerns visualisering. -->
+        <oxy:PlotView Model="{Binding PlotModel}"
+                      BackgroundColor="Transparent">
+            <oxy:PlotView.DefaultTrackerTemplate>
+                <ControlTemplate />
+            </oxy:PlotView.DefaultTrackerTemplate>
+            <oxy:PlotView.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding TogglePlotTapCommand}" />
+            </oxy:PlotView.GestureRecognizers>
+        </oxy:PlotView>
 
-        <Grid Grid.Row="0">
-            <!-- DefaultTrackerTemplate = tom ControlTemplate så OxyPlot.Maui.Skia
-                 inte ritar sin gula tooltip vid tap på en datapunkt. PlotModel.
-                 TrackerChanged fires fortfarande, så VM:n får ändå sin
-                 notifikation om vald kväll. Vår vertikala LineAnnotation +
-                 legend-snitten ersätter trackerns visualisering. -->
-            <oxy:PlotView Model="{Binding PlotModel}"
-                          BackgroundColor="Transparent">
-                <oxy:PlotView.DefaultTrackerTemplate>
-                    <ControlTemplate />
-                </oxy:PlotView.DefaultTrackerTemplate>
-                <oxy:PlotView.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding TogglePlotTapCommand}" />
-                </oxy:PlotView.GestureRecognizers>
-            </oxy:PlotView>
+        <Button x:Name="ResetButton"
+                Text="↺"
+                Command="{Binding ResetZoomCommand}"
+                FontSize="20"
+                FontAttributes="Bold"
+                TextColor="#222222"
+                BackgroundColor="#80FFFFFF"
+                WidthRequest="40"
+                HeightRequest="40"
+                Padding="0"
+                CornerRadius="20"
+                HorizontalOptions="Start"
+                VerticalOptions="Start"
+                Margin="16,16,0,0" />
 
-            <Button x:Name="ResetButton"
-                    Text="↺"
-                    Command="{Binding ResetZoomCommand}"
-                    FontSize="20"
-                    FontAttributes="Bold"
-                    TextColor="#222222"
-                    BackgroundColor="#80FFFFFF"
-                    WidthRequest="40"
-                    HeightRequest="40"
-                    Padding="0"
-                    CornerRadius="20"
-                    HorizontalOptions="Start"
-                    VerticalOptions="Start"
-                    Margin="16,16,0,0" />
+        <Button x:Name="CloseButton"
+                Text="✕"
+                Command="{Binding CloseCommand}"
+                FontSize="18"
+                FontAttributes="Bold"
+                TextColor="#222222"
+                BackgroundColor="#80FFFFFF"
+                WidthRequest="40"
+                HeightRequest="40"
+                Padding="0"
+                CornerRadius="20"
+                HorizontalOptions="End"
+                VerticalOptions="Start"
+                Margin="0,16,16,0" />
 
-            <Button x:Name="CloseButton"
-                    Text="✕"
-                    Command="{Binding CloseCommand}"
-                    FontSize="18"
-                    FontAttributes="Bold"
-                    TextColor="#222222"
-                    BackgroundColor="#80FFFFFF"
-                    WidthRequest="40"
-                    HeightRequest="40"
-                    Padding="0"
-                    CornerRadius="20"
-                    HorizontalOptions="End"
-                    VerticalOptions="Start"
-                    Margin="0,16,16,0" />
-        </Grid>
+        <!-- Legend-overlay (variant C2): mörk platta i grafens övre högra
+             hörn, ersätter den tidigare legend-raden under grafen så grafen
+             får maximal yta. Placerad 68 dp under top-edge så ✕-knappen
+             (top=16 + height=40 + 12 dp gap) inte ligger ovanpå overlayn när
+             knapparna är synliga. När knapparna fadat ut (3 s) ligger
+             overlayn fortfarande på samma plats — accepterar litet dödutrymme
+             ovan istället för att animera positionen.
 
-        <!-- Legend med snitt: "Kväll N" hänger direkt vänster om första
-             snittsiffran (8 dp gap), hela gruppen centreras horisontellt. I
-             landskap (= denna vy) blir det mer luft kring den centrerade
-             gruppen — inget växande glapp mellan rubrik och första siffran.
-             BindableLayout istället för CollectionView eftersom HSL+
-             CollectionView (HorizontalList) inte rapporterar DesiredSize
-             tillförlitligt; vi har alltid 4 spelare så virtualisering ger
-             inget. Synkar med vanlig graf via ChartTransferStore
-             (NightSlices + SelectedNightIndex). -->
-        <HorizontalStackLayout Grid.Row="1"
-                               HorizontalOptions="Center"
-                               Spacing="8"
-                               Margin="0,2,0,6">
-            <!-- VerticalOptions="End" + Padding bottom=4 matchar items egna
-                 4 dp bottom-padding så rubriken hamnar på samma baslinje som
-                 snittsiffrorna (rad 2 i items). "Center" skulle hamna mellan
-                 namn-rad och siffer-rad. -->
-            <Label Text="{Binding SelectedNightLabel, StringFormat='{0}:'}"
-                   TextColor="#222222"
-                   FontFamily="Baloo2Bold"
-                   FontSize="13"
-                   VerticalOptions="End"
-                   Padding="0,0,0,4"
-                   IsVisible="{Binding HasSelectedNight}" />
+             Bakgrundsfärg #E61A1A1A = ~90 % alpha på #1A1A1A: ger lätt
+             transparens utan att tunna ut text (jämfört med att sätta
+             Opacity=0.9 på hela Border:n, vilket skulle drabba även
+             text/siffror).
 
-            <HorizontalStackLayout BindableLayout.ItemsSource="{Binding LegendItems}"
-                                   Spacing="0">
-                <BindableLayout.ItemTemplate>
-                    <DataTemplate x:DataType="vm:PlayerLegendItem">
-                        <Grid Padding="10,4" RowDefinitions="Auto,Auto" RowSpacing="2">
-                            <Grid.GestureRecognizers>
-                                <TapGestureRecognizer
-                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
-                                    CommandParameter="{Binding .}" />
-                            </Grid.GestureRecognizers>
-                            <HorizontalStackLayout Grid.Row="0" Spacing="6" HorizontalOptions="Center">
-                                <BoxView WidthRequest="14"
-                                         HeightRequest="14"
-                                         Color="{Binding Color}"
-                                         VerticalOptions="Center"
-                                         Opacity="{Binding NameOpacity}" />
-                                <Label Text="{Binding Name}"
-                                       FontFamily="Baloo2"
+             Tap-hantering: spelarkolumnerna har egna TapGestureRecognizers
+             (toggle visibility). Border absorberar tap på padding-ytan så
+             det inte propagerar ned till PlotView (= ingen "välj kväll" /
+             "toggla knappar" från overlay-area). -->
+        <Border BackgroundColor="#E61A1A1A"
+                StrokeThickness="0"
+                Padding="14,10"
+                HorizontalOptions="End"
+                VerticalOptions="Start"
+                Margin="0,68,16,0">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="10" />
+            </Border.StrokeShape>
+
+            <HorizontalStackLayout Spacing="10">
+                <!-- VerticalOptions="End" + Padding bottom=2 matchar items
+                     egna 2 dp bottom-padding så rubriken hamnar på samma
+                     baslinje som snittsiffrorna (rad 2 i items). -->
+                <Label Text="{Binding SelectedNightLabel, StringFormat='{0}:'}"
+                       TextColor="White"
+                       FontFamily="Baloo2Bold"
+                       FontSize="13"
+                       VerticalOptions="End"
+                       Padding="0,0,0,2"
+                       IsVisible="{Binding HasSelectedNight}" />
+
+                <!-- BindableLayout istället för CollectionView: HSL+
+                     CollectionView rapporterar inte DesiredSize tillförlitligt
+                     i MAUI. Vi har alltid 4 spelare så virtualisering ger
+                     inget. Ordning kommer från LegendItems som byggs från
+                     PlotModel.Series-ordningen → activePlayers sorterade på
+                     DisplayOrder → fast Claes/Aleksi/Jonas/Robin-ordning. -->
+                <HorizontalStackLayout BindableLayout.ItemsSource="{Binding LegendItems}"
+                                       Spacing="0">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PlayerLegendItem">
+                            <Grid Padding="10,2" RowDefinitions="Auto,Auto" RowSpacing="2">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.TogglePlayerVisibilityCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Grid.GestureRecognizers>
+                                <HorizontalStackLayout Grid.Row="0" Spacing="5" HorizontalOptions="Center">
+                                    <!-- BoxView med CornerRadius=5 på 10×10 = filled cirkel.
+                                         Färg = spelarens färg (samma som linjen i grafen). -->
+                                    <BoxView WidthRequest="10"
+                                             HeightRequest="10"
+                                             CornerRadius="5"
+                                             Color="{Binding Color}"
+                                             VerticalOptions="Center"
+                                             Opacity="{Binding NameOpacity}" />
+                                    <Label Text="{Binding Name}"
+                                           FontFamily="Baloo2Bold"
+                                           FontSize="13"
+                                           TextColor="{Binding Color}"
+                                           VerticalOptions="Center"
+                                           Opacity="{Binding NameOpacity}"
+                                           TextDecorations="{Binding NameDecorations}" />
+                                </HorizontalStackLayout>
+                                <Label Grid.Row="1"
+                                       Text="{Binding NightAverageDisplay}"
+                                       HorizontalOptions="Center"
+                                       FontFamily="Baloo2Bold"
                                        FontSize="13"
-                                       TextColor="#222222"
-                                       VerticalOptions="Center"
-                                       Opacity="{Binding NameOpacity}"
-                                       TextDecorations="{Binding NameDecorations}" />
-                            </HorizontalStackLayout>
-                            <Label Grid.Row="1"
-                                   Text="{Binding NightAverageDisplay}"
-                                   HorizontalOptions="Center"
-                                   FontFamily="Baloo2Bold"
-                                   FontSize="13"
-                                   TextColor="#222222"
-                                   Opacity="{Binding NameOpacity}" />
-                        </Grid>
-                    </DataTemplate>
-                </BindableLayout.ItemTemplate>
+                                       TextColor="White"
+                                       Opacity="{Binding NameOpacity}" />
+                            </Grid>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </HorizontalStackLayout>
             </HorizontalStackLayout>
-        </HorizontalStackLayout>
-
+        </Border>
     </Grid>
 
 </ContentPage>
