@@ -57,6 +57,27 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     [ObservableProperty]
     private bool _isControlsVisible = true;
 
+    // Collapse-to-edge: legend-overlayns innehåll fälls ihop åt höger så bara
+    // pil-fliken syns kvar. Fliken är alltid synlig — det är bara innehållet
+    // (Kväll N: + spelarkolumnerna) som togglas via IsVisible. Border:n
+    // krymper då med innehållet och stannar mot högerkanten (HorizontalOptions
+    // =End på Border:n).
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LegendCollapseArrow))]
+    private bool _isLegendExpanded = true;
+
+    // ► när expanded (tap → kollapsa åt höger), ◄ när kollapsad (tap → fäll ut).
+    public string LegendCollapseArrow => IsLegendExpanded ? "►" : "◄";
+
+    [RelayCommand]
+    private void ToggleLegendCollapse()
+    {
+        IsLegendExpanded = !IsLegendExpanded;
+        // Räkna tap på fliken som interaktion så ✕/↺-knapparna hålls synliga.
+        IsControlsVisible = true;
+        StartHideTimer();
+    }
+
     public void OnPageAppearing()
     {
         IsControlsVisible = true;
