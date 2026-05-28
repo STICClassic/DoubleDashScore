@@ -71,16 +71,35 @@ public class ChartTransferStoreTests
     }
 
     [Fact]
-    public void ApplyVisibilityToPlot_WithNullModel_ReturnsZero()
+    public void ApplyVisibilityToPlots_WithNullModels_ReturnsZero()
     {
-        var store = new ChartTransferStore
-        {
-            CurrentPlotModel = null,
-        };
+        var store = new ChartTransferStore();
+        // Båda slots' PlotModel default null.
+        Assert.Null(store.NightAverage.PlotModel);
+        Assert.Null(store.CareerAverage.PlotModel);
 
-        var changed = store.ApplyVisibilityToPlot();
+        var changed = store.ApplyVisibilityToPlots();
 
         Assert.Equal(0, changed);
+    }
+
+    [Fact]
+    public void ActiveGraph_DefaultsToNightAverage()
+    {
+        var store = new ChartTransferStore();
+
+        Assert.Equal(GraphKind.NightAverage, store.ActiveGraph);
+        Assert.Same(store.NightAverage, store.Active);
+    }
+
+    [Fact]
+    public void ActiveGraph_SwitchToCareer_PointsAtCareerSlot()
+    {
+        var store = new ChartTransferStore();
+
+        store.ActiveGraph = GraphKind.CareerAverage;
+
+        Assert.Same(store.CareerAverage, store.Active);
     }
 
     [Fact]
