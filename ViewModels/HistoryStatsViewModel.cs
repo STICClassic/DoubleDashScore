@@ -549,10 +549,13 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
                 _markerAnnotation = new LineAnnotation
                 {
                     Type = LineAnnotationType.Vertical,
-                    // Diskret markör: tunn (1 px) ljusgrå med låg alpha så
-                    // den syns mot grå plot-bakgrund (#C8C8C8) utan att
-                    // konkurrera med spelarlinjernas mättade färger.
-                    Color = OxyColor.FromAColor(80, OxyColors.LightGray),
+                    // Diskret markör: tunn (1 px) medelgrå med ~55 % alpha så
+                    // den syns tydligt mot grå plot-bakgrund (#C8C8C8) men
+                    // ändå sekundärt mot spelarlinjernas mättade färger.
+                    // Tidigare LightGray@80 var i princip osynlig mot
+                    // bakgrunden — Gray (#808080) är mörkare än bakgrund
+                    // och högre alpha gör den läsbar utan att dominera.
+                    Color = OxyColor.FromAColor(140, OxyColors.Gray),
                     StrokeThickness = 1,
                     LineStyle = LineStyle.Solid,
                     ClipByYAxis = true,
