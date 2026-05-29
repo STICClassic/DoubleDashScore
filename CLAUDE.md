@@ -483,6 +483,39 @@ intent" — se Skiva 3-noteringen.)
 - **Merga aldrig till `main` själv.** Användaren granskar och mergar PR:en
   manuellt via GitHubs UI.
 
+### CLAUDE.md-uppdatering per PR
+
+Innan PR öppnas, ställ frågan:
+
+> **Påverkar denna PR hur framtida sessioner ska bygga eller resonera
+> om appen?**
+
+- **Ja** → inkludera en CLAUDE.md-uppdatering i samma PR (samma commit
+  eller en separat commit på samma branch). Dokumentera det stabila
+  beslutet — inte vad denna PR råkar göra.
+- **Nej** → lämna CLAUDE.md orörd.
+- **Vid tveksamhet** → uppdatera hellre, men håll det till stabila
+  beslut (arkitektur, konventioner, gotchas, namnval som påverkar andra
+  PRs), inte tillfälliga implementationsdetaljer som ändå framgår av
+  koden eller PR-bodyn.
+
+Exempel på vad som triggar en CLAUDE.md-uppdatering:
+
+- En ny arkitekturprincip eller singleton (typ `ChartTransferStore`
+  med slots + `ActiveGraph`).
+- Ett MAUI/Android/OxyPlot-gotcha som tog tid att lista ut.
+- Bytt approach jämfört med tidigare spec (typ Skiva 5: ML Kit →
+  Claude Vision).
+- Filändelse-, mapp-, eller namngivningskonvention som andra PR:s
+  måste följa.
+- Nya regler för formler, validering eller datainvarianter.
+
+Exempel på vad som **inte** triggar en uppdatering:
+
+- En vanlig bugfix utan arkitekturkonsekvens.
+- En liten refaktorering inom en enskild fil.
+- En UI-justering (färg, padding, ordning) som inte etablerar en regel.
+
 ### PR-krav
 
 Varje PR ska innehålla:
