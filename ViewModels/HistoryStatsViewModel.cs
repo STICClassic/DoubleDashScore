@@ -270,7 +270,7 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             foreach (var point in stats.Series)
             {
                 PlacementsRows.Add(new PlacementsRow(
-                    BuildNightLabel(point),
+                    BuildPlacementsLabel(point),
                     FormatPlacements(point, orderedIds[0]),
                     FormatPlacements(point, orderedIds[1]),
                     FormatPlacements(point, orderedIds[2]),
@@ -514,6 +514,24 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     {
         var n = point.HistoricalNightNumber ?? point.ChronologicalIndex;
         return $"Kväll {n.ToString(SvSe)}";
+    }
+
+    // Placeringar-tabben + Översikt-vyn visar sv-SE-datum ("18 maj 2026")
+    // för app-kvällar och "Kväll N" för historiska seed-kvällar som saknar
+    // datum. Skiljer sig från BuildNightLabel (alltid "Kväll N") som
+    // graf-legenderna använder för tighta scrubber-labels.
+    internal static string BuildPlacementsLabel(NightAveragePoint point)
+    {
+        if (point.PlayedOnUtc is { } playedOn)
+        {
+            return playedOn.ToLocalTime().ToString("d MMMM yyyy", SvSe);
+        }
+        if (point.HistoricalNightNumber is { } histNumber)
+        {
+            return $"Kväll {histNumber.ToString(SvSe)}";
+        }
+        throw new InvalidOperationException(
+            $"Kvällspunkt {point.ChronologicalIndex} saknar både HistoricalNightNumber och PlayedOnUtc — datakorruption misstänks.");
     }
 
     private static string FormatPlacements(NightAveragePoint point, int playerId)

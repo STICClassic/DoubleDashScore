@@ -9,15 +9,15 @@ using DoubleDashScore.Services;
 namespace DoubleDashScore.ViewModels;
 
 // Visar Totalscore + senaste 4 kvällarnas placeringar på en skärm utan
-// scroll. Återanvänder TotalscoreTable + NightPlacementsBlock-komponenterna
+// scroll. Återanvänder TotalscoreTable + PlacementsTable-komponenterna
 // så att Statistik-tabbarnas rendering matchar exakt. Avsikten är att
 // användaren själv tar en skärmdump på telefonen för att dela vidare —
 // ingen dela-funktion byggs in (medvetet val Skiva 18).
 //
-// Skiljer sig från HistoryStatsViewModel.PlacementsRows på en punkt:
-// label-formatet är sv-SE-datum för app-recorded kvällar i stället för
-// "Kväll N" som Placeringar-tabben använder. Historiska seed-kvällar
-// saknar datum och faller då tillbaka på "Kväll N".
+// PlacementsTable används med samma BuildPlacementsLabel-format som
+// Placeringar-tabben (sv-SE-datum för app-kvällar, "Kväll N"-fallback
+// för historiska seed-kvällar utan datum) — Översikt och Statistik
+// visar samma kvällsetiketter.
 public partial class OversiktViewModel : ObservableObject, IRecipient<DatabaseImportedMessage>
 {
     private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
@@ -134,11 +134,13 @@ public partial class OversiktViewModel : ObservableObject, IRecipient<DatabaseIm
             // De 4 senaste kvällarna = sista 4 i stats.Series (kronologisk
             // ordning, historiska först, sen app-kvällar). TakeLast hanterar
             // gracefully om vi har < 4 kvällar (krasch-fritt edge case).
+            // BuildPlacementsLabel återanvänds från HistoryStatsViewModel
+            // (samma datum-eller-Kväll-N-format).
             var recent = stats.Series.TakeLast(4);
             foreach (var point in recent)
             {
                 RecentNights.Add(new PlacementsRow(
-                    BuildOversiktLabel(point),
+                    HistoryStatsViewModel.BuildPlacementsLabel(point),
                     FormatPlacements(point, orderedIds[0]),
                     FormatPlacements(point, orderedIds[1]),
                     FormatPlacements(point, orderedIds[2]),
@@ -155,25 +157,6 @@ public partial class OversiktViewModel : ObservableObject, IRecipient<DatabaseIm
         {
             IsBusy = false;
         }
-    }
-
-    // sv-SE-datum för app-recorded kvällar ("18 maj 2026"); "Kväll N" för
-    // historiska seed-kvällar som saknar datum. Avviker från HistoryStats-
-    // ViewModel.BuildNightLabel som alltid returnerar "Kväll N" — Översikten
-    // är en delningsbar sammanfattning där läsbara datum är viktigare än
-    // numreringen.
-    private static string BuildOversiktLabel(NightAveragePoint point)
-    {
-        if (point.PlayedOnUtc is { } playedOn)
-        {
-            return playedOn.ToLocalTime().ToString("d MMMM yyyy", SvSe);
-        }
-        if (point.HistoricalNightNumber is { } histNumber)
-        {
-            return $"Kväll {histNumber.ToString(SvSe)}";
-        }
-        throw new InvalidOperationException(
-            $"Kvällspunkt {point.ChronologicalIndex} saknar både HistoricalNightNumber och PlayedOnUtc — datakorruption misstänks.");
     }
 
     private static string FormatPlacements(NightAveragePoint point, int playerId)

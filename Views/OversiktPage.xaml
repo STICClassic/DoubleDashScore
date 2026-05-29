@@ -45,32 +45,12 @@
                FontFamily="Baloo2Bold"
                FontSize="20" />
 
-        <!-- Row 4: Header med spelarnamn (en gång) + 4 stack:ade
-             NightPlacementsBlock-instanser. BindableLayout istället för
-             CollectionView eftersom listan alltid är ≤ 4 items och vi
-             vill ha hela höjden mätt korrekt (icke-virtualiserande). -->
-        <VerticalStackLayout Grid.Row="4" Spacing="0">
-
-            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8" Padding="0,4">
-                <Label Grid.Column="0" Text="{Binding PlacementsHeaders.Player1}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-                <Label Grid.Column="1" Text="{Binding PlacementsHeaders.Player2}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-                <Label Grid.Column="2" Text="{Binding PlacementsHeaders.Player3}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-                <Label Grid.Column="3" Text="{Binding PlacementsHeaders.Player4}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-            </Grid>
-            <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
-
-            <VerticalStackLayout BindableLayout.ItemsSource="{Binding RecentNights}">
-                <BindableLayout.ItemTemplate>
-                    <DataTemplate x:DataType="vm:PlacementsRow">
-                        <views:NightPlacementsBlock DateLabel="{Binding NightLabel}"
-                                                     Player1="{Binding Player1}"
-                                                     Player2="{Binding Player2}"
-                                                     Player3="{Binding Player3}"
-                                                     Player4="{Binding Player4}" />
-                    </DataTemplate>
-                </BindableLayout.ItemTemplate>
-            </VerticalStackLayout>
-        </VerticalStackLayout>
+        <!-- Row 4: Samma PlacementsTable som Placeringar-tabben, bara
+             filtrerad till 4 senaste kvällarna. CollectionView inuti
+             komponenten skrollar inte i praktiken eftersom listan är ≤ 4. -->
+        <views:PlacementsTable Grid.Row="4"
+                               ItemsSource="{Binding RecentNights}"
+                               Headers="{Binding PlacementsHeaders}" />
 
         <!-- Status-/loading-overlay placerad ovanpå alla rader via Grid
              row-spanning. Bara synligt när IsBusy eller StatusMessage

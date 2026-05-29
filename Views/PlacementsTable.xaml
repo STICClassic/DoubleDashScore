@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             x:Class="DoubleDashScore.Views.PlacementsTable"
+             x:Name="Root">
+
+    <!-- Återanvändbar flat-tabell för kvällars placeringar. Hela tabellen
+         är en komponent (header + rader), inte ett kvällsblock per kväll.
+         Används i:
+         (1) HistoryStatsPage Placeringar-tabben — alla kvällar, scrollas
+             internt av CollectionView.
+         (2) OversiktPage — filtrerad till 4 senaste kvällarna, ryms utan
+             scroll i sin Grid-cell.
+
+         "Kväll"-kolumnen rymmer både "Kväll N" (historiska seed-kvällar
+         utan datum) och "18 maj 2026" (app-kvällar). 120 dp är tillräckligt
+         för längsta sv-SE-månadsnamn ("september" ger ca 17 tecken) utan
+         truncation. -->
+    <Grid RowDefinitions="Auto,Auto,*"
+          BindingContext="{Binding Source={x:Reference Root}}">
+
+        <Grid Grid.Row="0"
+              ColumnDefinitions="120,*,*,*,*"
+              Padding="0,4"
+              ColumnSpacing="8">
+            <Label Grid.Column="0" Text="Kväll" FontAttributes="Bold" />
+            <Label Grid.Column="1" Text="{Binding Headers.Player1}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+            <Label Grid.Column="2" Text="{Binding Headers.Player2}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+            <Label Grid.Column="3" Text="{Binding Headers.Player3}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+            <Label Grid.Column="4" Text="{Binding Headers.Player4}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+        </Grid>
+        <BoxView Grid.Row="1" HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
+
+        <CollectionView Grid.Row="2"
+                        x:Name="InnerCollectionView"
+                        ItemsSource="{Binding ItemsSource}"
+                        SelectionMode="None">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:PlacementsRow">
+                    <Grid ColumnDefinitions="120,*,*,*,*"
+                          Padding="0,6"
+                          ColumnSpacing="8">
+                        <Label Grid.Column="0" Text="{Binding NightLabel}" />
+                        <Label Grid.Column="1" Text="{Binding Player1}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="2" Text="{Binding Player2}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="3" Text="{Binding Player3}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="4" Text="{Binding Player4}" HorizontalTextAlignment="End" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentView>
