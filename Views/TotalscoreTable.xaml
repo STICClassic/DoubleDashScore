@@ -34,14 +34,20 @@
             </Label.GestureRecognizers>
         </Label>
 
-        <Grid ColumnDefinitions="*,40,40,40,40,72"
-              Padding="0,4"
+        <!-- Datakolumnerna 36 dp (var 40) + Padding-right 16 dp drar
+             1:or-/2:or-/3:or-/4:or-blocket inåt från höger-edgen och
+             minskar gapet till Spelare-kolumnen. Center-justerade siffror
+             gör att blocket läses som en enhet centrerad inom sitt
+             utrymme. Karriärsnitt behåller End-justering (siffra,
+             höger-aligned konvention för tal). -->
+        <Grid ColumnDefinitions="*,36,36,36,36,72"
+              Padding="0,4,16,4"
               ColumnSpacing="8">
             <Label Grid.Column="0" Text="Spelare" FontAttributes="Bold" LineBreakMode="TailTruncation" />
-            <Label Grid.Column="1" Text="1:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
-            <Label Grid.Column="2" Text="2:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
-            <Label Grid.Column="3" Text="3:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
-            <Label Grid.Column="4" Text="4:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
+            <Label Grid.Column="1" Text="1:or" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <Label Grid.Column="2" Text="2:or" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <Label Grid.Column="3" Text="3:or" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <Label Grid.Column="4" Text="4:or" FontAttributes="Bold" HorizontalTextAlignment="Center" />
             <Label Grid.Column="5"
                    Text="Karriärsnitt"
                    FontAttributes="Bold"
@@ -53,14 +59,14 @@
         <VerticalStackLayout BindableLayout.ItemsSource="{Binding ItemsSource}">
             <BindableLayout.ItemTemplate>
                 <DataTemplate x:DataType="vm:TotalsRow">
-                    <Grid ColumnDefinitions="*,40,40,40,40,72"
-                          Padding="0,6"
+                    <Grid ColumnDefinitions="*,36,36,36,36,72"
+                          Padding="0,6,16,6"
                           ColumnSpacing="8">
                         <Label Grid.Column="0" Text="{Binding PlayerName}" LineBreakMode="TailTruncation" />
-                        <Label Grid.Column="1" Text="{Binding Firsts}" HorizontalTextAlignment="End" />
-                        <Label Grid.Column="2" Text="{Binding Seconds}" HorizontalTextAlignment="End" />
-                        <Label Grid.Column="3" Text="{Binding Thirds}" HorizontalTextAlignment="End" />
-                        <Label Grid.Column="4" Text="{Binding Fourths}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="1" Text="{Binding Firsts}" HorizontalTextAlignment="Center" />
+                        <Label Grid.Column="2" Text="{Binding Seconds}" HorizontalTextAlignment="Center" />
+                        <Label Grid.Column="3" Text="{Binding Thirds}" HorizontalTextAlignment="Center" />
+                        <Label Grid.Column="4" Text="{Binding Fourths}" HorizontalTextAlignment="Center" />
                         <!-- Två överlagrade labels: värdet syns när toggle:n är på,
                              "•••" annars. IsVisible binder mot komponentens
                              BindableProperty via Source={x:Reference Root}. -->

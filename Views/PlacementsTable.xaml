@@ -20,15 +20,20 @@
     <Grid RowDefinitions="Auto,Auto,*"
           BindingContext="{Binding Source={x:Reference Root}}">
 
+        <!-- Padding-right 16 dp + center-justerade spelarkolumner skjuter
+             spelarblocket inåt från höger-edge och flyttar siffrorna närmare
+             radens mittpunkt (i stället för End-alignment som klistrade dem
+             mot kolumn-edgen). Behåller kvar viss luft från Kväll-kolumnen
+             till första spelaren via stjärnkolumnernas inherenta vita yta. -->
         <Grid Grid.Row="0"
               ColumnDefinitions="120,*,*,*,*"
-              Padding="0,4"
+              Padding="0,4,16,4"
               ColumnSpacing="8">
             <Label Grid.Column="0" Text="Kväll" FontAttributes="Bold" />
-            <Label Grid.Column="1" Text="{Binding Headers.Player1}" FontAttributes="Bold" HorizontalTextAlignment="End" />
-            <Label Grid.Column="2" Text="{Binding Headers.Player2}" FontAttributes="Bold" HorizontalTextAlignment="End" />
-            <Label Grid.Column="3" Text="{Binding Headers.Player3}" FontAttributes="Bold" HorizontalTextAlignment="End" />
-            <Label Grid.Column="4" Text="{Binding Headers.Player4}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+            <Label Grid.Column="1" Text="{Binding Headers.Player1}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <Label Grid.Column="2" Text="{Binding Headers.Player2}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <Label Grid.Column="3" Text="{Binding Headers.Player3}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <Label Grid.Column="4" Text="{Binding Headers.Player4}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
         </Grid>
         <BoxView Grid.Row="1" HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
 
@@ -39,13 +44,13 @@
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="vm:PlacementsRow">
                     <Grid ColumnDefinitions="120,*,*,*,*"
-                          Padding="0,6"
+                          Padding="0,6,16,6"
                           ColumnSpacing="8">
                         <Label Grid.Column="0" Text="{Binding NightLabel}" />
-                        <Label Grid.Column="1" Text="{Binding Player1}" HorizontalTextAlignment="End" />
-                        <Label Grid.Column="2" Text="{Binding Player2}" HorizontalTextAlignment="End" />
-                        <Label Grid.Column="3" Text="{Binding Player3}" HorizontalTextAlignment="End" />
-                        <Label Grid.Column="4" Text="{Binding Player4}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="1" Text="{Binding Player1}" HorizontalTextAlignment="Center" />
+                        <Label Grid.Column="2" Text="{Binding Player2}" HorizontalTextAlignment="Center" />
+                        <Label Grid.Column="3" Text="{Binding Player3}" HorizontalTextAlignment="Center" />
+                        <Label Grid.Column="4" Text="{Binding Player4}" HorizontalTextAlignment="Center" />
                     </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
