@@ -103,6 +103,29 @@ får båda +1 på sin 1:a-räknare. Ingen får +1 på 2:a-räknaren den omgånge
 Bygg i den här ordningen. Färdigställ en skiva innan nästa påbörjas.
 Commit:a efter varje skiva.
 
+### Status (maj 2026): Skivor 1–16 implementerade
+
+Snabb översikt över befintliga features så en framtida session vet vad
+som redan finns innan något byggs om eller dupliceras:
+
+- **Hamburgermeny (Shell Flyout)** med Statistik / Kvällar / Inställningar
+- **Animerad splash-skärm** vid app-start
+- **Manuell inmatning** av kvällar/omgångar med live-validering
+- **OCR via Claude Vision API** — foto → redigerbar förhandsgranskning
+  (Skiva 5 byggdes mot Anthropic Vision i stället för Google ML Kit, se
+  notering i Skiva 5 nedan)
+- **Excel-import** (engångs-seed av historiska startvärden från Excel)
+- **CSV-export** per kväll
+- **.db-import/-export** via dela-intent (Skiva 8)
+- **Automatisk rullande .db-backup** vid varje databasändring (Skiva 10)
+- **Återställ från auto-backup** i Inställningar (Skiva 11)
+- **Statistik-tabbar:** Totalscore / Placeringar / Kvällsgraf / Karriärgraf
+- **Spelartoggle** (av-/påvälj spelarlinjer) + legend-snitt under graferna
+- **Tap-på-datapunkt** → vald kväll uppdaterar legend-snitt och vertikal
+  markörlinje
+- **Helskärm för grafer i landskap** med pulldown-overlay, färgförklaring
+  2×2, vertikal markörlinje med 3 s auto-hide
+
 ### Skiva 1 — Datamodell + manuell inmatning
 - SQLite-databas via `sqlite-net-pcl`.
 - Tabeller: `Players`, `GameNights`, `Rounds`, `RoundResults`. Alla rader
@@ -179,16 +202,18 @@ Commit:a efter varje skiva.
 - Lagras med en `IsHistoricalSeed`-flagga så de aldrig ändras av appen.
 - Statistik och grafer kombinerar seed-data + appens egen data.
 
-### Skiva 5 — Kamera + ML Kit OCR
+### Skiva 5 — Kamera + OCR
 - Ta foto i appen eller importera från galleriet.
-- OCR via Google ML Kit Text Recognition (MAUI-binding, t.ex.
-  `Plugin.MAUI.MLKitTextRecognition` eller egen Android-implementation via
-  `Xamarin.Google.MLKit.Vision.Text`).
-- Resultatet visas som **redigerbar förhandsgranskning** i samma UI som manuell
-  inmatning — användaren bekräftar eller rättar innan det sparas.
-  Bekräftelseskärmen är obligatorisk även om OCR är 100% säker.
+- OCR-pipeline → redigerbar förhandsgranskning i samma UI som manuell
+  inmatning. Bekräftelseskärmen är obligatorisk även om OCR är 100% säker.
 - Stöd för flera bilder per kväll (t.ex. tre bilder = två kompletta omgångar
   + en partiell).
+
+> **Faktisk implementation:** OCR byggdes mot **Claude Vision API**
+> (Anthropic), inte Google ML Kit som ursprungligen specat. Anledning:
+> ML Kit-MAUI-bindningarna visade sig opålitliga och Claude Vision
+> hanterar både handskrivna och slitna poängtavlor bättre. Bekräftelse-
+> skärmen och flerbildsstödet är oförändrade.
 
 ## Ångra och historik
 
@@ -207,8 +232,153 @@ Commit:a efter varje skiva.
 - **SQLite** via `sqlite-net-pcl`.
 - **OxyPlot.Maui.Skia** (förstahandsval) eller **Microcharts** för grafer.
 - **ClosedXML** för Excel-export, **MailKit** för mail.
-- **Google ML Kit Text Recognition** för OCR (Skiva 5).
+- **Claude Vision API** (Anthropic) för OCR (Skiva 5). Ursprungligen
+  specat som Google ML Kit Text Recognition men byttes — se notering i
+  Skiva 5.
 - **Dependency injection** via `MauiAppBuilder.Services`.
+
+## Tema och design
+
+- **Bakgrund:** svart (`#000000`).
+- **Accent / Primary:** knallorange `#FB923C`.
+- **Font:** Baloo 2 (`Baloo2` regular, `Baloo2Bold` bold).
+- **Datumformat:** `CultureInfo.GetCultureInfo("sv-SE")` ("18 maj 2026"),
+  komma som decimaltecken, 2 decimaler (`3,13`).
+- **Spelarfärger** (mappade på namn i
+  `HistoryStatsViewModel.PlayerColorsByName`, matchar Excel-originalet):
+  - Claes: `#E55A1F` (röd-orange)
+  - Robin: `#1F77B4` (blå)
+  - Aleksi: `#2CA02C` (grön)
+  - Jonas: `#B8860B` (mörk gul / DarkGoldenrod — ren gul har dålig kontrast
+    mot grafens grå plot-bakgrund `#C8C8C8`)
+
+## Arkitekturbeslut (löpande)
+
+Stabila beslut som tillkommit under utvecklingen. Läs detta innan du börjar
+peta i databas-, backup- eller graf-systemen.
+
+### Databas
+
+- **SQLite-fil:** `doubledashscore.db3` i `FileSystem.AppDataDirectory`.
+  Filändelsen `.db3` är `sqlite-net-pcl`-konvention — ändra inte.
+- **Journal mode = `DELETE`** (verifierat aktivt, inte WAL). Konsekvens:
+  `File.Copy` på databasfilen ger en komplett backup. Inga `-wal`/`-shm`-
+  sidofiler att kopiera eller checkpoint:a.
+- **Soft delete överallt:** `DeletedAt IS NULL` är alltid med i WHERE.
+  Repositories filtrerar; ViewModels rör aldrig SQLite direkt.
+
+### Backup-system
+
+- **`BackupService`** (`/Services`) håller `AppDataDirectory/auto-backups/`
+  med rullande **10 senaste** `.db`-snapshots.
+- **Trailing debounce 2 s:** repository-mutationer triggar backup, men en
+  burst (t.ex. inmatning av en hel kväll) samlas i ett enda snapshot efter
+  2 s tystnad.
+- **Pre-restore / pre-import-mönster:** innan en återställning eller
+  manuell import skrivs över nuvarande databas, kopiera källfilen till
+  temp **innan** pre-import-backup skapas av nuvarande databas. Backup:en
+  kan evicta äldsta auto-backup-filen, och om användaren av misstag valde
+  just den som källa förstörs importen utan temp-skydd.
+- **Filändelse-konvention för användarvänd I/O:** `.db` överallt
+  (export, import, backup). Internt heter filen `.db3` men det syns inte
+  i Filer-appen eller dela-intents.
+
+### `DatabaseImportedMessage` (in-place reload)
+
+Vid databasimport eller -återställning broadcastar `DatabaseImported-
+Message` via `WeakReferenceMessenger.Default`. **Fem VM:er prenumererar**
+och kör sin `LoadAsync` på UI-tråden så hela appen visar nya datan direkt:
+
+- `NightsListViewModel`
+- `HistoryStatsViewModel`
+- `NightDetailViewModel`
+- `NightStatsViewModel`
+- `PlayerEditViewModel`
+
+Lägger du till en ny VM som visar databasdata — implementera
+`IRecipient<DatabaseImportedMessage>` också, annars syns inte importen
+förrän användaren navigerar bort och tillbaka.
+
+### Statistik-grafer (`ChartTransferStore`)
+
+Sedan Skiva 16 finns två grafer (Kvällsgraf + Karriärgraf) som båda kan gå
+i helskärm. Stuget för att inte krocka:
+
+- **Singleton `ChartTransferStore`** håller två `GraphSlot`:s —
+  `NightAverage` och `CareerAverage` — vardera med `PlotModel`,
+  `MarkerAnnotation` och `NightSlices`.
+- **`ActiveGraph` (`GraphKind`-enum)** pekar på vilken slot
+  `FullScreenChartViewModel` läser. Sätts av tabbens Helskärm-knapp
+  **före** `Shell.Current.GoToAsync(...)`. Fullscreen är annars helt
+  grafagnostisk.
+- **Delas mellan slots:** `SelectedNightIndex` (samma kronologi) och
+  `HiddenPlayerNames` (spelartoggle gäller båda graferna samtidigt —
+  medvetet val).
+- **Markörlinjen ägs av store:n, inte VM:n.** Båda VM:erna (portrait
+  + fullscreen) reuse:ar samma `LineAnnotation`-instans via
+  `slot.MarkerAnnotation`. Utan delning skapade båda sin egen, så
+  `PlotModel.Annotations` fick två överlappande linjer och fullscreen:s
+  auto-hide-toggle dolde bara den ena (Skiva 15-buggen).
+- **Karriärsnitt-grafens formel** är **oviktat löpande medelvärde** av
+  kvällssnitten t.o.m. kväll N — inte `totalPoints/totalTracks`-formeln
+  från avsnittet "Karriärsnitt" ovan (som beräknas för Totalscore-tabben).
+  Anledning: historisk seed-data har inga banantal per kväll, så viktat
+  snitt går inte att räkna. Oviktat funkar för seed + live, värdena är
+  nästan identiska i praktiken (kvällar är typiskt 16 banor).
+
+### Statistik-tabbordning
+
+`HistoryStatsPage` har fyra tabbar:
+
+1. **Totalscore** (`IsTotalsTab`)
+2. **Placeringar** (`IsPlacementsTab`)
+3. **Kvällsgraf** (`IsNightGraphTab`)
+4. **Karriärgraf** (`IsCareerGraphTab`)
+
+Tabbnamn kortades till `Kvällsgraf`/`Karriärgraf` (från `Graf (kväll)`/
+`Graf (karriär)`) för att rymmas på 360 dp portrait. Planerad framtida
+femte tab: **Översikt**.
+
+## MAUI-gotchas och plattformsbeslut
+
+Sånt som tog tid att lista ut. Dokumenterat så vi inte rör i det igen.
+
+### OxyPlot 2.2.0
+
+- **`TitleHorizontalAlignment`** stödjer bara `Center`-varianter. Vill du
+  ha vänsterjusterad titel: lägg en MAUI-`Label` som overlay i title-zonen
+  (toppdelen av `PlotModel.Padding-top`). Färgförklaringen i fullscreen
+  använder samma trick.
+- **`DefaultTrackerTemplate="{x:Null}"`** är obligatoriskt på `PlotView`
+  om vi inte vill ha OxyPlot:s gula tooltip. En tom `<ControlTemplate />`
+  **kraschar** (`ShowTracker` castar `CreateContent()`→`View` med
+  NullRef). `x:Null` hoppar över rendering helt; `TrackerChanged`-eventet
+  fires fortfarande så VM:n får tap-events.
+- **`PlotModel.TrackerChanged` är markerad `[Obsolete]`** (CS0618) —
+  varningen är pre-existing och får finnas tills OxyPlot 4.0 med
+  ersättnings-API släpps.
+
+### Layout
+
+- **`HorizontalStackLayout` + `CollectionView` mäter bredd opålitligt** —
+  använd `BindableLayout` för små fasta listor. Vi har alltid 4 spelare så
+  virtualisering ger inget. Mönstret återkommer i alla legender.
+
+### Android
+
+- **Edge-to-edge (Android 15 / API 35):** `Window.SetStatusBarColor` är
+  deprecated. Vi sätter **ingen** statusbar-färg själva — Android default +
+  svart Shell-header täcker via edge-to-edge.
+- **`colorPrimary` i `Resources/Values/colors.xml` måste vara svart/mörk**
+  (`#000000`). Material:s `?attr/colorPrimaryVariant`-fallback driver
+  statusbar-färgen om vi inte gör det. En ljus `colorPrimary` läcker upp
+  till statusbaren som en orange linje.
+
+### Shell-navigering
+
+- **`GoToAsync("..")` fungerar inte på root-flyout-sidor** (Shell saknar
+  parent att backa till). Använd absolut route i stället:
+  `Shell.Current.GoToAsync("//NightsListPage")`.
 
 ## Projektstruktur
 
@@ -270,7 +440,11 @@ Lös innan kod skrivs som beror på dem:
   eller `claude/skiva-2-statistik-grafer`. För mindre delsteg inom en skiva:
   `claude/skiva-1-data-models`, `claude/skiva-1-manual-entry-ui`.
 - Skapa branchen *innan* några filer ändras. Använd `git checkout -b claude/...`
-  från `main`.
+  från **senaste** `main` (`git fetch origin main && git checkout main && git pull`
+  först — branchen ska aldrig grenas från en lokal `main` som ligger efter).
+- **Inga staplade PRs.** Vänta med nästa skiva tills föregående PR är
+  mergad. En branch som grenats från en omergad feature-branch fastnar i
+  conflict-stacken när PR:erna mergas i fel ordning.
 - Commit:a på branchen löpande med beskrivande commit-meddelanden.
 - När arbetet är klart, branchen bygger felfritt och uppfyller "definition of
   done" för skivan: pusha branchen och **öppna en Pull Request på GitHub**.
