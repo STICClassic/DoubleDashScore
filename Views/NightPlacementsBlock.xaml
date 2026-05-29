@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DoubleDashScore.Views.NightPlacementsBlock"
+             x:Name="Root">
+
+    <!-- Återanvändbart block för en kvälls placeringar. Används i två
+         kontexter:
+         (1) HistoryStatsPage Placeringar-tabben — listar alla kvällar
+             som CollectionView av blocks.
+         (2) OversiktPage — staplar 4 senaste blocken som BindableLayout
+             inuti en Grid-rad.
+         Kontexten bestämmer vad DateLabel innehåller — "Kväll N" för
+         historiska, sv-SE-datum för app-kvällar. Komponenten är agnostisk;
+         den ritar bara det som VM:n ger.
+
+         Layout: datumrubrik ovanför en 4-kol-grid med spelarnas placeringar
+         (comma-separerat, t.ex. "1,2" eller "2*,4" för tied). Spelarordning
+         följer Placeringar-tabbens kolumn-headers ovanför listan. -->
+    <VerticalStackLayout Spacing="2"
+                         Padding="0,4"
+                         BindingContext="{Binding Source={x:Reference Root}}">
+
+        <Label Text="{Binding DateLabel}"
+               FontFamily="Baloo2Bold"
+               FontSize="14" />
+
+        <Grid ColumnDefinitions="*,*,*,*"
+              ColumnSpacing="8"
+              Padding="0,2">
+            <Label Grid.Column="0" Text="{Binding Player1}" HorizontalTextAlignment="Center" />
+            <Label Grid.Column="1" Text="{Binding Player2}" HorizontalTextAlignment="Center" />
+            <Label Grid.Column="2" Text="{Binding Player3}" HorizontalTextAlignment="Center" />
+            <Label Grid.Column="3" Text="{Binding Player4}" HorizontalTextAlignment="Center" />
+        </Grid>
+    </VerticalStackLayout>
+</ContentView>

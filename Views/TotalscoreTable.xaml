@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             x:Class="DoubleDashScore.Views.TotalscoreTable"
+             x:Name="Root">
+
+    <!-- Återanvändbar Totalscore-tabell. Används både i HistoryStats-
+         tabben (Totalscore) och OversiktPage. BindingContext sätts till
+         RootView så top-level bindings kan plocka BindableProperties
+         (ItemsSource, IsCareerVisible, ToggleLabel, ToggleCommand).
+         DataTemplate ärver istället varje TotalsRow som BindingContext
+         och refererar tillbaka till RootView via Source={x:Reference Root}
+         för IsCareerVisible-toggle:n.
+
+         BindableLayout istället för CollectionView eftersom:
+         (1) Vi har alltid exakt 4 spelare så virtualisering ger inget.
+         (2) Vi vill kunna återanvända komponenten i sammanhang där
+             höjden måste vara känd (t.ex. om Översikt senare ska kunna
+             screenshot:as via VisualElement.CaptureAsync — CollectionView
+             virtualiserar och off-screen items skulle missas). -->
+    <VerticalStackLayout Spacing="8"
+                         BindingContext="{Binding Source={x:Reference Root}}">
+
+        <!-- Toggle "Visa/Dölj karriärsnitt". Klickbart label, accent-färg. -->
+        <Label Text="{Binding ToggleLabel}"
+               TextColor="{StaticResource Primary}"
+               FontFamily="Baloo2Bold"
+               FontSize="13"
+               HorizontalOptions="End"
+               Padding="8,4">
+            <Label.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding ToggleCommand}" />
+            </Label.GestureRecognizers>
+        </Label>
+
+        <Grid ColumnDefinitions="*,40,40,40,40,72"
+              Padding="0,4"
+              ColumnSpacing="8">
+            <Label Grid.Column="0" Text="Spelare" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+            <Label Grid.Column="1" Text="1:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
+            <Label Grid.Column="2" Text="2:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
+            <Label Grid.Column="3" Text="3:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
+            <Label Grid.Column="4" Text="4:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
+            <Label Grid.Column="5"
+                   Text="Karriärsnitt"
+                   FontAttributes="Bold"
+                   HorizontalTextAlignment="End"
+                   LineBreakMode="TailTruncation" />
+        </Grid>
+        <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
+
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding ItemsSource}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="vm:TotalsRow">
+                    <Grid ColumnDefinitions="*,40,40,40,40,72"
+                          Padding="0,6"
+                          ColumnSpacing="8">
+                        <Label Grid.Column="0" Text="{Binding PlayerName}" LineBreakMode="TailTruncation" />
+                        <Label Grid.Column="1" Text="{Binding Firsts}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="2" Text="{Binding Seconds}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="3" Text="{Binding Thirds}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="4" Text="{Binding Fourths}" HorizontalTextAlignment="End" />
+                        <!-- Två överlagrade labels: värdet syns när toggle:n är på,
+                             "•••" annars. IsVisible binder mot komponentens
+                             BindableProperty via Source={x:Reference Root}. -->
+                        <Label Grid.Column="5"
+                               Text="{Binding CareerAverage}"
+                               HorizontalTextAlignment="End"
+                               IsVisible="{Binding Source={x:Reference Root}, Path=IsCareerVisible}" />
+                        <Label Grid.Column="5"
+                               Text="•••"
+                               HorizontalTextAlignment="End"
+                               Opacity="0.5"
+                               IsVisible="{Binding Source={x:Reference Root}, Path=IsCareerVisible, Converter={StaticResource InvertedBoolConverter}}" />
+                    </Grid>
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+    </VerticalStackLayout>
+</ContentView>
