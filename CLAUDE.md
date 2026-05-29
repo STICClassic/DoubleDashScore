@@ -182,16 +182,22 @@ som redan finns innan något byggs om eller dupliceras:
   plus en linjegraf med kvällssnitt över tid (en linje per spelare, sorterat
   stigande på `PlayedOn`, en datapunkt per spelare per kväll — inga gaps).
 - Graf-bibliotek: **OxyPlot.Maui.Skia** (multi-line `LineSeries` på datum-x-axel).
-  Microcharts.Maui som dokumenterad fallback om OxyPlot inte bygger för
-  net10.0-android.
 - Tester (XUnit) för `StatsCalculator` minst för: tied ranking-varianter,
   kvällssnitt med blandade kompletta/partiella omgångar, totalscore-räkning
   vid ties, karriärsnitt över flera kvällar.
 
-### Skiva 3 — Excel/CSV-export + mailbackup
-- Generera CSV (enkelt) eller XLSX (`ClosedXML`) med kvällens data.
-- Skicka via mail (`MailKit` med SMTP, eller plattformens dela-intent som fallback).
-- Trigger: knapp "Avsluta kväll" eller automatiskt när kväll markeras som klar.
+### Skiva 3 — Export och manuell mail-delning
+- Generera CSV-export per kväll (`CsvBuilder` + `ExportService`).
+- Användaren kan dela exporterade filer (inkl. `.db`-backup) via systemets
+  share sheet — väljer själv mailapp om hen vill maila. Ingen
+  programmatisk mail-pipeline.
+
+> **Faktisk implementation:** Den ursprungligen specade automatiska
+> mailbackuppen (`MailKit` SMTP med Gmail-app-lösenord eller schemalagd
+> trigger) **byggdes aldrig**. Mail är manuellt via dela-intent.
+> Trigger "Avsluta kväll" → automatiskt mail-utskick finns inte. Vill
+> man maila en backup: använd export/dela-flödet i Inställningar och
+> välj mailappen i share sheet:en.
 
 ### Skiva 4 — Importera startvärden från Excel
 - Engångsimport: aggregerade startvärden, **inte** rådata per bana.
@@ -230,8 +236,13 @@ som redan finns innan något byggs om eller dupliceras:
 - **MVVM** med `CommunityToolkit.Mvvm` (`ObservableObject`, `RelayCommand`,
   source generators).
 - **SQLite** via `sqlite-net-pcl`.
-- **OxyPlot.Maui.Skia** (förstahandsval) eller **Microcharts** för grafer.
-- **ClosedXML** för Excel-export, **MailKit** för mail.
+- **OxyPlot.Maui.Skia** för grafer.
+- **ClosedXML** för Excel-**import** (Skiva 4 — engångs-seed av historiska
+  startvärden från Excel; 91 historiska kvällar redan importerade i
+  produktion). Den ursprungligen specade Excel-**exporten** från Skiva 3
+  byggdes aldrig — vi exporterar CSV via `CsvBuilder` i stället.
+- **Ingen MailKit / programmatisk mail.** Mail sker via systemets share
+  sheet (användaren delar exporterade filer manuellt). Se Skiva 3-noten.
 - **Claude Vision API** (Anthropic) för OCR (Skiva 5). Ursprungligen
   specat som Google ML Kit Text Recognition men byttes — se notering i
   Skiva 5.
@@ -259,8 +270,18 @@ peta i databas-, backup- eller graf-systemen.
 
 ### Databas
 
-- **SQLite-fil:** `doubledashscore.db3` i `FileSystem.AppDataDirectory`.
-  Filändelsen `.db3` är `sqlite-net-pcl`-konvention — ändra inte.
+- **Intern fil:** `doubledashscore.db3` i `FileSystem.AppDataDirectory`.
+  Filändelsen `.db3` är `sqlite-net-pcl`-konvention och skapas automatiskt
+  — användaren ser den aldrig.
+- **Allt användarvänt I/O använder `.db`** (export, manuell import,
+  auto-backup, dela-intent). `ExportService.ExportDatabaseAsync` skriver
+  `doubledashscore-backup-yyyy-MM-dd-HHmm.db`; `BackupService` skriver
+  `backup-yyyy-MM-dd-HHmmss.db` (`BackupService.BackupFileExtension =
+  ".db"`).
+- **Import accepterar både `.db` och `.db3`** som fallback för gamla
+  filer — `AppShellViewModel.ImportDatabaseAsync` registrerar båda
+  extensions i `FilePicker`-filtertyperna på Windows/macOS och brett
+  octet-stream på Android.
 - **Journal mode = `DELETE`** (verifierat aktivt, inte WAL). Konsekvens:
   `File.Copy` på databasfilen ger en komplett backup. Inga `-wal`/`-shm`-
   sidofiler att kopiera eller checkpoint:a.
@@ -279,9 +300,6 @@ peta i databas-, backup- eller graf-systemen.
   temp **innan** pre-import-backup skapas av nuvarande databas. Backup:en
   kan evicta äldsta auto-backup-filen, och om användaren av misstag valde
   just den som källa förstörs importen utan temp-skydd.
-- **Filändelse-konvention för användarvänd I/O:** `.db` överallt
-  (export, import, backup). Internt heter filen `.db3` men det syns inte
-  i Filer-appen eller dela-intents.
 
 ### `DatabaseImportedMessage` (in-place reload)
 
@@ -384,7 +402,22 @@ Sånt som tog tid att lista ut. Dokumenterat så vi inte rör i det igen.
 
 /Models          — POCO + SQLite-attribut (Player, GameNight, Round, RoundResult)
 /Data            — DatabaseService, repositories
-/Services        — OcrService, ExportService, MailService, StatsCalculator
+/Services        — Statistik, OCR, import/export, backup, m.m. Faktiska
+                   filer (per maj 2026):
+                     StatsCalculator, StatsResults
+                     CsvBuilder, ExportService, ExcelImporter, HistoricalSeed
+                     ClaudeVisionOcrService + IOcrService + NoOpOcrService
+                     PhotoStorageService, OcrFlowContext
+                     MatrixErrorDetector, RoundMatrixValidator, MappingValidator,
+                     PlayerSlotMapper
+                     BackupService, BackupFileNaming
+                     DatabaseImportedMessage (WeakReferenceMessenger)
+                     ChartTransferStore, NightScrubberSlice
+                     IApiKeyStore, SecureStorageApiKeyStore
+                   (Ingen MailService — mail sker via share sheet, inte
+                   programmatiskt. Ingen generisk "OcrService" — det
+                   konkreta namnet är ClaudeVisionOcrService bakom
+                   IOcrService.)
 /ViewModels      — en per vy, ärver ObservableObject
 /Views           — XAML-vyer (NewNightPage, RoundEntryPage, StatsPage, etc.)
 /Resources       — bilder, stilar
@@ -400,7 +433,7 @@ CLAUDE.md        — det här dokumentet
   SQLite direkt.
 - UTC i databasen, lokal tid i UI.
 - Använd `CancellationToken` för alla async-operationer som kan ta tid
-  (OCR, mail, export).
+  (OCR, export, fil-I/O).
 
 ## Definition of done (per skiva)
 
@@ -426,13 +459,12 @@ Bygg det inte utan att fråga.
 
 ## Öppna frågor
 
-Lös innan kod skrivs som beror på dem:
+Inga öppna frågor just nu. (Tidigare punkter är lösta:
+poängtavla-format hanteras direkt av Claude Vision i Skiva 5, så ingen
+egen OCR-parser behövs; mailbackup-frågan landade i "manuellt via dela-
+intent" — se Skiva 3-noteringen.)
 
-1. Exakt format på poängtavla-fotot — väntar på exempelbilder för att designa
-   OCR-parser.
-2. Mailbackup: SMTP via Gmail (kräver app-lösenord) eller plattformens
-   dela-intent? Bestäm i Skiva 3.
-   
+
 ## Git-arbetsflöde
 
 - Allt arbete som Claude Code gör ska ske på en branch som börjar med `claude/`.
