@@ -326,8 +326,10 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
             // Tracker-prenumeration på BÅDA modellerna så att tap på en
             // datapunkt i endera grafen uppdaterar SelectedNightIndex →
             // legend-snitt + markör i båda.
+#pragma warning disable CS0618 // OxyPlot 2.2 TrackerChanged obsolete; ingen ersättning förrän 4.0 — se CLAUDE.md OxyPlot-gotcha
             PlotModel.TrackerChanged += OnPlotTrackerChanged;
             CareerPlotModel.TrackerChanged += OnPlotTrackerChanged;
+#pragma warning restore CS0618
 
             // Behåll användarens val över LoadAsync-rebuilds; default = senaste
             // kvällen vid första laddning eller om sparade indexet är out-of-range.

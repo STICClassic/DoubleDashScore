@@ -261,7 +261,9 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
 
         // Avregistrera från eventuell tidigare modell innan vi byter.
         UnsubscribeTrackerChanged();
+#pragma warning disable CS0618 // OxyPlot 2.2 TrackerChanged obsolete; ingen ersättning förrän 4.0 — se CLAUDE.md OxyPlot-gotcha
         model.TrackerChanged += OnPlotTrackerChanged;
+#pragma warning restore CS0618
         _subscribedModel = model;
     }
 
@@ -269,7 +271,9 @@ public sealed partial class FullScreenChartViewModel : ObservableObject
     {
         if (_subscribedModel is not null)
         {
+#pragma warning disable CS0618 // OxyPlot 2.2 TrackerChanged obsolete; ingen ersättning förrän 4.0 — se CLAUDE.md OxyPlot-gotcha
             _subscribedModel.TrackerChanged -= OnPlotTrackerChanged;
+#pragma warning restore CS0618
             _subscribedModel = null;
         }
     }
