@@ -61,7 +61,13 @@ public partial class OcrCaptureViewModel : ObservableObject
         }
         else if (choice == "Från galleri")
         {
-            pick = await MediaPicker.Default.PickPhotoAsync().ConfigureAwait(true);
+            // PickPhotoAsync (singular) är [Obsolete] sedan MAUI uppdaterade
+            // till PickPhotosAsync som stödjer multi-select. Vi vill bara
+            // ha en bild → ta första (eller null om användaren avbröt).
+            // FirstOrDefault på tom IEnumerable returnerar null, samma
+            // beteende som PickPhotoAsync vid avbryt.
+            var picks = await MediaPicker.Default.PickPhotosAsync().ConfigureAwait(true);
+            pick = picks?.FirstOrDefault();
         }
         if (pick is null) return;
 

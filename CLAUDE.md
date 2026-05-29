@@ -372,9 +372,14 @@ Sånt som tog tid att lista ut. Dokumenterat så vi inte rör i det igen.
   **kraschar** (`ShowTracker` castar `CreateContent()`→`View` med
   NullRef). `x:Null` hoppar över rendering helt; `TrackerChanged`-eventet
   fires fortfarande så VM:n får tap-events.
-- **`PlotModel.TrackerChanged` är markerad `[Obsolete]`** (CS0618) —
-  varningen är pre-existing och får finnas tills OxyPlot 4.0 med
-  ersättnings-API släpps.
+- **`PlotModel.TrackerChanged` är markerad `[Obsolete]`** (CS0618) i
+  OxyPlot 2.2 (`"May be removed in v4.0 (#111)"`), men har **inget
+  dokumenterat ersättnings-API** — maintainers bekräftar i issue #1816
+  att pragma-suppression är vägen framåt tills v4.0 släpps. Subscribe/
+  unsubscribe i `HistoryStatsViewModel` och `FullScreenChartViewModel`
+  wrappas därför i `#pragma warning disable CS0618` med identisk
+  kommentar (sök på den i koden för att hitta gruppen). Migrera vid
+  OxyPlot 4.0-uppgradering.
 
 ### Layout
 
