@@ -5,8 +5,10 @@
          Vi vill ha mörk statusbar, så vi sätter colorPrimary mörk här.
          MAUI Buttons är opåverkade — deras färg kommer från {StaticResource Primary}
          i Resources/Styles/Colors.xaml, inte från Android ?attr/colorPrimary.
-         Biverkning: splash-skärmens bakgrund (maui_splash_color = @color/colorPrimary)
-         blir också mörk. Accepterat — splash-ikonens vita paths syns fortfarande.
+         OS-splashens bakgrund styrs separat av MauiSplashScreen Color="#000000"
+         (genererar @color/maui_splash_color → Maui.SplashTheme), inte av colorPrimary.
+         Splash-bilden är avsiktligt osynlig (svart) för sömlös övergång till in-app
+         SplashPage — se Resources/Splash/splash.svg och CLAUDE.md tema-sektionen.
          colorAccent förblir orange för native Material-accenter (ripples m.m.). -->
     <color name="colorPrimary">#1F1F1F</color>
     <color name="colorPrimaryDark">#1F1F1F</color>

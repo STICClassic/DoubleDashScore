@@ -262,6 +262,21 @@ som redan finns innan något byggs om eller dupliceras:
   - Aleksi: `#2CA02C` (grön)
   - Jonas: `#B8860B` (mörk gul / DarkGoldenrod — ren gul har dålig kontrast
     mot grafens grå plot-bakgrund `#C8C8C8`)
+- **App-ikon:** `Resources/AppIcon/appicon.png` (färdigrenderad kart-illustration,
+  helsvart bakgrund) används rakt av i `<MauiIcon>` med `Color="#000000"` och
+  ingen separat `ForegroundFile` — bilden är en komplett ikon, inte ett
+  logga-på-platta-lager. Den svarta bakgrundsfärgen gör adaptiva ikonens
+  safe-zone-padding osynlig. Default-mallens `appicon.svg`/`appiconfg.svg` är
+  borttagna.
+- **OS-splash = svart + osynlig:** `<MauiSplashScreen>` kör `Color="#000000"`
+  med en avsiktligt osynlig `Resources/Splash/splash.svg` (svart fyrkant mot
+  svart bakgrund). Beslutet: OS-nivå-splashen ska vara helsvart så övergången
+  till in-app `SplashPage` (också `#000000`, pokal-animationen) blir sömlös —
+  ingen synlig blink i annan färg före appen startar. Rör inte detta för att
+  "visa en logga" i OS-splashen; in-app `SplashPage` äger varumärkesytan.
+  (Android 12+ kan i ett kort startfönster visa launcher-ikonen ovanpå den
+  svarta bakgrunden — OS-beteende, inte hemskt; suppression diskuteras bara
+  vid behov.)
 
 ## Arkitekturbeslut (löpande)
 
