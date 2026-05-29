@@ -30,6 +30,7 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("NightStatsPage", typeof(NightStatsPage));
         Routing.RegisterRoute("FullScreenChartPage", typeof(FullScreenChartPage));
         Routing.RegisterRoute("OcrPreviewPage", typeof(OcrPreviewPage));
+        Routing.RegisterRoute("OversiktPage", typeof(OversiktPage));
 
         Navigated += OnShellNavigated;
         UpdateSelectedRoute();

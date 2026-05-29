@@ -32,7 +32,7 @@ public partial class HistoryStatsPage : ContentPage
         Dispatcher.Dispatch(() =>
         {
             var last = _vm.PlacementsRows[_vm.PlacementsRows.Count - 1];
-            PlacementsCollectionView.ScrollTo(last, position: ScrollToPosition.End, animate: false);
+            PlacementsTableView.ScrollToEnd(last);
         });
     }
 }

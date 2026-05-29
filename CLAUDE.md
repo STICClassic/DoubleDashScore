@@ -344,6 +344,36 @@ i helskärm. Stuget för att inte krocka:
   snitt går inte att räkna. Oviktat funkar för seed + live, värdena är
   nästan identiska i praktiken (kvällar är typiskt 16 banor).
 
+### Delade UI-komponenter mellan Statistik och Översikt
+
+Sedan Skiva 18 ligger två rendering-block utlyfta till återanvändbara
+`ContentView`:s i `/Views`:
+
+- `TotalscoreTable.xaml` — Totalscore-tabellen (toggle + header + 6-kol
+  rader). Används i Statistik-tabben (Totalscore) och `OversiktPage`.
+  BindableProperties: `ItemsSource`, `IsCareerVisible`, `ToggleLabel`,
+  `ToggleCommand`. BindableLayout internt (icke-virtualiserad — 4 spelare
+  är fixt).
+- `PlacementsTable.xaml` — hel flat-tabell över kvällar (header-rad +
+  CollectionView med en rad per kväll, 5 kolumner: Kväll + 4 spelare,
+  cellvärden = comma-separerade placeringar per omgång). Används i
+  Statistik-tabben (Placeringar — alla kvällar) och `OversiktPage` (4
+  senaste kvällarna). BindableProperties: `ItemsSource`, `Headers` (en
+  `PlacementHeaders`-record med 4 spelarnamn). Exponerar `ScrollToEnd(item)`
+  för auto-scroll till botten när Placeringar-tabben aktiveras.
+
+**"Kväll"-kolumnens label-format** är ett delat mönster mellan båda vyer:
+sv-SE-datum ("18 maj 2026") för app-kvällar, "Kväll N" för historiska
+seed-kvällar som saknar datum. Helpern bor i `HistoryStatsViewModel.
+BuildPlacementsLabel(point)` (internal static) och återanvänds av
+`OversiktViewModel`. Den separata `BuildNightLabel` ("Kväll N" alltid)
+används bara av grafernas `NightScrubberSlice`-legend där en tight label
+är viktigare än läsbarheten.
+
+Om du ändrar kolumn-layout, padding, färgsättning eller label-format —
+den andra vyn ärver ändringen automatiskt. Lägg kontextspecifika
+justeringar i kallande XAML i stället för att splitta komponenten.
+
 ### Statistik-tabbordning
 
 `HistoryStatsPage` har fyra tabbar:

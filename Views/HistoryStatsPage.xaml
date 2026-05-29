@@ -2,11 +2,23 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             xmlns:views="clr-namespace:DoubleDashScore.Views"
              xmlns:oxy="clr-namespace:OxyPlot.Maui.Skia;assembly=OxyPlot.Maui.Skia"
              x:Class="DoubleDashScore.Views.HistoryStatsPage"
              x:Name="PageRoot"
              x:DataType="vm:HistoryStatsViewModel"
              Title="Statistik">
+
+    <ContentPage.ToolbarItems>
+        <!-- Översikt-sida (Skiva 18) — staplar/grid-symbolen valdes
+             eftersom sidan listar Totalscore + senaste kvällarnas
+             placeringar (en sammanfattningsvy, inte en delningsknapp).
+             Text-fallback om ikonen inte renderas på en Android-version. -->
+        <ToolbarItem Text="📊"
+                     Order="Primary"
+                     Priority="0"
+                     Command="{Binding OpenOversiktCommand}" />
+    </ContentPage.ToolbarItems>
 
     <Grid RowDefinitions="Auto,Auto,*" Padding="0">
 
@@ -83,67 +95,14 @@
         <!-- Tab content -->
         <Grid Grid.Row="2" Padding="16,8" IsVisible="{Binding HasData}">
 
-            <!-- Totalscore -->
-            <VerticalStackLayout Spacing="8" IsVisible="{Binding IsTotalsTab}">
-                <!-- Toggle-länken sitter ovanför listan (option C) i stället för
-                     bredvid kolumn-rubriken. Det låter Karriärsnitt-kolumnen behålla
-                     sin ursprungliga bredd (72 dp) så Spelare-kolumnen får plats för
-                     "Aleksi" utan klippning, och rubrikraden hålls på en rad. -->
-                <Label Text="{Binding CareerAverageToggleLabel}"
-                       TextColor="{StaticResource Primary}"
-                       FontFamily="Baloo2Bold"
-                       FontSize="13"
-                       HorizontalOptions="End"
-                       Padding="8,4">
-                    <Label.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding ToggleCareerAverageCommand}" />
-                    </Label.GestureRecognizers>
-                </Label>
-                <Grid ColumnDefinitions="*,40,40,40,40,72"
-                      Padding="0,4"
-                      ColumnSpacing="8">
-                    <Label Grid.Column="0" Text="Spelare" FontAttributes="Bold" LineBreakMode="TailTruncation" />
-                    <Label Grid.Column="1" Text="1:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
-                    <Label Grid.Column="2" Text="2:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
-                    <Label Grid.Column="3" Text="3:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
-                    <Label Grid.Column="4" Text="4:or" FontAttributes="Bold" HorizontalTextAlignment="End" />
-                    <Label Grid.Column="5"
-                           Text="Karriärsnitt"
-                           FontAttributes="Bold"
-                           HorizontalTextAlignment="End"
-                           LineBreakMode="TailTruncation" />
-                </Grid>
-                <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
-                <CollectionView ItemsSource="{Binding Totals}"
-                                SelectionMode="None">
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="vm:TotalsRow">
-                            <Grid ColumnDefinitions="*,40,40,40,40,72"
-                                  Padding="0,6"
-                                  ColumnSpacing="8">
-                                <Label Grid.Column="0" Text="{Binding PlayerName}" LineBreakMode="TailTruncation" />
-                                <Label Grid.Column="1" Text="{Binding Firsts}" HorizontalTextAlignment="End" />
-                                <Label Grid.Column="2" Text="{Binding Seconds}" HorizontalTextAlignment="End" />
-                                <Label Grid.Column="3" Text="{Binding Thirds}" HorizontalTextAlignment="End" />
-                                <Label Grid.Column="4" Text="{Binding Fourths}" HorizontalTextAlignment="End" />
-                                <!-- Två överlagrade labels: värdet visas när togglen är på,
-                                     "•••"-platshållaren när den är av. IsVisible binds till
-                                     sidans VM via PageRoot eftersom row:ens BindingContext
-                                     är TotalsRow, inte HistoryStatsViewModel. -->
-                                <Label Grid.Column="5"
-                                       Text="{Binding CareerAverage}"
-                                       HorizontalTextAlignment="End"
-                                       IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsCareerAverageVisible}" />
-                                <Label Grid.Column="5"
-                                       Text="•••"
-                                       HorizontalTextAlignment="End"
-                                       Opacity="0.5"
-                                       IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsCareerAverageVisible, Converter={StaticResource InvertedBoolConverter}}" />
-                            </Grid>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-            </VerticalStackLayout>
+            <!-- Totalscore — renderingen lyft ut till TotalscoreTable som
+                 ContentView i Skiva 18 så att OversiktPage kan återanvända
+                 samma visning. -->
+            <views:TotalscoreTable IsVisible="{Binding IsTotalsTab}"
+                                   ItemsSource="{Binding Totals}"
+                                   IsCareerVisible="{Binding IsCareerAverageVisible}"
+                                   ToggleLabel="{Binding CareerAverageToggleLabel}"
+                                   ToggleCommand="{Binding ToggleCareerAverageCommand}" />
 
             <!-- Kvällsgraf — varje kvälls eget kvällssnitt per spelare. -->
             <Grid RowDefinitions="*,Auto" IsVisible="{Binding IsNightGraphTab}">
@@ -292,38 +251,14 @@
                 </HorizontalStackLayout>
             </Grid>
 
-            <!-- Placeringar -->
-            <Grid RowDefinitions="Auto,Auto,*" IsVisible="{Binding IsPlacementsTab}">
-                <Grid Grid.Row="0"
-                      ColumnDefinitions="80,*,*,*,*"
-                      Padding="0,4"
-                      ColumnSpacing="8">
-                    <Label Grid.Column="0" Text="Kväll" FontAttributes="Bold" />
-                    <Label Grid.Column="1" Text="{Binding PlacementsHeaders.Player1}" FontAttributes="Bold" HorizontalTextAlignment="End" />
-                    <Label Grid.Column="2" Text="{Binding PlacementsHeaders.Player2}" FontAttributes="Bold" HorizontalTextAlignment="End" />
-                    <Label Grid.Column="3" Text="{Binding PlacementsHeaders.Player3}" FontAttributes="Bold" HorizontalTextAlignment="End" />
-                    <Label Grid.Column="4" Text="{Binding PlacementsHeaders.Player4}" FontAttributes="Bold" HorizontalTextAlignment="End" />
-                </Grid>
-                <BoxView Grid.Row="1" HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
-                <CollectionView Grid.Row="2"
-                                x:Name="PlacementsCollectionView"
-                                ItemsSource="{Binding PlacementsRows}"
-                                SelectionMode="None">
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="vm:PlacementsRow">
-                            <Grid ColumnDefinitions="80,*,*,*,*"
-                                  Padding="0,6"
-                                  ColumnSpacing="8">
-                                <Label Grid.Column="0" Text="{Binding NightLabel}" />
-                                <Label Grid.Column="1" Text="{Binding Player1}" HorizontalTextAlignment="End" />
-                                <Label Grid.Column="2" Text="{Binding Player2}" HorizontalTextAlignment="End" />
-                                <Label Grid.Column="3" Text="{Binding Player3}" HorizontalTextAlignment="End" />
-                                <Label Grid.Column="4" Text="{Binding Player4}" HorizontalTextAlignment="End" />
-                            </Grid>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-            </Grid>
+            <!-- Placeringar — flat tabell (Kväll + 4 spelarkolumner, en
+                 rad per kväll). Renderingen lyftes ut till PlacementsTable
+                 i Skiva 18 så att Översikt-sidan kan plocka samma tabell
+                 filtrerad till de 4 senaste kvällarna. -->
+            <views:PlacementsTable x:Name="PlacementsTableView"
+                                   IsVisible="{Binding IsPlacementsTab}"
+                                   ItemsSource="{Binding PlacementsRows}"
+                                   Headers="{Binding PlacementsHeaders}" />
         </Grid>
     </Grid>
 </ContentPage>

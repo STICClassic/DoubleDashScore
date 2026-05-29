@@ -75,6 +75,7 @@ public static class MauiProgram
         builder.Services.AddTransient<OcrPreviewViewModel>();
         builder.Services.AddTransient<ApiKeySettingsViewModel>();
         builder.Services.AddTransient<RestoreAutoBackupViewModel>();
+        builder.Services.AddTransient<OversiktViewModel>();
 
         builder.Services.AddTransient<NightsListPage>();
         builder.Services.AddTransient<NewNightPage>();
@@ -88,6 +89,7 @@ public static class MauiProgram
         builder.Services.AddTransient<ApiKeySettingsPage>();
         builder.Services.AddTransient<RestoreAutoBackupPage>();
         builder.Services.AddTransient<SplashPage>();
+        builder.Services.AddTransient<OversiktPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();
