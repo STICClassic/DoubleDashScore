@@ -208,6 +208,15 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
         await Shell.Current.GoToAsync("FullScreenChartPage").ConfigureAwait(true);
     }
 
+    // Översikt-sidan (Skiva 18) — helskärmssida pushad ovanpå statistik-
+    // stacken. Shell-default back-pilen stänger den och tar tillbaka
+    // användaren till den tabb hen lämnade.
+    [RelayCommand]
+    private static async Task OpenOversikt()
+    {
+        await Shell.Current.GoToAsync("OversiktPage").ConfigureAwait(true);
+    }
+
     public async Task LoadAsync(CancellationToken ct = default)
     {
         IsBusy = true;

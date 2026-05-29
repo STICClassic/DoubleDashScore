@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             xmlns:views="clr-namespace:DoubleDashScore.Views"
+             x:Class="DoubleDashScore.Views.OversiktPage"
+             x:Name="PageRoot"
+             x:DataType="vm:OversiktViewModel"
+             Title="Översikt">
+
+    <!-- Helskärmssida (inte modal). Shell-default back-pilen stänger.
+         Allt ska rymmas på en skärm utan scroll — Grid med 5 rader, där
+         Row 1 (Totalscore-tabellen) och Row 4 (4 kvällsblock) delar
+         vertikalt utrymme via star-sizing.
+
+         Användaren tar själv skärmdump på telefonen — vi bygger ingen
+         dela-funktion (medvetet val Skiva 18; tidigare planerad
+         CaptureAsync-pipeline droppades). -->
+    <Grid Padding="16,12"
+          RowDefinitions="Auto,*,Auto,Auto,*"
+          RowSpacing="8">
+
+        <!-- Row 0: Rubrik "Totalscore" -->
+        <Label Grid.Row="0"
+               Text="Totalscore"
+               FontFamily="Baloo2Bold"
+               FontSize="20" />
+
+        <!-- Row 1: Totalscore-tabell, samma rendering som Statistik-tabben -->
+        <views:TotalscoreTable Grid.Row="1"
+                               ItemsSource="{Binding Totals}"
+                               IsCareerVisible="{Binding IsCareerAverageVisible}"
+                               ToggleLabel="{Binding CareerAverageToggleLabel}"
+                               ToggleCommand="{Binding ToggleCareerAverageCommand}" />
+
+        <!-- Row 2: Accent-streck separator (4 dp tjockt) -->
+        <BoxView Grid.Row="2"
+                 HeightRequest="4"
+                 Color="{StaticResource Primary}"
+                 Margin="0,4" />
+
+        <!-- Row 3: Rubrik "Senaste 4 kvällarna" -->
+        <Label Grid.Row="3"
+               Text="Senaste 4 kvällarna"
+               FontFamily="Baloo2Bold"
+               FontSize="20" />
+
+        <!-- Row 4: Header med spelarnamn (en gång) + 4 stack:ade
+             NightPlacementsBlock-instanser. BindableLayout istället för
+             CollectionView eftersom listan alltid är ≤ 4 items och vi
+             vill ha hela höjden mätt korrekt (icke-virtualiserande). -->
+        <VerticalStackLayout Grid.Row="4" Spacing="0">
+
+            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8" Padding="0,4">
+                <Label Grid.Column="0" Text="{Binding PlacementsHeaders.Player1}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                <Label Grid.Column="1" Text="{Binding PlacementsHeaders.Player2}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                <Label Grid.Column="2" Text="{Binding PlacementsHeaders.Player3}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                <Label Grid.Column="3" Text="{Binding PlacementsHeaders.Player4}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            </Grid>
+            <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
+
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding RecentNights}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PlacementsRow">
+                        <views:NightPlacementsBlock DateLabel="{Binding NightLabel}"
+                                                     Player1="{Binding Player1}"
+                                                     Player2="{Binding Player2}"
+                                                     Player3="{Binding Player3}"
+                                                     Player4="{Binding Player4}" />
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+
+        <!-- Status-/loading-overlay placerad ovanpå alla rader via Grid
+             row-spanning. Bara synligt när IsBusy eller StatusMessage
+             har innehåll. -->
+        <VerticalStackLayout Grid.Row="0" Grid.RowSpan="5"
+                             VerticalOptions="Center"
+                             HorizontalOptions="Center"
+                             Spacing="8"
+                             IsVisible="{Binding IsBusy}">
+            <ActivityIndicator IsRunning="{Binding IsBusy}"
+                               HorizontalOptions="Center" />
+        </VerticalStackLayout>
+
+        <Label Grid.Row="0" Grid.RowSpan="5"
+               Text="{Binding StatusMessage}"
+               IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotEmptyConverter}}"
+               VerticalOptions="Center"
+               HorizontalOptions="Center"
+               HorizontalTextAlignment="Center"
+               FontSize="14"
+               Opacity="0.8" />
+    </Grid>
+</ContentPage>

@@ -344,6 +344,25 @@ i helskärm. Stuget för att inte krocka:
   snitt går inte att räkna. Oviktat funkar för seed + live, värdena är
   nästan identiska i praktiken (kvällar är typiskt 16 banor).
 
+### Delade UI-komponenter mellan Statistik och Översikt
+
+Sedan Skiva 18 ligger två rendering-block utlyfta till återanvändbara
+`ContentView`:s i `/Views`:
+
+- `TotalscoreTable.xaml` — Totalscore-tabellen. Används i Statistik-
+  tabben (Totalscore) och `OversiktPage`. BindableProperties: `ItemsSource`,
+  `IsCareerVisible`, `ToggleLabel`, `ToggleCommand`.
+- `NightPlacementsBlock.xaml` — en kvälls placeringar (datumrubrik + 4-kol
+  spelarvärden). Används i Statistik-tabben (Placeringar) som CollectionView-
+  item och i `OversiktPage` som BindableLayout-item. Label-innehållet
+  bestäms av kallande VM — Placeringar visar "Kväll N", Översikt visar
+  sv-SE-datum.
+
+Om du ändrar vilken kolumn-layout, padding eller färgsättning som
+används i ena vyn — den andra ärver ändringen automatiskt. Lägg
+kontextspecifika justeringar i kallande XAML i stället för att splitta
+komponenten.
+
 ### Statistik-tabbordning
 
 `HistoryStatsPage` har fyra tabbar:
