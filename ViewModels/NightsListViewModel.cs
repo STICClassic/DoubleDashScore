@@ -12,17 +12,14 @@ public partial class NightsListViewModel : ObservableObject, IRecipient<Database
 {
     private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
 
-    // Spelarfärger bundna till namn (matchar HistoryStatsViewModel.PlayerColorsByName
-    // och CLAUDE.md:s tema-palett). Vinnar-raden renderar varje vinnarnamn i sin
+    // Spelarfärger som MAUI-`Color`, adapterade från den centrala paletten
+    // (PlayerColors.HexByName). Vinnar-raden renderar varje vinnarnamn i sin
     // spelarfärg. Okända namn faller tillbaka till vit text.
     private static readonly Dictionary<string, Color> PlayerColorsByName =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Claes"]  = Color.FromArgb("#E55A1F"),
-            ["Robin"]  = Color.FromArgb("#1F77B4"),
-            ["Aleksi"] = Color.FromArgb("#2CA02C"),
-            ["Jonas"]  = Color.FromArgb("#B8860B"),
-        };
+        PlayerColors.HexByName.ToDictionary(
+            kv => kv.Key,
+            kv => Color.FromArgb(kv.Value),
+            StringComparer.OrdinalIgnoreCase);
 
     private static readonly Color WinnerFallbackColor = Colors.White;
 

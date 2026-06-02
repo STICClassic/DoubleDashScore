@@ -255,13 +255,20 @@ som redan finns innan något byggs om eller dupliceras:
 - **Font:** Baloo 2 (`Baloo2` regular, `Baloo2Bold` bold).
 - **Datumformat:** `CultureInfo.GetCultureInfo("sv-SE")` ("18 maj 2026"),
   komma som decimaltecken, 2 decimaler (`3,13`).
-- **Spelarfärger** (mappade på namn i
-  `HistoryStatsViewModel.PlayerColorsByName`, matchar Excel-originalet):
+- **Spelarfärger** (mappade på namn, matchar Excel-originalet):
   - Claes: `#E55A1F` (röd-orange)
   - Robin: `#1F77B4` (blå)
   - Aleksi: `#2CA02C` (grön)
   - Jonas: `#B8860B` (mörk gul / DarkGoldenrod — ren gul har dålig kontrast
     mot grafens grå plot-bakgrund `#C8C8C8`)
+
+  **Enda källan i kod:** `Services/PlayerColors.cs` (`PlayerColors.HexByName`).
+  Konsumenter adapterar till sin färgtyp — `HistoryStatsViewModel` bygger
+  `OxyColor` (via `PlayerColors.ToRgb`), `NightsListViewModel` bygger MAUI
+  `Color`. Lägg **inte** en till hex-lista i en VM; ändra hex här och båda
+  följer med. (`FullScreenChartPage.xaml` har fortfarande samma hex hårdkodat
+  i sin färgförklaring eftersom XAML-statiken inte kan läsa C#-konstanten —
+  håll den i synk manuellt om paletten ändras.)
 - **App-ikon:** `Resources/AppIcon/appicon.png` (färdigrenderad kart-illustration,
   helsvart bakgrund) används rakt av i `<MauiIcon>` med `Color="#000000"` och
   ingen separat `ForegroundFile` — bilden är en komplett ikon, inte ett
@@ -427,10 +434,9 @@ Stabila beslut andra PR:s måste känna till:
 - **Vinnare = flest banpoäng** i omgången via `StatsCalculator.PointsFor`
   (poängformeln delas med statistiken). Lika poäng ⇒ delad seger: alla med
   maxpoäng listas, åtskilda med "/". Ingen alfabetisk tiebreaker.
-- **Spelarfärgerna är duplicerade** som en MAUI-`Color`-map i
-  `NightsListViewModel.PlayerColorsByName` (parallellt med
-  `HistoryStatsViewModel`:s `OxyColor`-map). Ändras paletten i
-  "Tema och design" ovan — uppdatera båda.
+- **Spelarfärgerna läses från `Services/PlayerColors.cs`** (central palett);
+  `NightsListViewModel.PlayerColorsByName` adapterar dem till MAUI-`Color`.
+  Lägg inte tillbaka en egen hex-lista här — se "Tema och design".
 
 ## MAUI-gotchas och plattformsbeslut
 
