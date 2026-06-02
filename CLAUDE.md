@@ -414,6 +414,10 @@ liten dämpad papperskorgs-`Path`-ikon.
 
 Stabila beslut andra PR:s måste känna till:
 
+- **Poängsystem per bana:** 1:a plats = 4 p, 2:a = 3 p, 3:e = 2 p, 4:e = 1 p.
+  En omgång är 16 banor (max 64 p per spelare per omgång). Vinnaren av en
+  omgång = spelaren med högst total poäng. Implementerat i
+  `StatsCalculator.PointsFor`.
 - **Vinnare beräknas i `GameNightRepository.GetSummariesAsync`**, i *samma*
   loop som räknar kompletta omgångar — lägg inte en tredje kopia av
   `IsComplete`-villkoret (`TrackCount == 16 && 4 resultatrader`) någon
