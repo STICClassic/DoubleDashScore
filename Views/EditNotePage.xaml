@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
+             x:Class="DoubleDashScore.Views.EditNotePage"
+             x:DataType="vm:EditNoteViewModel"
+             Shell.PresentationMode="ModalAnimated"
+             Title="Anteckning">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="Anteckning"
+                   FontFamily="Baloo2Bold"
+                   FontSize="16" />
+
+            <Editor Text="{Binding Note}"
+                    MaxLength="{Binding MaxLength}"
+                    AutoSize="TextChanges"
+                    HeightRequest="140"
+                    Placeholder="t.ex. Hos Anna, första kvällen efter sommaren…" />
+
+            <Label Text="{Binding CounterText}"
+                   FontSize="12"
+                   Opacity="0.6"
+                   HorizontalOptions="End" />
+
+            <HorizontalStackLayout Spacing="12" HorizontalOptions="End">
+                <Button Text="Avbryt" Command="{Binding CancelCommand}" />
+                <Button Text="Spara"
+                        BackgroundColor="{StaticResource Primary}"
+                        TextColor="Black"
+                        Command="{Binding SaveCommand}" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

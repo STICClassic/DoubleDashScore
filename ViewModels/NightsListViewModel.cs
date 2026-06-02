@@ -8,7 +8,9 @@ using DoubleDashScore.Services;
 
 namespace DoubleDashScore.ViewModels;
 
-public partial class NightsListViewModel : ObservableObject, IRecipient<DatabaseImportedMessage>
+public partial class NightsListViewModel : ObservableObject,
+    IRecipient<DatabaseImportedMessage>,
+    IRecipient<GameNightNoteUpdatedMessage>
 {
     private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
 
@@ -34,7 +36,8 @@ public partial class NightsListViewModel : ObservableObject, IRecipient<Database
     {
         _nights = nights;
         _players = players;
-        WeakReferenceMessenger.Default.Register(this);
+        // RegisterAll: VM:n lyssnar på två meddelandetyper (import + note-edit).
+        WeakReferenceMessenger.Default.RegisterAll(this);
     }
 
     // Triggas när AppShellViewModel.ImportDatabaseAsync skickar signalen efter
@@ -46,6 +49,18 @@ public partial class NightsListViewModel : ObservableObject, IRecipient<Database
         {
             try { await LoadAsync().ConfigureAwait(true); }
             catch { /* fire-and-forget: nästa OnAppearing laddar om igen */ }
+        });
+    }
+
+    // En kvälls anteckning redigerades i detaljvyn — ladda om så subtiteln i
+    // listan speglar ändringen direkt (utan att vänta på OnAppearing när man
+    // backar tillbaka hit).
+    public void Receive(GameNightNoteUpdatedMessage message)
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try { await LoadAsync().ConfigureAwait(true); }
+            catch { /* fire-and-forget */ }
         });
     }
 
