@@ -13,10 +13,14 @@
                    FontFamily="Baloo2Bold"
                    FontSize="16" />
 
+            <!-- AutoSize + VerticalOptions=Start: editorn börjar på en rad och
+                 växer med innehållet. Ingen HeightRequest — den skapade ett
+                 fixt 140-px-fält där den nativa underlinjen hamnade långt under
+                 texten. Underlinjen följer nu direkt under textraderna. -->
             <Editor Text="{Binding Note}"
                     MaxLength="{Binding MaxLength}"
                     AutoSize="TextChanges"
-                    HeightRequest="140"
+                    VerticalOptions="Start"
                     Placeholder="t.ex. Hos Anna, första kvällen efter sommaren…" />
 
             <Label Text="{Binding CounterText}"
