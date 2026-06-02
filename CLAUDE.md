@@ -402,6 +402,32 @@ Tabbnamn kortades till `Kvällsgraf`/`Karriärgraf` (från `Graf (kväll)`/
 `Graf (karriär)`) för att rymmas på 360 dp portrait. Planerad framtida
 femte tab: **Översikt**.
 
+### Kvällar-listan (vinnare per omgång)
+
+Sedan Skiva 20 är `NightsListPage` en kort-baserad landningssida: stor
+accent-orange "Lägg till ny kväll"-knapp överst (band till samma
+`NewNightCommand` som den borttagna toolbar-länken), sen ett kort per
+kväll. Varje kort visar datum + omgångsantal, ev. anteckning, och en
+**vinnar-per-omgång-rad**: vinnaren i varje *komplett* omgång, kronologiskt,
+varje namn i sin spelarfärg. "Ta bort" är demoterat från orange knapp till
+liten dämpad papperskorgs-`Path`-ikon.
+
+Stabila beslut andra PR:s måste känna till:
+
+- **Vinnare beräknas i `GameNightRepository.GetSummariesAsync`**, i *samma*
+  loop som räknar kompletta omgångar — lägg inte en tredje kopia av
+  `IsComplete`-villkoret (`TrackCount == 16 && 4 resultatrader`) någon
+  annanstans. Resultatet bärs ut på `GameNightSummary.WinnersByRound`
+  (`IReadOnlyList<IReadOnlyList<int>>` av spelar-Id, partiella omgångar
+  redan bortfiltrerade). En query för alla `RoundResults`, inga N+1-anrop.
+- **Vinnare = flest banpoäng** i omgången via `StatsCalculator.PointsFor`
+  (poängformeln delas med statistiken). Lika poäng ⇒ delad seger: alla med
+  maxpoäng listas, åtskilda med "/". Ingen alfabetisk tiebreaker.
+- **Spelarfärgerna är duplicerade** som en MAUI-`Color`-map i
+  `NightsListViewModel.PlayerColorsByName` (parallellt med
+  `HistoryStatsViewModel`:s `OxyColor`-map). Ändras paletten i
+  "Tema och design" ovan — uppdatera båda.
+
 ## MAUI-gotchas och plattformsbeslut
 
 Sånt som tog tid att lista ut. Dokumenterat så vi inte rör i det igen.
