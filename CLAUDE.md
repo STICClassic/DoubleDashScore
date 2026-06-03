@@ -255,13 +255,20 @@ som redan finns innan något byggs om eller dupliceras:
 - **Font:** Baloo 2 (`Baloo2` regular, `Baloo2Bold` bold).
 - **Datumformat:** `CultureInfo.GetCultureInfo("sv-SE")` ("18 maj 2026"),
   komma som decimaltecken, 2 decimaler (`3,13`).
-- **Spelarfärger** (mappade på namn i
-  `HistoryStatsViewModel.PlayerColorsByName`, matchar Excel-originalet):
+- **Spelarfärger** (mappade på namn, matchar Excel-originalet):
   - Claes: `#E55A1F` (röd-orange)
   - Robin: `#1F77B4` (blå)
   - Aleksi: `#2CA02C` (grön)
   - Jonas: `#B8860B` (mörk gul / DarkGoldenrod — ren gul har dålig kontrast
     mot grafens grå plot-bakgrund `#C8C8C8`)
+
+  **Enda källan i kod:** `Services/PlayerColors.cs` (`PlayerColors.HexByName`).
+  Konsumenter adapterar till sin färgtyp — `HistoryStatsViewModel` bygger
+  `OxyColor` (via `PlayerColors.ToRgb`), `NightsListViewModel` bygger MAUI
+  `Color`. Lägg **inte** en till hex-lista i en VM; ändra hex här och båda
+  följer med. (`FullScreenChartPage.xaml` har fortfarande samma hex hårdkodat
+  i sin färgförklaring eftersom XAML-statiken inte kan läsa C#-konstanten —
+  håll den i synk manuellt om paletten ändras.)
 - **App-ikon:** `Resources/AppIcon/appicon.png` (färdigrenderad kart-illustration,
   helsvart bakgrund) används rakt av i `<MauiIcon>` med `Color="#000000"` och
   ingen separat `ForegroundFile` — bilden är en komplett ikon, inte ett
@@ -401,6 +408,35 @@ justeringar i kallande XAML i stället för att splitta komponenten.
 Tabbnamn kortades till `Kvällsgraf`/`Karriärgraf` (från `Graf (kväll)`/
 `Graf (karriär)`) för att rymmas på 360 dp portrait. Planerad framtida
 femte tab: **Översikt**.
+
+### Kvällar-listan (vinnare per omgång)
+
+Sedan Skiva 20 är `NightsListPage` en kort-baserad landningssida: stor
+accent-orange "Lägg till ny kväll"-knapp överst (band till samma
+`NewNightCommand` som den borttagna toolbar-länken), sen ett kort per
+kväll. Varje kort visar datum + omgångsantal, ev. anteckning, och en
+**vinnar-per-omgång-rad**: vinnaren i varje *komplett* omgång, kronologiskt,
+varje namn i sin spelarfärg. "Ta bort" är demoterat från orange knapp till
+liten dämpad papperskorgs-`Path`-ikon.
+
+Stabila beslut andra PR:s måste känna till:
+
+- **Poängsystem per bana:** 1:a plats = 4 p, 2:a = 3 p, 3:e = 2 p, 4:e = 1 p.
+  En omgång är 16 banor (max 64 p per spelare per omgång). Vinnaren av en
+  omgång = spelaren med högst total poäng. Implementerat i
+  `StatsCalculator.PointsFor`.
+- **Vinnare beräknas i `GameNightRepository.GetSummariesAsync`**, i *samma*
+  loop som räknar kompletta omgångar — lägg inte en tredje kopia av
+  `IsComplete`-villkoret (`TrackCount == 16 && 4 resultatrader`) någon
+  annanstans. Resultatet bärs ut på `GameNightSummary.WinnersByRound`
+  (`IReadOnlyList<IReadOnlyList<int>>` av spelar-Id, partiella omgångar
+  redan bortfiltrerade). En query för alla `RoundResults`, inga N+1-anrop.
+- **Vinnare = flest banpoäng** i omgången via `StatsCalculator.PointsFor`
+  (poängformeln delas med statistiken). Lika poäng ⇒ delad seger: alla med
+  maxpoäng listas, åtskilda med "/". Ingen alfabetisk tiebreaker.
+- **Spelarfärgerna läses från `Services/PlayerColors.cs`** (central palett);
+  `NightsListViewModel.PlayerColorsByName` adapterar dem till MAUI-`Color`.
+  Lägg inte tillbaka en egen hex-lista här — se "Tema och design".
 
 ## MAUI-gotchas och plattformsbeslut
 

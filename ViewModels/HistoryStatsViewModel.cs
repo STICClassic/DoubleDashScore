@@ -25,22 +25,24 @@ public partial class HistoryStatsViewModel : ObservableObject, IRecipient<Databa
     // ren gul (#FFD700) eftersom ren gul har dålig kontrast mot grått och blir
     // i princip osynlig — #B8860B (DarkGoldenrod) läser fortfarande som gul/guld
     // och har god kontrast även mot mörkare grått.
+    // Spelarfärger som OxyColor, adapterade från den centrala paletten
+    // (PlayerColors.HexByName — enda källan till hex-värdena).
     private static readonly Dictionary<string, OxyColor> PlayerColorsByName =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Claes"]  = OxyColor.FromRgb(0xE5, 0x5A, 0x1F),  // röd-orange
-            ["Robin"]  = OxyColor.FromRgb(0x1F, 0x77, 0xB4),  // blå
-            ["Aleksi"] = OxyColor.FromRgb(0x2C, 0xA0, 0x2C),  // grön
-            ["Jonas"]  = OxyColor.FromRgb(0xB8, 0x86, 0x0B),  // mörk gul/guld
-        };
+        PlayerColors.HexByName.ToDictionary(
+            kv => kv.Key,
+            kv =>
+            {
+                var (r, g, b) = PlayerColors.ToRgb(kv.Value);
+                return OxyColor.FromRgb(r, g, b);
+            },
+            StringComparer.OrdinalIgnoreCase);
 
+    // Positionell fallback för okända namn — samma färger som paletten, i
+    // explicit spelarordning (matchar default-DisplayOrder).
     private static readonly OxyColor[] FallbackPlayerColors =
-    {
-        OxyColor.FromRgb(0xE5, 0x5A, 0x1F),
-        OxyColor.FromRgb(0x1F, 0x77, 0xB4),
-        OxyColor.FromRgb(0x2C, 0xA0, 0x2C),
-        OxyColor.FromRgb(0xB8, 0x86, 0x0B),
-    };
+        new[] { "Claes", "Robin", "Aleksi", "Jonas" }
+            .Select(n => PlayerColorsByName[n])
+            .ToArray();
 
     private static OxyColor ColorForPlayer(string playerName, int displayOrder)
     {

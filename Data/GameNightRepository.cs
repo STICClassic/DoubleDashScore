@@ -3,7 +3,14 @@ using DoubleDashScore.Services;
 
 namespace DoubleDashScore.Data;
 
-public record GameNightSummary(GameNight Night, int RoundCount, int CompleteRoundCount);
+// WinnersByRound: vinnar-spelarnas Id per komplett omgång, i kronologisk
+// omgångsordning (RoundNumber stigande). En inre lista per omgång eftersom
+// delad seger (tie) ger flera vinnare. Partiella omgångar utelämnas helt.
+public record GameNightSummary(
+    GameNight Night,
+    int RoundCount,
+    int CompleteRoundCount,
+    IReadOnlyList<IReadOnlyList<int>> WinnersByRound);
 
 public class GameNightRepository
 {
@@ -58,7 +65,18 @@ public class GameNightRepository
             .ToListAsync()
             .ConfigureAwait(false);
 
-        var resultCountsByRound = await GetResultCountsByRoundAsync(conn).ConfigureAwait(false);
+        var roundIds = rounds.Select(r => r.Id).ToHashSet();
+        var allResults = roundIds.Count == 0
+            ? new List<RoundResult>()
+            : await conn.Table<RoundResult>()
+                .Where(rr => rr.DeletedAt == null)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+        var resultsByRound = allResults
+            .Where(rr => roundIds.Contains(rr.RoundId))
+            .GroupBy(rr => rr.RoundId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         var roundsByNight = rounds.GroupBy(r => r.GameNightId)
             .ToDictionary(g => g.Key, g => g.ToList());
@@ -67,11 +85,35 @@ public class GameNightRepository
         {
             roundsByNight.TryGetValue(n.Id, out var nightRounds);
             nightRounds ??= new List<Round>();
-            var complete = nightRounds.Count(r =>
-                r.TrackCount == 16 &&
-                resultCountsByRound.TryGetValue(r.Id, out var c) &&
-                c == 4);
-            return new GameNightSummary(n, nightRounds.Count, complete);
+
+            // Komplett-villkoret (TrackCount == 16 && 4 resultatrader) avgör
+            // både antalsräkningen och vilka omgångar som får en vinnare —
+            // beräknas på ett ställe, samma loop, för att inte duplicera
+            // IsComplete-logiken ytterligare en gång.
+            var complete = 0;
+            var winnersByRound = new List<IReadOnlyList<int>>();
+            foreach (var round in nightRounds.OrderBy(r => r.RoundNumber))
+            {
+                resultsByRound.TryGetValue(round.Id, out var results);
+                results ??= new List<RoundResult>();
+                if (round.TrackCount != 16 || results.Count != 4)
+                {
+                    continue;
+                }
+                complete++;
+
+                // Vinnare = spelaren/spelarna med flest banpoäng i omgången.
+                // StatsCalculator.PointsFor är källan till poängformeln (delas
+                // med statistiken). Lika poäng ⇒ delad seger, flera vinnare.
+                var maxPoints = results.Max(StatsCalculator.PointsFor);
+                var winners = results
+                    .Where(r => StatsCalculator.PointsFor(r) == maxPoints)
+                    .Select(r => r.PlayerId)
+                    .ToList();
+                winnersByRound.Add(winners);
+            }
+
+            return new GameNightSummary(n, nightRounds.Count, complete, winnersByRound);
         }).ToList();
     }
 
@@ -140,17 +182,4 @@ public class GameNightRepository
         _backup.RequestBackup();
     }
 
-    private static async Task<Dictionary<int, int>> GetResultCountsByRoundAsync(SQLite.SQLiteAsyncConnection conn)
-    {
-        var rows = await conn.QueryAsync<RoundResultCountRow>(
-            "SELECT RoundId, COUNT(*) AS Count FROM RoundResults WHERE DeletedAt IS NULL GROUP BY RoundId")
-            .ConfigureAwait(false);
-        return rows.ToDictionary(r => r.RoundId, r => r.Count);
-    }
-
-    private sealed class RoundResultCountRow
-    {
-        public int RoundId { get; set; }
-        public int Count { get; set; }
-    }
 }
