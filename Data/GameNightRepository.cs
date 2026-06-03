@@ -169,6 +169,22 @@ public class GameNightRepository
         }).ToList();
     }
 
+    // Uppdaterar enbart anteckningen (Note). Tom/whitespace ⇒ null så att
+    // "anteckning saknas"-tillståndet blir konsekvent (placeholder visas).
+    // Trimning sker hos anroparen. Ingen soft delete — vi UPDATE:ar fältet.
+    public async Task UpdateNoteAsync(int id, string? note, CancellationToken ct = default)
+    {
+        var conn = await _db.GetConnectionAsync(ct).ConfigureAwait(false);
+        var night = await conn.FindAsync<GameNight>(id).ConfigureAwait(false);
+        if (night is null || night.DeletedAt is not null)
+        {
+            return;
+        }
+        night.Note = string.IsNullOrWhiteSpace(note) ? null : note;
+        await conn.UpdateAsync(night).ConfigureAwait(false);
+        _backup.RequestBackup();
+    }
+
     public async Task SoftDeleteAsync(int id, CancellationToken ct = default)
     {
         var conn = await _db.GetConnectionAsync(ct).ConfigureAwait(false);

@@ -15,10 +15,20 @@
 
     <Grid>
         <Grid RowDefinitions="Auto,Auto,*">
-            <Label Grid.Row="0"
-                   Text="{Binding Note}"
-                   Padding="16,12,16,0"
-                   IsVisible="{Binding Note, Converter={StaticResource StringNotEmptyConverter}}" />
+            <!-- Klickbar anteckningsrad: visar anteckningen om den finns,
+                 annars en muted "Lägg till anteckning"-platshållare. Båda
+                 öppnar EditNote-modalen. -->
+            <Grid Grid.Row="0" Padding="16,12,16,0">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding EditNoteCommand}" />
+                </Grid.GestureRecognizers>
+                <Label Text="{Binding Note}"
+                       IsVisible="{Binding HasNote}" />
+                <Label Text="Lägg till anteckning"
+                       Opacity="0.5"
+                       FontAttributes="Italic"
+                       IsVisible="{Binding HasNote, Converter={StaticResource InvertedBoolConverter}}" />
+            </Grid>
 
             <ActivityIndicator Grid.Row="1"
                                IsRunning="{Binding IsBusy}"

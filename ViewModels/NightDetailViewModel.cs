@@ -9,7 +9,9 @@ using DoubleDashScore.Services;
 namespace DoubleDashScore.ViewModels;
 
 [QueryProperty(nameof(NightId), "nightId")]
-public partial class NightDetailViewModel : ObservableObject, IRecipient<DatabaseImportedMessage>
+public partial class NightDetailViewModel : ObservableObject,
+    IRecipient<DatabaseImportedMessage>,
+    IRecipient<GameNightNoteUpdatedMessage>
 {
     private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
 
@@ -25,7 +27,8 @@ public partial class NightDetailViewModel : ObservableObject, IRecipient<Databas
         _nights = nights;
         _rounds = rounds;
         _capture = capture;
-        WeakReferenceMessenger.Default.Register(this);
+        // RegisterAll: VM:n lyssnar på två meddelandetyper (import + note-edit).
+        WeakReferenceMessenger.Default.RegisterAll(this);
     }
 
     // Efter import kan denna kvälls ID antingen finnas eller saknas i den nya
@@ -40,6 +43,15 @@ public partial class NightDetailViewModel : ObservableObject, IRecipient<Databas
         });
     }
 
+    // Anteckningen sparades i EditNotePage-modalen. Uppdatera direkt (samma
+    // kväll) så detaljvyn visar nya värdet när modalen stängs, utan att vänta
+    // på OnAppearing-reload.
+    public void Receive(GameNightNoteUpdatedMessage message)
+    {
+        if (message.NightId != NightId) return;
+        MainThread.BeginInvokeOnMainThread(() => Note = message.Note ?? string.Empty);
+    }
+
     [ObservableProperty]
     private int _nightId;
 
@@ -47,7 +59,12 @@ public partial class NightDetailViewModel : ObservableObject, IRecipient<Databas
     private string _title = "Kväll";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNote))]
     private string _note = string.Empty;
+
+    // Styr om anteckningstexten eller "Lägg till anteckning"-platshållaren
+    // visas i NightDetailPage. Båda öppnar samma EditNote-modal vid tap.
+    public bool HasNote => !string.IsNullOrWhiteSpace(Note);
 
     [ObservableProperty]
     private bool _isBusy;
@@ -87,6 +104,13 @@ public partial class NightDetailViewModel : ObservableObject, IRecipient<Databas
         {
             IsBusy = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task EditNoteAsync()
+    {
+        if (NightId <= 0) return;
+        await Shell.Current.GoToAsync($"EditNotePage?nightId={NightId}").ConfigureAwait(true);
     }
 
     [RelayCommand]

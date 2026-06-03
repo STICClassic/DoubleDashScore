@@ -339,6 +339,25 @@ Lägger du till en ny VM som visar databasdata — implementera
 `IRecipient<DatabaseImportedMessage>` också, annars syns inte importen
 förrän användaren navigerar bort och tillbaka.
 
+### `GameNightNoteUpdatedMessage` (redigera anteckning)
+
+Kvällens anteckning (`GameNight.Note`) redigeras via en modal sida
+`EditNotePage` (route `EditNotePage?nightId=N`, `Shell.PresentationMode=
+"ModalAnimated"`). Den nås genom att tappa anteckningen — eller "Lägg till
+anteckning"-platshållaren när `Note` är tom — i `NightDetailPage`.
+`EditNoteViewModel` läser nuvarande Note från DB (inte via query, för att
+slippa URL-koda flerradig text), trimmar vid spara, och sätter `Note = null`
+om resultatet är tomt (`GameNightRepository.UpdateNoteAsync`).
+
+Efter spara broadcastas `GameNightNoteUpdatedMessage(NightId, Note)`.
+`NightDetailViewModel` (sätter sin `Note` direkt om `NightId` matchar) och
+`NightsListViewModel` (laddar om subtiteln) prenumererar — riktad in-place-
+reload, oberoende av modalens OnAppearing-timing. Båda VM:erna lyssnar nu på
+**två** meddelandetyper, så de registrerar via
+`WeakReferenceMessenger.Default.RegisterAll(this)` i stället för `Register`.
+Mönstret (modal för att redigera ett enskilt fält + riktat meddelande)
+återanvänds om fler inline-redigerbara fält tillkommer.
+
 ### Statistik-grafer (`ChartTransferStore`)
 
 Sedan Skiva 16 finns två grafer (Kvällsgraf + Karriärgraf) som båda kan gå
@@ -497,7 +516,8 @@ Sånt som tog tid att lista ut. Dokumenterat så vi inte rör i det igen.
                      MatrixErrorDetector, RoundMatrixValidator, MappingValidator,
                      PlayerSlotMapper
                      BackupService, BackupFileNaming
-                     DatabaseImportedMessage (WeakReferenceMessenger)
+                     DatabaseImportedMessage, GameNightNoteUpdatedMessage
+                       (WeakReferenceMessenger)
                      ChartTransferStore, NightScrubberSlice
                      IApiKeyStore, SecureStorageApiKeyStore
                    (Ingen MailService — mail sker via share sheet, inte

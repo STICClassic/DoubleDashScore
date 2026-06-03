@@ -26,6 +26,7 @@ public partial class AppShell : Shell
         // detaljvyer som öppnas via knappar inifrån en sida).
         Routing.RegisterRoute("NewNightPage", typeof(NewNightPage));
         Routing.RegisterRoute("NightDetailPage", typeof(NightDetailPage));
+        Routing.RegisterRoute("EditNotePage", typeof(EditNotePage));
         Routing.RegisterRoute("RoundEntryPage", typeof(RoundEntryPage));
         Routing.RegisterRoute("NightStatsPage", typeof(NightStatsPage));
         Routing.RegisterRoute("FullScreenChartPage", typeof(FullScreenChartPage));

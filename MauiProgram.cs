@@ -66,6 +66,7 @@ public static class MauiProgram
         builder.Services.AddTransient<NightsListViewModel>();
         builder.Services.AddTransient<NewNightViewModel>();
         builder.Services.AddTransient<NightDetailViewModel>();
+        builder.Services.AddTransient<EditNoteViewModel>();
         builder.Services.AddTransient<RoundEntryViewModel>();
         builder.Services.AddTransient<PlayerEditViewModel>();
         builder.Services.AddTransient<NightStatsViewModel>();
@@ -80,6 +81,7 @@ public static class MauiProgram
         builder.Services.AddTransient<NightsListPage>();
         builder.Services.AddTransient<NewNightPage>();
         builder.Services.AddTransient<NightDetailPage>();
+        builder.Services.AddTransient<EditNotePage>();
         builder.Services.AddTransient<RoundEntryPage>();
         builder.Services.AddTransient<PlayerEditPage>();
         builder.Services.AddTransient<NightStatsPage>();
