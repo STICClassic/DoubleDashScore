@@ -132,8 +132,8 @@ ställena. Nuvarande palett:
 
 ```
 web/
-  index.html      App-skal: header + huvudtabbar + inre tabbar + panel-
-                  container (en panel per tabb) + helskärms-overlay
+  index.html      App-skal: header + inre tabbar + panel-container (en panel
+                  per tabb) + huvudtabbar nederst + helskärms-overlay
   style.css       Mörkt tema, matchar appen
   app.js          Huvudlogik (ES-modul): laddar db, beräknar, renderar
   appicon.png     Kopia av appens Resources/AppIcon/appicon.png
@@ -188,8 +188,11 @@ skiva 20). Värdena speglar `Resources/Styles/Colors.xaml`.
 
 **Tvånivå-tabbar**, inte scroll. Speglar appens Shell-struktur:
 
-- **Huvudtabbar överst** (`.main-tabs`, `data-main`), direkt under headern:
-  **Kvällar | Statistik**.
+- **Huvudtabbar nederst** (`.bottom-tabs`, `data-main`): **Kvällar | Statistik**.
+  **Styling:** aktiv tabb = solid orange bakgrund (`--primary`) + svart text;
+  inaktiv = transparent med 1 px `rgba(255,255,255,0.2)`-kantlinje + muted text.
+  Fyllningen/kantlinjen gör det tydligt att raden är tappbara knappar (inte bara
+  text). Knapparna är avrundade pill:er med luft runtom.
 - **Inre Statistik-tabbar** (`#inner-tabs`, `data-inner`, syns bara i Statistik):
   **Översikt | Kvällsgraf | Totalscore | Placeringar | Karriärgraf**.
   **Default-tabb = Översikt** (`navState.inner`).
@@ -208,10 +211,12 @@ skiva 20). Värdena speglar `Resources/Styles/Colors.xaml`.
 App-skalet (`app.js`, `initTabs`/`selectMain`/`selectInner`, `navState`):
 
 - **Layout:** `body` är en flex-kolumn på `100dvh` (`overflow:hidden`): header
-  → huvudtabbar → (ev.) inre tabbar → `#content` (scroll-region). `100dvh`
-  följer iOS Safaris dynamiska viewport. Huvudtabbraden ligger **överst** direkt
-  under headern; headern har `padding-top: env(safe-area-inset-top)` så den
-  klarar iOS notch/status-bar. `#content` fyller hela nedre delen och scrollar.
+  → (ev.) inre tabbar → `#content` (scroll-region) → huvudtabbar. `100dvh`
+  följer iOS Safaris dynamiska viewport. Huvudtabbraden ligger **nederst** som
+  sista flex-barnet (inte `position:fixed`) — samma "fast i botten"-resultat
+  utan padding-överlapp; `padding-bottom: env(safe-area-inset-bottom)` håller
+  knapparna ovanför iOS home-indicator. Headern bär `padding-top:
+  env(safe-area-inset-top)` för iOS notch. `#content` fyller mitten och scrollar.
 - **En panel åt gången:** varje `.panel` är `position:absolute; inset:0;
   overflow-y:auto` i `#content`. Tabb-byte togglar `hidden`-attributet
   (`display:none`). DOM + Chart.js-instanser lever kvar, och browsern **bevarar
@@ -275,9 +280,10 @@ tomma platshållaren (0 byte).
 - Kvällar-sektionen renderar alla kvällar (nyaste först) med datum,
   omgångsantal, ev. anteckning och vinnare per komplett omgång i rätt
   spelarfärger.
-- Tabb-navigation: Kvällar/Statistik-huvudtabbar överst + de fem inre
-  Statistik-tabbarna (default Översikt), aktiv tabb accent-orange, scroll-läge
-  bevaras per tabb, headern respekterar `safe-area-inset-top`.
+- Tabb-navigation: Kvällar/Statistik-huvudtabbar nederst (aktiv = solid orange
+  + svart text, inaktiv = kantlinje + muted) + de fem inre Statistik-tabbarna
+  (default Översikt), scroll-läge bevaras per tabb, huvudtabbraden respekterar
+  `safe-area-inset-bottom`.
 - Alla sektioner byggda: Kvällar, Totalscore, Placeringar, Kvällsgraf,
   Karriärgraf, Översikt.
 - Graferna: rätt spelarfärger, Y-axel låst 1–4, scrub uppdaterar legenden,

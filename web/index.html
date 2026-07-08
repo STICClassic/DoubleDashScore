@@ -21,12 +21,6 @@
         <h1 class="app-header__title">DoubleDashScore</h1>
     </header>
 
-    <!-- Huvudtabbar överst, direkt under headern. -->
-    <nav id="main-tabs" class="main-tabs">
-        <button type="button" class="main-tab is-active" data-main="kvallar">Kvällar</button>
-        <button type="button" class="main-tab" data-main="statistik">Statistik</button>
-    </nav>
-
     <!-- Inre Statistik-tabbar — syns bara när huvudtabben Statistik är aktiv.
          Fast krom ovanför det scrollande innehållet (förblir alltid synliga). -->
     <nav id="inner-tabs" class="inner-tabs" hidden>
@@ -109,6 +103,12 @@
             </div>
         </section>
     </main>
+
+    <!-- Huvudtabbar nederst. -->
+    <nav id="bottom-tabs" class="bottom-tabs">
+        <button type="button" class="main-tab is-active" data-main="kvallar">Kvällar</button>
+        <button type="button" class="main-tab" data-main="statistik">Statistik</button>
+    </nav>
 
     <!-- Delad helskärms-overlay för båda graferna (skiva 24, Alt A). -->
     <div id="fs-overlay" hidden>

@@ -121,18 +121,26 @@ body {
     padding: 14px 16px 24px;
 }
 
-/* Huvudtabbar överst, direkt under headern ------------------------- */
-.main-tabs {
+/* Huvudtabbar nederst ----------------------------------------------- */
+.bottom-tabs {
     flex: 0 0 auto;
     display: flex;
-    border-bottom: 1px solid #333333;
+    gap: 8px;
+    border-top: 1px solid #333333;
     background: var(--bg);
+    /* Behåll original-spacingen (12 px tabb-höjd via knapparna) + luft runt
+       knapp-pillren. safe-area-inset-bottom håller dem ovanför iOS home-indicator. */
+    padding: 8px 12px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
 }
 
+/* Tydliga knappar: inaktiv = kantlinje + muted text, aktiv = solid orange
+   fyllning + svart text. Gör det uppenbart att raden är tappbar. */
 .main-tab {
     flex: 1 1 0;
-    background: none;
-    border: none;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
     padding: 12px 0;
     color: var(--muted);
     font-family: inherit;
@@ -142,7 +150,9 @@ body {
 }
 
 .main-tab.is-active {
-    color: var(--primary);
+    background: var(--primary);
+    color: #000000;
+    border-color: transparent;
 }
 
 /* Status / tomläge -------------------------------------------------- */
