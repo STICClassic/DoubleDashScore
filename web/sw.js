@@ -10,7 +10,9 @@
 //   - @sqlite.org/sqlite-wasm@3.50.4-build1
 //   - chart.js@4.5.1 (+ @kurkle/color@0.3.4 som chart.js drar in)
 // Uppgraderas någon av dem: uppdatera URL:erna nedan OCH bumpa CACHE.
-const CACHE = "dds-cache-v1";
+// Historik: v1 (skiva 26 första PWA), v2 (skiva 26 ikon-fix: tre riktiga
+// ikon-storlekar). Nästa bump blir v3.
+const CACHE = "dds-cache-v2";
 
 // Same-origin-kärna. Måste lyckas — annars fungerar inte offline.
 const CORE_ASSETS = [
@@ -21,6 +23,9 @@ const CORE_ASSETS = [
     "./appicon.png",
     "./manifest.webmanifest",
     "./data/db.sqlite",
+    "./icons/icon-192.png",
+    "./icons/icon-512.png",
+    "./icons/icon-512-maskable.png",
 ];
 
 // Cross-origin CDN-filer (jsDelivr tillåter caching: CORS `*`, Cache-Control
