@@ -126,6 +126,190 @@ function buildNightSummaries(db) {
     });
 }
 
+// Banor en spelare kört i en omgång/aggregat = summan av de fyra räknarna.
+// Speglar StatsCalculator.TracksFor / HistoricalTracksFor (OBS: historiska
+// aggregat använder summan, INTE TotalTracks-kolumnen).
+function tracksFor(r) {
+    return r.FirstPlaces + r.SecondPlaces + r.ThirdPlaces + r.FourthPlaces;
+}
+
+// Omgångsplacering via standard competition ranking (1-2-2-4) efter total
+// banpoäng, fallande. Speglar StatsCalculator.CalculateRoundPositions.
+function calculateRoundPositions(results) {
+    const sorted = results
+        .map(r => ({ id: r.PlayerId, points: pointsFor(r) }))
+        .sort((a, b) => b.points - a.points);
+    const positions = new Map();
+    let rank = 0;
+    let prev = null;
+    for (let i = 0; i < sorted.length; i++) {
+        if (i === 0 || sorted[i].points !== prev) rank = i + 1;
+        positions.set(sorted[i].id, rank);
+        prev = sorted[i].points;
+    }
+    return positions;
+}
+
+// Formaterar en spelares placeringar en kväll: ", "-separerat, tie märks med
+// "*" (t.ex. "1*, 2"). Tom sträng om spelaren saknar placeringar den kvällen.
+// Speglar HistoryStatsViewModel.FormatPlacements.
+function formatPlacements(list) {
+    if (!list || list.length === 0) return "";
+    return list.map(p => (p.tied ? `${p.pos}*` : `${p.pos}`)).join(", ");
+}
+
+// sv-SE, 2 decimaler, komma som decimaltecken ("3,03"). Speglar appens
+// career.ToString("0.00", sv-SE).
+function formatAverage(value) {
+    return value.toFixed(2).replace(".", ",");
+}
+
+// Bygger Totalscore-rader + kronologisk placeringsserie i EN pass över seed +
+// live-data — speglar StatsCalculator.CalculateHistory (inkl. ApplySeed).
+// Ingen aggregering sker sedan i renderings-looparna.
+//
+//   Totalscore-counts = PositionTotalsSnapshot (historisk bas) + live kompletta
+//     omgångars competition-ranking-placeringar.
+//   Karriärsnitt      = (Σ historiska banpoäng + Σ live banpoäng)
+//                       / (Σ historiska banor + Σ live banor).
+//   series            = seed-kvällar (asc NightNumber) följt av live-kvällar
+//                       (asc PlayedOn); varje punkt bär redan färdig-
+//                       formaterade cell-strängar per spelare (orderedIds-ordning).
+function buildHistory(db) {
+    // Spelare i DisplayOrder — samma "orderedIds" som appen använder.
+    const players = queryAll(db,
+        "SELECT Id, Name, DisplayOrder FROM Players WHERE DeletedAt IS NULL ORDER BY DisplayOrder");
+    const orderedIds = players.map(p => p.Id);
+    const nameById = new Map(players.map(p => [p.Id, p.Name]));
+
+    const counts = new Map(orderedIds.map(id => [id, { f: 0, s: 0, t: 0, fo: 0 }]));
+    const careerPoints = new Map(orderedIds.map(id => [id, 0]));
+    const careerTracks = new Map(orderedIds.map(id => [id, 0]));
+    const series = []; // { label, cells: [c0, c1, c2, c3] } i orderedIds-ordning
+
+    // --- SEED (speglar ApplySeed) ---
+    // 1. Snapshot är auktoritativ bas för historiska position-totals.
+    for (const snap of queryAll(db,
+        "SELECT PlayerId, Firsts, Seconds, Thirds, Fourths FROM HistoricalPositionTotalsSnapshot")) {
+        if (!counts.has(snap.PlayerId)) continue;
+        counts.set(snap.PlayerId, { f: snap.Firsts, s: snap.Seconds, t: snap.Thirds, fo: snap.Fourths });
+    }
+    // 2. Historiska aggregat bidrar med banpoäng + banor till karriärsnittet.
+    const aggregates = queryAll(db,
+        "SELECT NightNumber, PlayerId, FirstPlaces, SecondPlaces, ThirdPlaces, FourthPlaces " +
+        "FROM HistoricalNightAggregates");
+    for (const a of aggregates) {
+        if (!counts.has(a.PlayerId)) continue;
+        careerPoints.set(a.PlayerId, careerPoints.get(a.PlayerId) + pointsFor(a));
+        careerTracks.set(a.PlayerId, careerTracks.get(a.PlayerId) + tracksFor(a));
+    }
+    // 3. Seed-serie: en punkt per historisk kväll (asc NightNumber) med
+    //    placeringar per (kväll, omgång). Tie = placeringen delas i omgången.
+    const placements = queryAll(db,
+        "SELECT NightNumber, PlayerId, RoundIndex, Position FROM HistoricalRoundPlacements");
+    const placementsByNight = new Map();
+    for (const p of placements) {
+        if (!placementsByNight.has(p.NightNumber)) placementsByNight.set(p.NightNumber, []);
+        placementsByNight.get(p.NightNumber).push(p);
+    }
+    const seedNightNumbers = [...new Set(aggregates.map(a => a.NightNumber))].sort((a, b) => a - b);
+    for (const nightNumber of seedNightNumbers) {
+        const perPlayer = new Map(orderedIds.map(id => [id, []]));
+        const nightPlacements = placementsByNight.get(nightNumber) ?? [];
+        const roundIndices = [...new Set(nightPlacements.map(p => p.RoundIndex))].sort((a, b) => a - b);
+        for (const roundIndex of roundIndices) {
+            const rows = nightPlacements.filter(p => p.RoundIndex === roundIndex);
+            const freq = new Map();
+            for (const r of rows) freq.set(r.Position, (freq.get(r.Position) ?? 0) + 1);
+            const byPlayer = new Map(rows.map(r => [r.PlayerId, r]));
+            for (const id of orderedIds) {
+                const r = byPlayer.get(id);
+                if (!r) continue;
+                perPlayer.get(id).push({ pos: r.Position, tied: freq.get(r.Position) > 1 });
+            }
+        }
+        series.push({
+            label: `Kväll ${nightNumber}`,
+            cells: orderedIds.map(id => formatPlacements(perPlayer.get(id))),
+        });
+    }
+
+    // --- LIVE (speglar huvudloopen i CalculateHistory) ---
+    // Endast kvällar med minst en omgång (appen filtrerar withRounds > 0).
+    const nights = queryAll(db,
+        `SELECT Id, ${PLAYED_ON_MS_SQL} AS PlayedOnMs ` +
+        "FROM GameNights WHERE DeletedAt IS NULL ORDER BY PlayedOn ASC");
+    const rounds = queryAll(db,
+        "SELECT Id, GameNightId, RoundNumber, TrackCount FROM Rounds WHERE DeletedAt IS NULL");
+    const results = queryAll(db,
+        "SELECT RoundId, PlayerId, FirstPlaces, SecondPlaces, ThirdPlaces, FourthPlaces " +
+        "FROM RoundResults WHERE DeletedAt IS NULL");
+
+    const resultsByRound = new Map();
+    for (const r of results) {
+        if (!resultsByRound.has(r.RoundId)) resultsByRound.set(r.RoundId, []);
+        resultsByRound.get(r.RoundId).push(r);
+    }
+    const roundsByNight = new Map();
+    for (const round of rounds) {
+        if (!roundsByNight.has(round.GameNightId)) roundsByNight.set(round.GameNightId, []);
+        roundsByNight.get(round.GameNightId).push(round);
+    }
+
+    for (const night of nights) {
+        const nightRounds = (roundsByNight.get(night.Id) ?? [])
+            .slice()
+            .sort((a, b) => a.RoundNumber - b.RoundNumber);
+        if (nightRounds.length === 0) continue;
+
+        const perPlayer = new Map(orderedIds.map(id => [id, []]));
+        for (const round of nightRounds) {
+            const roundResults = resultsByRound.get(round.Id) ?? [];
+            // Karriärsnittet räknar ALLA banor (även partiella omgångar).
+            for (const r of roundResults) {
+                careerPoints.set(r.PlayerId, careerPoints.get(r.PlayerId) + pointsFor(r));
+                careerTracks.set(r.PlayerId, careerTracks.get(r.PlayerId) + tracksFor(r));
+            }
+            // Placeringar + totalscore-counts bara för kompletta omgångar.
+            if (isComplete(round.TrackCount, roundResults.length)) {
+                const positions = calculateRoundPositions(roundResults);
+                const freq = new Map();
+                for (const pos of positions.values()) freq.set(pos, (freq.get(pos) ?? 0) + 1);
+                for (const id of orderedIds) {
+                    const pos = positions.get(id);
+                    const c = counts.get(id);
+                    if (pos === 1) c.f++;
+                    else if (pos === 2) c.s++;
+                    else if (pos === 3) c.t++;
+                    else c.fo++;
+                    perPlayer.get(id).push({ pos, tied: freq.get(pos) > 1 });
+                }
+            }
+        }
+        series.push({
+            label: formatDate(night.PlayedOnMs),
+            cells: orderedIds.map(id => formatPlacements(perPlayer.get(id))),
+        });
+    }
+
+    const totalsRows = orderedIds.map(id => {
+        const c = counts.get(id);
+        const tracks = careerTracks.get(id);
+        const avg = tracks === 0 ? 0 : careerPoints.get(id) / tracks;
+        return {
+            id,
+            name: nameById.get(id),
+            firsts: c.f,
+            seconds: c.s,
+            thirds: c.t,
+            fourths: c.fo,
+            careerAverage: formatAverage(avg),
+        };
+    });
+
+    return { players, totalsRows, series };
+}
+
 // --- rendering -------------------------------------------------------------
 
 function el(tag, className, text) {
@@ -192,6 +376,124 @@ function renderNights(summaries) {
     }
 }
 
+function setSectionStatus(id, message, isError) {
+    const status = document.getElementById(id);
+    status.textContent = message ?? "";
+    status.classList.toggle("status--error", Boolean(isError));
+    status.style.display = message ? "" : "none";
+}
+
+// Totalscore-tabell (speglar Views/TotalscoreTable.xaml + HistoryStatsViewModel).
+// Spelarnamn i första kolumnen får sin färg. Karriärsnitt döljs bakom en
+// toggle (visar "•••" tills användaren klickar "Visa karriärsnitt"), precis
+// som appen.
+function renderTotalscore(container, totalsRows) {
+    container.replaceChildren();
+    const wrap = el("div", "totalscore");
+    wrap.dataset.career = "hidden";
+
+    const toggle = el("button", "career-toggle", "Visa karriärsnitt");
+    toggle.type = "button";
+    toggle.addEventListener("click", () => {
+        const shown = wrap.dataset.career === "shown";
+        wrap.dataset.career = shown ? "hidden" : "shown";
+        toggle.textContent = shown ? "Visa karriärsnitt" : "Dölj karriärsnitt";
+    });
+    wrap.appendChild(toggle);
+
+    const table = el("table", "stat-table");
+    const thead = el("thead");
+    const htr = el("tr");
+    htr.appendChild(el("th", "col-name", "Spelare"));
+    for (const h of ["1:or", "2:or", "3:or", "4:or"]) htr.appendChild(el("th", "col-num", h));
+    htr.appendChild(el("th", "col-avg", "Karriärsnitt"));
+    thead.appendChild(htr);
+    table.appendChild(thead);
+
+    const tbody = el("tbody");
+    for (const row of totalsRows) {
+        const tr = el("tr");
+        const nameTd = el("td", "col-name");
+        const nameSpan = el("span", "player-name", row.name);
+        nameSpan.style.color = colorForName(row.name);
+        nameTd.appendChild(nameSpan);
+        tr.appendChild(nameTd);
+        tr.appendChild(el("td", "col-num", String(row.firsts)));
+        tr.appendChild(el("td", "col-num", String(row.seconds)));
+        tr.appendChild(el("td", "col-num", String(row.thirds)));
+        tr.appendChild(el("td", "col-num", String(row.fourths)));
+
+        const avgTd = el("td", "col-avg");
+        avgTd.appendChild(el("span", "career-value", row.careerAverage));
+        avgTd.appendChild(el("span", "career-hidden", "•••"));
+        tr.appendChild(avgTd);
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    container.appendChild(wrap);
+}
+
+// Placeringstabell (speglar Views/PlacementsTable.xaml). Kolumner: Kväll + 4
+// spelare (namn i sina färger i header-raden). Cellvärden är redan färdig-
+// formaterade i buildHistory; tom cell renderas som dämpat "—".
+function renderPlacementsTable(container, rows, players) {
+    container.replaceChildren();
+    const table = el("table", "stat-table");
+
+    const thead = el("thead");
+    const htr = el("tr");
+    htr.appendChild(el("th", "col-name", "Kväll"));
+    for (const p of players) {
+        const th = el("th", "col-num");
+        const span = el("span", "player-name", p.Name);
+        span.style.color = colorForName(p.Name);
+        th.appendChild(span);
+        htr.appendChild(th);
+    }
+    thead.appendChild(htr);
+    table.appendChild(thead);
+
+    const tbody = el("tbody");
+    for (const row of rows) {
+        const tr = el("tr");
+        tr.appendChild(el("td", "col-name", row.label));
+        for (const cell of row.cells) {
+            tr.appendChild(cell === ""
+                ? el("td", "col-num cell-empty", "—")
+                : el("td", "col-num", cell));
+        }
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    container.appendChild(table);
+}
+
+// Renderar Översikt (Totalscore + senaste 4 kvällarna) och Placeringar (alla
+// kvällar, nyaste först) från en enda buildHistory-pass.
+function renderStatistics(history) {
+    if (history.series.length === 0 && history.totalsRows.every(r => r.firsts === 0
+        && r.seconds === 0 && r.thirds === 0 && r.fourths === 0)) {
+        setSectionStatus("oversikt-status", "Ingen statistik än.", false);
+        setSectionStatus("placeringar-status", "Inga kvällar än.", false);
+        return;
+    }
+    setSectionStatus("oversikt-status", null, false);
+    setSectionStatus("placeringar-status", null, false);
+
+    renderTotalscore(document.getElementById("oversikt-totalscore"), history.totalsRows);
+    // Senaste 4 kvällarna = sista 4 i den kronologiska serien, nyaste först.
+    renderPlacementsTable(
+        document.getElementById("oversikt-placements"),
+        history.series.slice(-4).reverse(),
+        history.players);
+    // Placeringar: alla kvällar, nyaste först.
+    renderPlacementsTable(
+        document.getElementById("placeringar-placements"),
+        [...history.series].reverse(),
+        history.players);
+}
+
 // --- start -----------------------------------------------------------------
 
 async function main() {
@@ -233,6 +535,16 @@ async function main() {
         db.checkRc(rc);
 
         renderNights(buildNightSummaries(db));
+
+        // Statistik-sektionerna får ett eget try — om aggregeringen skulle
+        // kasta (t.ex. korrupt data) blankas bara de, inte hela sidan.
+        try {
+            renderStatistics(buildHistory(db));
+        } catch (statErr) {
+            console.error(statErr);
+            setSectionStatus("oversikt-status", "Kunde inte beräkna statistik.", true);
+            setSectionStatus("placeringar-status", "Kunde inte beräkna statistik.", true);
+        }
     } catch (err) {
         console.error(err);
         setStatus("Kunde inte läsa databasen.", true);
