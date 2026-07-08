@@ -973,12 +973,21 @@ async function main() {
 
     let bytes;
     try {
-        const resp = await fetch("data/db.sqlite", { cache: "no-store" });
+        // Inget `cache: no-store` längre — service workern (stale-while-
+        // revalidate) sköter färskheten: cachad db serveras direkt (funkar
+        // offline) och en ny hämtas i bakgrunden för nästa laddning.
+        const resp = await fetch("data/db.sqlite");
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         bytes = new Uint8Array(await resp.arrayBuffer());
-        if (bytes.byteLength === 0) throw new Error("empty");
     } catch (err) {
         console.error(err);
+        const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+        setStatus(offline
+            ? "Ingen internetanslutning och ingen cachad databas."
+            : "Kunde inte hämta databasen.", true);
+        return;
+    }
+    if (bytes.byteLength === 0) {
         setStatus("Ingen databas uppladdad än.", true);
         return;
     }
@@ -1032,3 +1041,12 @@ async function main() {
 // den direkt, kör sen dataladdningen.
 initTabs();
 main();
+
+// Registrera service worker för offline-cache + installerbar PWA (skiva 26).
+// Best-effort: misslyckas den fungerar sidan ändå, bara utan offline-stöd.
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js", { scope: "./" })
+            .catch((err) => console.warn("Service worker-registrering misslyckades:", err));
+    });
+}
