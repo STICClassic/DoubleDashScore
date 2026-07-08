@@ -4,5 +4,5 @@ namespace DoubleDashScore.Data;
 
 public sealed record RoundDetail(Round Round, IReadOnlyList<RoundResult> Results)
 {
-    public bool IsComplete => Round.TrackCount == 16 && Results.Count == 4;
+    public bool IsComplete => RoundCompletionRule.IsComplete(Round.TrackCount, Results.Count);
 }
