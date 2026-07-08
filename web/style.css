@@ -244,3 +244,164 @@ body {
 .cell-empty {
     color: var(--muted-strong);
 }
+
+/* Grafer (Kvällsgraf, Karriärgraf) ------------------------------------ */
+
+.chart-block {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 10px 12px 12px;
+}
+
+.chart-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.chart-selected-label {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.chart-fullscreen {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-size: 20px;
+    line-height: 1;
+    padding: 4px 6px;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+/* Fast höjd på inline-grafen; scrub via pan-y så vertikal sid-scroll finns kvar. */
+.chart-canvas-wrap {
+    position: relative;
+    height: 240px;
+}
+
+.chart-canvas-wrap canvas {
+    touch-action: pan-y;
+}
+
+/* Legend under grafen — en chip per spelare med värdet för vald kväll.
+   Klick togglar spelarens linje (delas mellan båda graferna). */
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 10px;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    padding: 4px 2px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text);
+}
+
+.legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex: 0 0 auto;
+}
+
+.legend-name {
+    font-weight: 600;
+}
+
+.legend-value {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Avvald spelare: dämpad, swatch tömd. */
+.legend-item.hidden {
+    opacity: 0.4;
+}
+
+.legend-item.hidden .legend-swatch {
+    background: transparent !important;
+    box-shadow: inset 0 0 0 2px var(--muted-strong);
+}
+
+/* Helskärms-overlay (Alt A) ------------------------------------------- */
+
+#fs-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: #000000;
+}
+
+#fs-overlay[hidden] {
+    display: none;
+}
+
+#fs-close {
+    position: absolute;
+    top: calc(8px + env(safe-area-inset-top));
+    right: calc(8px + env(safe-area-inset-right));
+    z-index: 1002;
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* Grafinnehållet (canvas + legend) staplat; fyller viewport i landskap. */
+#fs-chart-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+#fs-canvas-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#fs-canvas-wrap canvas {
+    touch-action: none;
+}
+
+#fs-legend {
+    flex: 0 0 auto;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+/* Porträtt utan orientation-lock (iOS): rotera hela grafinnehållet 90° så
+   det visas liggande. Wrappen får bytta dimensioner (100vh × 100vw) och
+   roteras runt sin mittpunkt — canvas + legend följer med. */
+#fs-overlay.rotate #fs-chart-wrap {
+    width: 100vh;
+    height: 100vw;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center center;
+}
