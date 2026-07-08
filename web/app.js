@@ -907,7 +907,7 @@ function renderGraphs(graphs) {
 // Chart.js-instanser lever kvar och varje panels scroll-läge bevaras av
 // browsern. En graf som skapats i en dold panel har 0 storlek tills den visas,
 // därför resize() vid tabb-byte.
-const navState = { main: "kvallar", inner: "totalscore" };
+const navState = { main: "kvallar", inner: "oversikt" };
 
 function showPanel(name) {
     for (const panel of document.querySelectorAll(".panel")) {

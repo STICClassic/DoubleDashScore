@@ -121,14 +121,12 @@ body {
     padding: 14px 16px 24px;
 }
 
-/* Huvudtabbar nederst ----------------------------------------------- */
-.bottom-tabs {
+/* Huvudtabbar överst, direkt under headern ------------------------- */
+.main-tabs {
     flex: 0 0 auto;
     display: flex;
-    border-top: 1px solid #333333;
+    border-bottom: 1px solid #333333;
     background: var(--bg);
-    /* Håll etiketterna ovanför iOS home-indicator; bakgrunden fyller ned. */
-    padding-bottom: env(safe-area-inset-bottom);
 }
 
 .main-tab {

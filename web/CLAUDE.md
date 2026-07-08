@@ -132,8 +132,8 @@ ställena. Nuvarande palett:
 
 ```
 web/
-  index.html      App-skal: header + inre tabbar + panel-container (en
-                  panel per tabb) + bottom-tabbar + helskärms-overlay
+  index.html      App-skal: header + huvudtabbar + inre tabbar + panel-
+                  container (en panel per tabb) + helskärms-overlay
   style.css       Mörkt tema, matchar appen
   app.js          Huvudlogik (ES-modul): laddar db, beräknar, renderar
   appicon.png     Kopia av appens Resources/AppIcon/appicon.png
@@ -188,23 +188,30 @@ skiva 20). Värdena speglar `Resources/Styles/Colors.xaml`.
 
 **Tvånivå-tabbar**, inte scroll. Speglar appens Shell-struktur:
 
-- **Huvudtabbar nederst** (`.bottom-tabs`, `data-main`): **Kvällar | Statistik**.
+- **Huvudtabbar överst** (`.main-tabs`, `data-main`), direkt under headern:
+  **Kvällar | Statistik**.
 - **Inre Statistik-tabbar** (`#inner-tabs`, `data-inner`, syns bara i Statistik):
-  **Totalscore | Placeringar | Kvällsgraf | Karriärgraf | Översikt** (appens
-  ordning, Totalscore först).
-- **Översikt bor som femte inre Statistik-tabb** — skillnad mot appen, där
-  Översikt är en separat `ToolbarItem`-sida. På webben saknas toolbar, så det
-  enklaste är en tabb. Totalscore-tabellen renderas därför i **två** paneler
-  (fristående "Totalscore" + överst i "Översikt") som två oberoende instanser.
+  **Översikt | Kvällsgraf | Totalscore | Placeringar | Karriärgraf**.
+  **Default-tabb = Översikt** (`navState.inner`).
+- **Statistik-tabbordningen skiljer sig medvetet från appen.** Appen har
+  Totalscore / Placeringar / Kvällsgraf / Karriärgraf (med Översikt som separat
+  `ToolbarItem`-sida). Webben ordnar efter användningsfrekvens: Översikt och
+  Kvällsgraf är mest besökta. Översikt är den "lugna" översiktsvyn och blir
+  därför default-landning när man tappar Statistik-tabben; resten är fallande
+  efter frekvens. Detta är **webb-specifik design** — ingen inkonsekvens att
+  reda ut för framtida sessioner.
+- **Översikt bor som inre Statistik-tabb** — skillnad mot appen, där Översikt
+  är en separat `ToolbarItem`-sida. På webben saknas toolbar, så det enklaste är
+  en tabb. Totalscore-tabellen renderas därför i **två** paneler (fristående
+  "Totalscore" + överst i "Översikt") som två oberoende instanser.
 
 App-skalet (`app.js`, `initTabs`/`selectMain`/`selectInner`, `navState`):
 
 - **Layout:** `body` är en flex-kolumn på `100dvh` (`overflow:hidden`): header
-  → (ev.) inre tabbar → `#content` (scroll-region) → bottom-tabbar. `100dvh`
-  följer iOS Safaris dynamiska viewport. Bottom-tabbarna är **sista flex-barnet**
-  (inte `position:fixed`) — samma "fast i botten"-resultat men utan
-  padding-bottom-överlapp; `padding-bottom: env(safe-area-inset-bottom)` håller
-  etiketterna ovanför iOS home-indicator.
+  → huvudtabbar → (ev.) inre tabbar → `#content` (scroll-region). `100dvh`
+  följer iOS Safaris dynamiska viewport. Huvudtabbraden ligger **överst** direkt
+  under headern; headern har `padding-top: env(safe-area-inset-top)` så den
+  klarar iOS notch/status-bar. `#content` fyller hela nedre delen och scrollar.
 - **En panel åt gången:** varje `.panel` är `position:absolute; inset:0;
   overflow-y:auto` i `#content`. Tabb-byte togglar `hidden`-attributet
   (`display:none`). DOM + Chart.js-instanser lever kvar, och browsern **bevarar
@@ -218,7 +225,7 @@ App-skalet (`app.js`, `initTabs`/`selectMain`/`selectInner`, `navState`):
   storlek; `resizeGraphPanel()` kör `chart.resize()` när Kvällsgraf/Karriärgraf
   visas (och efter att datan landat om tabben redan var aktiv).
 - **Helskärm** (`#fs-overlay`, `position:fixed; z-index:1000`) täcker både
-  bottom- och inre tabbar — verifierat även för iOS CSS-rotations-fallbacken
+  huvud- och inre tabbar — verifierat även för iOS CSS-rotations-fallbacken
   (overlayn ligger över allt i normalflödet).
 
 ## Poängsystem (spegling)
@@ -268,9 +275,9 @@ tomma platshållaren (0 byte).
 - Kvällar-sektionen renderar alla kvällar (nyaste först) med datum,
   omgångsantal, ev. anteckning och vinnare per komplett omgång i rätt
   spelarfärger.
-- Tabb-navigation: Kvällar/Statistik-huvudtabbar + de fem inre Statistik-
-  tabbarna, aktiv tabb accent-orange, scroll-läge bevaras per tabb, bottom-
-  tabbar respekterar `safe-area-inset-bottom`.
+- Tabb-navigation: Kvällar/Statistik-huvudtabbar överst + de fem inre
+  Statistik-tabbarna (default Översikt), aktiv tabb accent-orange, scroll-läge
+  bevaras per tabb, headern respekterar `safe-area-inset-top`.
 - Alla sektioner byggda: Kvällar, Totalscore, Placeringar, Kvällsgraf,
   Karriärgraf, Översikt.
 - Graferna: rätt spelarfärger, Y-axel låst 1–4, scrub uppdaterar legenden,
