@@ -531,6 +531,12 @@ Sånt som tog tid att lista ut. Dokumenterat så vi inte rör i det igen.
 /ViewModels      — en per vy, ärver ObservableObject
 /Views           — XAML-vyer (NewNightPage, RoundEntryPage, StatsPage, etc.)
 /Resources       — bilder, stilar
+/web             — separat läs-bar mobil-webb (vanilla HTML/JS/CSS) som
+                   speglar appens data via en manuellt uppladdad .db. Eget
+                   projekt med egna konventioner: se web/CLAUDE.md. Appen är
+                   sanning, webben mirrorar (spelarfärger/formler hålls i synk
+                   för hand). Deployas till GitHub Pages via
+                   .github/workflows/pages-deploy.yml.
 MauiProgram.cs   — DI och appstart
 CLAUDE.md        — det här dokumentet
 

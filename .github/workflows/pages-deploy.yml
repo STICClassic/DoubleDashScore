@@ -1,0 +1,46 @@
+name: Deploy web to GitHub Pages
+
+# Deployar ENDAST web/-mappen (inte hela repot) till GitHub Pages.
+# Triggar på push till main när web/ eller själva workflowen ändras.
+# Första gången måste Pages-source ställas till "GitHub Actions" manuellt
+# i repo-inställningarna (Settings → Pages → Source). Se web/CLAUDE.md.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/pages-deploy.yml'
+  workflow_dispatch:
+
+# Rättigheter som actions/deploy-pages kräver.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Tillåt en pågående deploy i taget; hoppa inte över den senaste.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload web/ as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
