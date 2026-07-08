@@ -445,11 +445,15 @@ Stabila beslut andra PR:s måste känna till:
   omgång = spelaren med högst total poäng. Implementerat i
   `StatsCalculator.PointsFor`.
 - **Vinnare beräknas i `GameNightRepository.GetSummariesAsync`**, i *samma*
-  loop som räknar kompletta omgångar — lägg inte en tredje kopia av
-  `IsComplete`-villkoret (`TrackCount == 16 && 4 resultatrader`) någon
-  annanstans. Resultatet bärs ut på `GameNightSummary.WinnersByRound`
-  (`IReadOnlyList<IReadOnlyList<int>>` av spelar-Id, partiella omgångar
-  redan bortfiltrerade). En query för alla `RoundResults`, inga N+1-anrop.
+  loop som räknar kompletta omgångar. Komplett-villkoret självt är
+  konsoliderat till **`Data/RoundCompletionRule.cs`** (`IsComplete(trackCount,
+  resultsCount)` + konstanterna `RequiredTrackCount`/`RequiredResultsCount`) —
+  anropa den, hårdkoda inte `TrackCount == 16 && 4 resultatrader` någon
+  annanstans. Både `RoundDetail.IsComplete` (hydraterade objekt) och den här
+  loopen (råvärden från SQL) delar den. Resultatet bärs ut på
+  `GameNightSummary.WinnersByRound` (`IReadOnlyList<IReadOnlyList<int>>` av
+  spelar-Id, partiella omgångar redan bortfiltrerade). En query för alla
+  `RoundResults`, inga N+1-anrop.
 - **Vinnare = flest banpoäng** i omgången via `StatsCalculator.PointsFor`
   (poängformeln delas med statistiken). Lika poäng ⇒ delad seger: alla med
   maxpoäng listas, åtskilda med "/". Ingen alfabetisk tiebreaker.

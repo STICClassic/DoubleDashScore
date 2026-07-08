@@ -86,17 +86,17 @@ public class GameNightRepository
             roundsByNight.TryGetValue(n.Id, out var nightRounds);
             nightRounds ??= new List<Round>();
 
-            // Komplett-villkoret (TrackCount == 16 && 4 resultatrader) avgör
-            // både antalsräkningen och vilka omgångar som får en vinnare —
-            // beräknas på ett ställe, samma loop, för att inte duplicera
-            // IsComplete-logiken ytterligare en gång.
+            // Komplett-villkoret avgör både antalsräkningen och vilka omgångar
+            // som får en vinnare — samma loop. Regeln själv bor i
+            // RoundCompletionRule (delas med RoundDetail.IsComplete) så villkoret
+            // inte dupliceras.
             var complete = 0;
             var winnersByRound = new List<IReadOnlyList<int>>();
             foreach (var round in nightRounds.OrderBy(r => r.RoundNumber))
             {
                 resultsByRound.TryGetValue(round.Id, out var results);
                 results ??= new List<RoundResult>();
-                if (round.TrackCount != 16 || results.Count != 4)
+                if (!RoundCompletionRule.IsComplete(round.TrackCount, results.Count))
                 {
                     continue;
                 }

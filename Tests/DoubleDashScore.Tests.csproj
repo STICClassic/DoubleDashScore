@@ -13,6 +13,7 @@
 		<!-- Compile the pure-domain pieces from the main project directly so we
 		     don't need a project reference into the multi-targeted MAUI csproj. -->
 		<Compile Include="..\Models\*.cs" LinkBase="Models" />
+		<Compile Include="..\Data\RoundCompletionRule.cs" LinkBase="Data" />
 		<Compile Include="..\Data\RoundDetail.cs" LinkBase="Data" />
 		<Compile Include="..\Data\RoundResultInput.cs" LinkBase="Data" />
 		<Compile Include="..\Data\NightWithRounds.cs" LinkBase="Data" />
