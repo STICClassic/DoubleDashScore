@@ -6,10 +6,16 @@
 //   - Poäng/vinnare: Services/StatsCalculator.PointsFor + GameNightRepository.GetSummariesAsync
 //   - Spelarfärger:  Services/PlayerColors.cs
 //   - Komplett omgång: Data/RoundCompletionRule.cs (TrackCount == 16 && Results.Count == 4)
+//   - Statistik/grafer: Services/StatsCalculator.CalculateHistory + HistoryStatsViewModel
 // Appen är sanning, webben mirrorar. Ändras något där, ändra här också.
 
 import sqlite3InitModule
     from "https://cdn.jsdelivr.net/npm/@sqlite.org/sqlite-wasm@3.50.4-build1/sqlite-wasm/jswasm/sqlite3.mjs";
+// Chart.js pinnad på 4.5.1 (senaste stabila 4.x). "auto"-ingången
+// auto-registrerar alla controllers/scales så vi slipper manuell
+// Chart.register(...). Ren canvas/main-thread — inget worker-krav, funkar på
+// iOS Safari + Android Chrome. Se web/CLAUDE.md.
+import Chart from "https://cdn.jsdelivr.net/npm/chart.js@4.5.1/auto/+esm";
 
 // Spelarfärger — hårdkodade speglingar av Services/PlayerColors.cs (HexByName).
 // MÅSTE hållas i synk med appen. Se web/CLAUDE.md.
@@ -494,6 +500,394 @@ function renderStatistics(history) {
         history.players);
 }
 
+// --- grafer ----------------------------------------------------------------
+
+const CHART_MUTED = "#ACACAC";
+const CHART_GRID = "rgba(255,255,255,0.08)";
+
+// Bygger dataserier för Kvällsgraf + Karriärgraf i en pass över seed + live.
+// Speglar StatsCalculator.CalculateHistory (AverageByPlayer per kväll) och
+// HistoryStatsViewModel.BuildCumulativeCareerAverages (rullande snitt).
+//
+//   night  = kvällssnitt = banpoäng / banor den kvällen (1–4, högre bättre).
+//            Seed: HistoricalPointsFor/HistoricalTracksFor. Live: nightPoints/
+//            nightTracks (alla omgångar, även partiella).
+//   career = OVIKTAT löpande medel av kvällssnitten t.o.m. kväll N. Detta är
+//            karriärgrafens avvikande formel (inte points/tracks som
+//            Totalscore-tabellen) — seed saknar banantal per kväll så viktat
+//            snitt går inte att räkna. Se web/CLAUDE.md.
+//
+// Etikett = "Kväll N": historiska kvällar använder sitt NightNumber, live-
+// kvällar sitt kronologiska index (seed-antal + löpnummer) — matchar appens
+// BuildNightLabel för graf-legenden.
+function buildGraphs(db) {
+    const players = queryAll(db,
+        "SELECT Id, Name, DisplayOrder FROM Players WHERE DeletedAt IS NULL ORDER BY DisplayOrder");
+    const orderedIds = players.map(p => p.Id);
+
+    // Varje punkt: { label, avg: Map<id, number|null> } (kvällssnitt).
+    const points = [];
+
+    // --- SEED ---
+    const aggregates = queryAll(db,
+        "SELECT NightNumber, PlayerId, FirstPlaces, SecondPlaces, ThirdPlaces, FourthPlaces " +
+        "FROM HistoricalNightAggregates");
+    const aggByNight = new Map();
+    for (const a of aggregates) {
+        if (!aggByNight.has(a.NightNumber)) aggByNight.set(a.NightNumber, new Map());
+        aggByNight.get(a.NightNumber).set(a.PlayerId, a);
+    }
+    const seedNightNumbers = [...aggByNight.keys()].sort((x, y) => x - y);
+    for (const nightNumber of seedNightNumbers) {
+        const byPlayer = aggByNight.get(nightNumber);
+        const avg = new Map();
+        for (const id of orderedIds) {
+            const a = byPlayer.get(id);
+            avg.set(id, a ? pointsFor(a) / tracksFor(a) : null);
+        }
+        points.push({ label: `Kväll ${nightNumber}`, avg });
+    }
+
+    // --- LIVE (asc PlayedOn, rounds > 0) ---
+    const nights = queryAll(db,
+        "SELECT Id FROM GameNights WHERE DeletedAt IS NULL ORDER BY PlayedOn ASC");
+    const rounds = queryAll(db,
+        "SELECT Id, GameNightId, RoundNumber, TrackCount FROM Rounds WHERE DeletedAt IS NULL");
+    const results = queryAll(db,
+        "SELECT RoundId, PlayerId, FirstPlaces, SecondPlaces, ThirdPlaces, FourthPlaces " +
+        "FROM RoundResults WHERE DeletedAt IS NULL");
+    const resultsByRound = new Map();
+    for (const r of results) {
+        if (!resultsByRound.has(r.RoundId)) resultsByRound.set(r.RoundId, []);
+        resultsByRound.get(r.RoundId).push(r);
+    }
+    const roundsByNight = new Map();
+    for (const round of rounds) {
+        if (!roundsByNight.has(round.GameNightId)) roundsByNight.set(round.GameNightId, []);
+        roundsByNight.get(round.GameNightId).push(round);
+    }
+    let chronoIndex = seedNightNumbers.length;
+    for (const night of nights) {
+        const nightRounds = (roundsByNight.get(night.Id) ?? [])
+            .slice()
+            .sort((a, b) => a.RoundNumber - b.RoundNumber);
+        if (nightRounds.length === 0) continue;
+
+        const nightPoints = new Map(orderedIds.map(id => [id, 0]));
+        const nightTracks = new Map(orderedIds.map(id => [id, 0]));
+        for (const round of nightRounds) {
+            for (const r of (resultsByRound.get(round.Id) ?? [])) {
+                nightPoints.set(r.PlayerId, nightPoints.get(r.PlayerId) + pointsFor(r));
+                nightTracks.set(r.PlayerId, nightTracks.get(r.PlayerId) + tracksFor(r));
+            }
+        }
+        chronoIndex++;
+        const avg = new Map();
+        for (const id of orderedIds) {
+            const tracks = nightTracks.get(id);
+            avg.set(id, tracks ? nightPoints.get(id) / tracks : null);
+        }
+        points.push({ label: `Kväll ${chronoIndex}`, avg });
+    }
+
+    // Rullande karriärsnitt = oviktat löpande medel av kvällssnitten.
+    const sumByPlayer = new Map(orderedIds.map(id => [id, 0]));
+    const countByPlayer = new Map(orderedIds.map(id => [id, 0]));
+    const cumulative = points.map(point => {
+        const cum = new Map();
+        for (const id of orderedIds) {
+            const a = point.avg.get(id);
+            if (a == null) { cum.set(id, null); continue; }
+            sumByPlayer.set(id, sumByPlayer.get(id) + a);
+            countByPlayer.set(id, countByPlayer.get(id) + 1);
+            cum.set(id, sumByPlayer.get(id) / countByPlayer.get(id));
+        }
+        return cum;
+    });
+
+    const labels = points.map(p => p.label);
+    const datasets = players.map(p => ({
+        id: p.Id,
+        name: p.Name,
+        color: colorForName(p.Name),
+        night: points.map(pt => pt.avg.get(p.Id)),
+        career: cumulative.map(c => c.get(p.Id)),
+    }));
+
+    return { players, labels, datasets };
+}
+
+// Delat läge för båda graferna (+ ev. helskärm): scrub-position och avvalda
+// spelare gäller alla samtidigt — medvetet, precis som appens ChartTransferStore.
+const graphState = {
+    selectedIndex: null,
+    hidden: new Set(),
+    controllers: [],
+    labels: [],
+};
+
+// Vertikal markörlinje vid vald kväll — Chart.js-plugin per graf.
+const markerPlugin = {
+    id: "nightMarker",
+    afterDatasetsDraw(chart) {
+        const idx = graphState.selectedIndex;
+        if (idx == null) return;
+        const x = chart.scales.x.getPixelForValue(idx);
+        if (Number.isNaN(x)) return;
+        const { top, bottom } = chart.chartArea;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.strokeStyle = "rgba(255,255,255,0.45)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+        ctx.stroke();
+        ctx.restore();
+    },
+};
+
+function makeChart(canvas, kind, graphs) {
+    return new Chart(canvas, {
+        type: "line",
+        data: {
+            labels: graphs.labels,
+            datasets: graphs.datasets.map(d => ({
+                label: d.name,
+                data: d[kind],
+                borderColor: d.color,
+                backgroundColor: d.color,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHitRadius: 0,
+                tension: 0,
+                spanGaps: true,
+                hidden: graphState.hidden.has(d.name),
+            })),
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            // Y-skalan är låst 1–4 (som appens BuildPlotModel) → att toggla bort
+            // en spelare hoppar aldrig skalan.
+            scales: {
+                y: {
+                    min: 1,
+                    max: 4,
+                    ticks: { stepSize: 1, color: CHART_MUTED },
+                    grid: { color: CHART_GRID },
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        color: CHART_MUTED,
+                        autoSkip: true,
+                        maxTicksLimit: 8,
+                        maxRotation: 0,
+                        callback: (_v, i) => (graphs.labels[i] || "").replace("Kväll ", ""),
+                    },
+                },
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false },
+            },
+        },
+        plugins: [markerPlugin],
+    });
+}
+
+// Legend under grafen: en chip per spelare med värdet för vald kväll i sin
+// färg. Klick togglar spelarens linje (delat state → alla grafer följer med).
+function renderChartLegend(legendEl, kind, graphs) {
+    legendEl.replaceChildren();
+    const idx = graphState.selectedIndex;
+    for (const d of graphs.datasets) {
+        const item = el("button", "legend-item");
+        item.type = "button";
+        if (graphState.hidden.has(d.name)) item.classList.add("hidden");
+
+        const swatch = el("span", "legend-swatch");
+        swatch.style.background = d.color;
+        const name = el("span", "legend-name", d.name);
+        name.style.color = d.color;
+        const value = idx != null ? d[kind][idx] : null;
+        const valueEl = el("span", "legend-value", value == null ? "—" : formatAverage(value));
+
+        item.append(swatch, name, valueEl);
+        item.addEventListener("click", () => togglePlayer(d.name));
+        legendEl.appendChild(item);
+    }
+}
+
+function createController(canvas, legendEl, labelEl, kind, graphs) {
+    const chart = makeChart(canvas, kind, graphs);
+    const controller = {
+        kind,
+        chart,
+        refreshLegend() { renderChartLegend(legendEl, kind, graphs); },
+        refreshLabel() {
+            if (labelEl) {
+                labelEl.textContent = graphState.selectedIndex != null
+                    ? graphs.labels[graphState.selectedIndex]
+                    : "";
+            }
+        },
+        applyHidden() {
+            chart.data.datasets.forEach(ds => { ds.hidden = graphState.hidden.has(ds.label); });
+            chart.update("none");
+        },
+        redraw() { chart.update("none"); },
+    };
+    attachScrub(canvas, chart);
+    graphState.controllers.push(controller);
+    return controller;
+}
+
+// Scrub längs grafen: pointer-drag väljer närmaste kväll. touch-action pan-y
+// (CSS) låter vertikal sid-scroll vara kvar; horisontellt drag scrubbar.
+function attachScrub(canvas, chart) {
+    let active = false;
+    const pick = (offsetX) => {
+        const raw = chart.scales.x.getValueForPixel(offsetX);
+        if (Number.isNaN(raw)) return;
+        const idx = Math.min(Math.max(Math.round(raw), 0), graphState.labels.length - 1);
+        setSelectedIndex(idx);
+    };
+    canvas.addEventListener("pointerdown", (e) => {
+        active = true;
+        canvas.setPointerCapture?.(e.pointerId);
+        pick(e.offsetX);
+    });
+    canvas.addEventListener("pointermove", (e) => { if (active) pick(e.offsetX); });
+    const stop = () => { active = false; };
+    canvas.addEventListener("pointerup", stop);
+    canvas.addEventListener("pointercancel", stop);
+}
+
+function setSelectedIndex(idx) {
+    graphState.selectedIndex = idx;
+    for (const c of graphState.controllers) {
+        c.redraw();
+        c.refreshLegend();
+        c.refreshLabel();
+    }
+}
+
+function togglePlayer(name) {
+    if (graphState.hidden.has(name)) graphState.hidden.delete(name);
+    else graphState.hidden.add(name);
+    for (const c of graphState.controllers) {
+        c.applyHidden();
+        c.refreshLegend();
+    }
+}
+
+// --- helskärm (Alt A) ---
+// Android Chrome: native requestFullscreen() + screen.orientation.lock('landscape')
+// roterar enheten. iOS Safari saknar orientation.lock → vi faller tillbaka på
+// CSS-rotation (klass .rotate) som visar grafen liggande i porträtt. En enda
+// orientation-driven klass-toggle täcker båda: är vyn porträtt roterar vi,
+// annars fyller grafen viewporten direkt.
+let fsController = null;
+
+function openFullscreen(kind, graphs) {
+    const overlay = document.getElementById("fs-overlay");
+    const canvas = document.getElementById("fs-canvas");
+    const legendEl = document.getElementById("fs-legend");
+    destroyFsController();
+    overlay.hidden = false;
+    fsController = createController(canvas, legendEl, null, kind, graphs);
+    fsController.refreshLegend();
+    enterNativeFullscreen(overlay);
+    updateRotation();
+    requestAnimationFrame(() => { if (fsController) fsController.chart.resize(); });
+}
+
+function destroyFsController() {
+    if (!fsController) return;
+    const i = graphState.controllers.indexOf(fsController);
+    if (i >= 0) graphState.controllers.splice(i, 1);
+    fsController.chart.destroy();
+    fsController = null;
+}
+
+async function enterNativeFullscreen(overlay) {
+    try {
+        if (overlay.requestFullscreen) await overlay.requestFullscreen();
+    } catch { /* iOS Safari saknar element-fullscreen — CSS-rotation tar över */ }
+    try {
+        if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock("landscape");
+        }
+    } catch { /* vissa Android-browsers avvisar lock — CSS-rotation tar över */ }
+    updateRotation();
+}
+
+async function closeFullscreen() {
+    const overlay = document.getElementById("fs-overlay");
+    destroyFsController();
+    overlay.hidden = true;
+    overlay.classList.remove("rotate");
+    try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+    } catch { /* ignore */ }
+    try {
+        if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+    } catch { /* ignore */ }
+}
+
+// Rotera bara när overlayn är öppen OCH vyn är porträtt (dvs orientation-lock
+// inte tog — typiskt iOS). Landskap (Android efter lock, eller fysiskt vridet)
+// fyller viewporten utan rotation.
+function updateRotation() {
+    const overlay = document.getElementById("fs-overlay");
+    if (overlay.hidden) return;
+    const portrait = window.matchMedia("(orientation: portrait)").matches;
+    overlay.classList.toggle("rotate", portrait);
+    if (fsController) requestAnimationFrame(() => fsController.chart.resize());
+}
+
+function renderGraphs(graphs) {
+    if (graphs.labels.length === 0) {
+        setSectionStatus("kvallsgraf-status", "Ingen graf-data än.", false);
+        setSectionStatus("karriargraf-status", "Ingen graf-data än.", false);
+        return;
+    }
+    setSectionStatus("kvallsgraf-status", null, false);
+    setSectionStatus("karriargraf-status", null, false);
+
+    graphState.labels = graphs.labels;
+    graphState.selectedIndex = graphs.labels.length - 1; // default: senaste kvällen
+
+    const nightBlock = document.querySelector('.chart-block[data-graph="night"]');
+    const careerBlock = document.querySelector('.chart-block[data-graph="career"]');
+
+    createController(
+        nightBlock.querySelector("canvas"),
+        nightBlock.querySelector(".chart-legend"),
+        nightBlock.querySelector(".chart-selected-label"),
+        "night", graphs);
+    createController(
+        careerBlock.querySelector("canvas"),
+        careerBlock.querySelector(".chart-legend"),
+        careerBlock.querySelector(".chart-selected-label"),
+        "career", graphs);
+
+    nightBlock.querySelector(".chart-fullscreen")
+        .addEventListener("click", () => openFullscreen("night", graphs));
+    careerBlock.querySelector(".chart-fullscreen")
+        .addEventListener("click", () => openFullscreen("career", graphs));
+    document.getElementById("fs-close").addEventListener("click", closeFullscreen);
+
+    window.addEventListener("orientationchange", updateRotation);
+    window.addEventListener("resize", updateRotation);
+
+    // Initiera legend/label/markör på default-kvällen.
+    setSelectedIndex(graphState.selectedIndex);
+}
+
 // --- start -----------------------------------------------------------------
 
 async function main() {
@@ -544,6 +938,15 @@ async function main() {
             console.error(statErr);
             setSectionStatus("oversikt-status", "Kunde inte beräkna statistik.", true);
             setSectionStatus("placeringar-status", "Kunde inte beräkna statistik.", true);
+        }
+
+        // Graf-sektionerna får också ett eget try av samma skäl.
+        try {
+            renderGraphs(buildGraphs(db));
+        } catch (graphErr) {
+            console.error(graphErr);
+            setSectionStatus("kvallsgraf-status", "Kunde inte rita grafen.", true);
+            setSectionStatus("karriargraf-status", "Kunde inte rita grafen.", true);
         }
     } catch (err) {
         console.error(err);

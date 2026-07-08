@@ -29,9 +29,20 @@
             <div id="nights-list" class="nights"></div>
         </section>
 
-        <!-- Övriga sektioner: placeholders (skiva 23). Ordning enligt val. -->
+        <!-- Kvällsgraf — kvällssnitt över tid (skiva 24). -->
         <section id="kvallsgraf" class="section">
-            <h2 class="section__title section__title--placeholder">Kvällsgraf (kommer)</h2>
+            <h2 class="section__title">Kvällsgraf</h2>
+            <div id="kvallsgraf-status" class="status"></div>
+            <div class="chart-block" data-graph="night">
+                <div class="chart-head">
+                    <span class="chart-selected-label"></span>
+                    <button type="button" class="chart-fullscreen" aria-label="Helskärm">⛶</button>
+                </div>
+                <div class="chart-canvas-wrap">
+                    <canvas></canvas>
+                </div>
+                <div class="chart-legend"></div>
+            </div>
         </section>
 
         <!-- Översikt — Totalscore + senaste 4 kvällarnas placeringar (skiva 23). -->
@@ -51,10 +62,33 @@
             <div id="placeringar-placements" class="table-scroll"></div>
         </section>
 
+        <!-- Karriärgraf — rullande karriärsnitt över tid (skiva 24). -->
         <section id="karriargraf" class="section">
-            <h2 class="section__title section__title--placeholder">Karriärgraf (kommer)</h2>
+            <h2 class="section__title">Karriärgraf</h2>
+            <div id="karriargraf-status" class="status"></div>
+            <div class="chart-block" data-graph="career">
+                <div class="chart-head">
+                    <span class="chart-selected-label"></span>
+                    <button type="button" class="chart-fullscreen" aria-label="Helskärm">⛶</button>
+                </div>
+                <div class="chart-canvas-wrap">
+                    <canvas></canvas>
+                </div>
+                <div class="chart-legend"></div>
+            </div>
         </section>
     </main>
+
+    <!-- Delad helskärms-overlay för båda graferna (skiva 24, Alt A). -->
+    <div id="fs-overlay" hidden>
+        <button type="button" id="fs-close" aria-label="Stäng helskärm">✕</button>
+        <div id="fs-chart-wrap">
+            <div id="fs-canvas-wrap">
+                <canvas id="fs-canvas"></canvas>
+            </div>
+            <div id="fs-legend" class="chart-legend"></div>
+        </div>
+    </div>
 
     <script type="module" src="app.js"></script>
 </body>

@@ -32,6 +32,10 @@ hand. Kända speglingar (sök på kommentaren "speglar" i `app.js`):
 | `renderWinners`              | `ViewModels/NightsListViewModel.BuildWinnersText`        |
 | `renderTotalscore`           | `Views/TotalscoreTable.xaml` + `HistoryStatsViewModel`   |
 | `renderPlacementsTable`      | `Views/PlacementsTable.xaml` + `HistoryStatsViewModel`   |
+| `buildGraphs` (night)        | `StatsCalculator.CalculateHistory` `AverageByPlayer` (kvällssnitt) |
+| `buildGraphs` (career)       | `HistoryStatsViewModel.BuildCumulativeCareerAverages` (rullande snitt) |
+| graf-etikett `"Kväll N"`     | `HistoryStatsViewModel.BuildNightLabel`                  |
+| Y-lås 1–4, marker, scrub, spelartoggle | `HistoryStatsViewModel.BuildPlotModel` + `ChartTransferStore` |
 | `PLAYER_COLORS`              | `Services/PlayerColors.cs` (`HexByName`)                 |
 
 **`buildHistory` gör en enda pass** över seed + live och speglar
@@ -55,6 +59,64 @@ hand. Kända speglingar (sök på kommentaren "speglar" i `app.js`):
   först** (serien reverseras vid render). Appen visar dem stigande med
   auto-scroll till botten — se avvikelse-noten i skiva 23:s PR.
 
+**`buildGraphs` (skiva 24)** bygger dataserier för de två graferna i en pass:
+
+- **Kvällsgraf** = kvällssnitt per kväll (`AverageByPlayer`): banpoäng/banor,
+  1–4 där **högre är bättre** (4 = alla förstaplatser). Seed:
+  `HistoricalPointsFor/HistoricalTracksFor`. Live: `nightPoints/nightTracks`
+  över alla omgångar (även partiella). Detta är appens Kvällsgraf — **inte**
+  "snittplacering" (1 bäst); mät på poäng, inte position.
+- **Karriärgraf** = **oviktat löpande medel** av kvällssnitten t.o.m. kväll N.
+  Detta är "karriärsnittformelns avvikelse": karriärgrafen använder oviktat
+  medel (inte `points/tracks` som Totalscore-tabellen) eftersom historisk
+  seed-data saknar banantal per kväll. Sluttalen skiljer sig därför något
+  mellan Karriärgrafens sista punkt och Totalscore-tabellens Karriärsnitt —
+  det är **avsiktligt**, inte en bugg.
+- **Y-axeln är låst 1–4** på båda graferna (som `BuildPlotModel`), så att
+  avväljning av en spelarlinje aldrig får skalan att hoppa.
+- **Etikett** per kväll = `"Kväll N"` (`BuildNightLabel`): seed-kvällar
+  använder sitt `NightNumber`, live-kvällar sitt kronologiska index.
+- **Delat läge** (`graphState`): scrub-position och avvalda spelare gäller
+  **båda** graferna samtidigt (speglar `ChartTransferStore` som delar
+  `SelectedNightIndex` + `HiddenPlayerNames`). Default-vald kväll = senaste.
+
+### Grafbibliotek: Chart.js 4.5.1 (pinnad)
+
+- Importeras som ES-modul: `https://cdn.jsdelivr.net/npm/chart.js@4.5.1/auto/+esm`.
+  **`auto`-ingången** auto-registrerar alla controllers/scales så vi slipper
+  `Chart.register(...)`. Ren canvas/2D på **main-tråden** — inget worker-krav,
+  fungerar på iOS Safari + Android Chrome. Bundlen (~200 KB min, brotli ~60 KB)
+  drar med sig sin enda dep (`@kurkle/color`) från samma CDN.
+- **Pinnad** (inte `@latest`) för reproducerbarhet — 4.x har inga brytande
+  ändringar men vi vill undvika överraskningar vid framtida majors.
+- Legenden är **egen HTML** (inte Chart.js inbyggda), eftersom den visar den
+  valda kvällens värden per spelare (scrubber-stil) och togglar linjer.
+  Tooltip + inbyggd legend är avstängda; scrub drivs av egna pointer-events
+  (`touch-action: pan-y` så vertikal sid-scroll finns kvar).
+
+### Helskärm för grafer (Alt A)
+
+Trigger: **explicit ⛶-knapp** per graf (inte tap-på-graf) — tap/drag är redan
+scrub-gesten, och appen använder också en dedikerad "Helskärm"-knapp. En delad
+overlay (`#fs-overlay`) återanvänds för båda graferna.
+
+Strategin är **en orientation-driven klass-toggle** som täcker båda plattformar:
+
+- **Android Chrome:** `element.requestFullscreen()` + `screen.orientation.lock('landscape')`
+  → enheten roterar fysiskt → vyn blir landskap → ingen CSS-rotation behövs.
+- **iOS Safari:** saknar element-`requestFullscreen` och `screen.orientation.lock`
+  → båda anropen no-op:ar (feature-detektion: `if (el.requestFullscreen)` /
+  `if (screen.orientation?.lock)`, plus `try/catch` runt `lock()` eftersom
+  vissa Android-browsers avvisar lock även när API:t finns). Vyn förblir
+  porträtt → `updateRotation()` sätter klassen `.rotate` som CSS-roterar hela
+  grafinnehållet 90° (wrappen får `100vh × 100vw` + `rotate(90deg)`) så det
+  visas liggande.
+- `updateRotation()` lyssnar på `orientationchange`/`resize` och togglar
+  `.rotate` enbart utifrån `matchMedia('(orientation: portrait)')`. Vrider
+  användaren fysiskt telefonen till landskap (iOS) tas rotationen bort och
+  grafen fyller viewporten direkt. Stäng med ✕-knappen (exit fullscreen +
+  `orientation.unlock()`).
+
 ### ⚠️ Spelarfärger
 
 Färgerna i `PLAYER_COLORS` (`app.js`) är **hårdkodade** och MÅSTE hållas i
@@ -70,8 +132,8 @@ ställena. Nuvarande palett:
 
 ```
 web/
-  index.html      Sidstruktur: header + Kvällar + Översikt + Placeringar
-                  + placeholder-sektioner (Kvällsgraf, Karriärgraf)
+  index.html      Sidstruktur: header + Kvällar + Kvällsgraf + Översikt
+                  + Placeringar + Karriärgraf (alla sektioner byggda)
   style.css       Mörkt tema, matchar appen
   app.js          Huvudlogik (ES-modul): laddar db, beräknar, renderar
   appicon.png     Kopia av appens Resources/AppIcon/appicon.png
@@ -102,9 +164,9 @@ web/
     Cachas av browsern efter första besöket. Väl under 3 s första render på
     mobil-4G.
 - **Baloo 2** som font (Google Fonts) — matchar appen (`Baloo2`/`Baloo2Bold`).
-- **Chart.js** kommer användas för grafer i **skiva 24** (Kvällsgraf +
-  Karriärgraf). Inte inkluderat än — hämta **inte** ett konkurrerande
-  graf-lib. (Översikt + Placeringar-tabellerna byggdes i skiva 23.)
+- **Chart.js 4.5.1** driver Kvällsgraf + Karriärgraf (skiva 24). Detaljer +
+  pinning-motivering under "Grafbibliotek: Chart.js" nedan. Hämta **inte** ett
+  konkurrerande graf-lib.
 
 ## Design-konventioner
 
@@ -169,4 +231,8 @@ tomma platshållaren (0 byte).
 - Kvällar-sektionen renderar alla kvällar (nyaste först) med datum,
   omgångsantal, ev. anteckning och vinnare per komplett omgång i rätt
   spelarfärger.
-- Placeholder-headings syns för Kvällsgraf, Översikt, Placeringar, Karriärgraf.
+- Alla sektioner byggda: Kvällar, Kvällsgraf, Översikt, Placeringar,
+  Karriärgraf — inga placeholder-headings kvar.
+- Graferna: rätt spelarfärger, Y-axel låst 1–4, scrub uppdaterar legenden,
+  spelartoggle döljer linje utan att skalan hoppar, ⛶ → helskärm (landscape
+  på Android, CSS-rotation på iOS).
