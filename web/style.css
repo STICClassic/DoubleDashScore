@@ -146,3 +146,101 @@ body {
 .winners-empty {
     color: var(--muted-strong);
 }
+
+/* Statistik-tabeller (Översikt, Placeringar) --------------------------- */
+
+/* Tjockt accent-streck mellan Översiktens två halvor (~4px). */
+.section-divider {
+    height: 4px;
+    background: var(--primary);
+    border-radius: 2px;
+    margin: 20px 0 16px;
+}
+
+.subsection__title {
+    margin: 0 0 12px;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--muted);
+}
+
+/* Om en tabell inte får plats i mobil-vy scrollar den horisontellt inom
+   sektionen — aldrig hela sidan (jfr MAUI-appens overflow-hänsyn). */
+.table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.stat-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.stat-table th,
+.stat-table td {
+    padding: 7px 8px;
+    white-space: nowrap;
+}
+
+/* Header-rad: fet, tunn skiljelinje under (matchar appens BoxView-separator). */
+.stat-table thead th {
+    font-weight: 700;
+    border-bottom: 1px solid #444444;
+}
+
+/* Namnkolumn/-rad vänsterjusteras; siffror centreras; snitt högerjusteras. */
+.stat-table th.col-name,
+.stat-table td.col-name {
+    text-align: left;
+}
+
+.stat-table th.col-num,
+.stat-table td.col-num {
+    text-align: center;
+}
+
+.stat-table th.col-avg,
+.stat-table td.col-avg {
+    text-align: right;
+}
+
+/* Spelarnamn i sin färg (header-rad i Placeringar, första kolumn i
+   Totalscore). Färgen sätts inline i JS per spelare. */
+.player-name {
+    font-weight: 600;
+}
+
+/* Karriärsnitt-toggle: accent-orange klickbar länk, högerställd. */
+.career-toggle {
+    display: block;
+    margin-left: auto;
+    margin-bottom: 6px;
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    color: var(--primary);
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* Karriärsnitt döljs som standard (visar •••), avslöjas av toggle:n. */
+.totalscore[data-career="hidden"] .career-value {
+    display: none;
+}
+
+.totalscore[data-career="shown"] .career-hidden {
+    display: none;
+}
+
+.career-hidden {
+    opacity: 0.5;
+}
+
+/* Tom cell (spelare saknade placering en kväll). */
+.cell-empty {
+    color: var(--muted-strong);
+}

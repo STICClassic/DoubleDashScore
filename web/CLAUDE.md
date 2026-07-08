@@ -21,11 +21,39 @@ hand. Kända speglingar (sök på kommentaren "speglar" i `app.js`):
 | Webb (`app.js`)              | App (sanning)                                            |
 |------------------------------|----------------------------------------------------------|
 | `pointsFor`                  | `Services/StatsCalculator.PointsFor`                     |
+| `tracksFor`                  | `Services/StatsCalculator.TracksFor` / `HistoricalTracksFor` |
 | `isComplete`                 | `Data/RoundCompletionRule.cs`                            |
+| `calculateRoundPositions`    | `Services/StatsCalculator.CalculateRoundPositions` (competition ranking 1-2-2-4) |
 | `buildNightSummaries`        | `Data/GameNightRepository.GetSummariesAsync`             |
+| `buildHistory`               | `Services/StatsCalculator.CalculateHistory` (inkl. `ApplySeed`) |
+| `formatPlacements`           | `ViewModels/HistoryStatsViewModel.FormatPlacements`      |
 | `formatRoundCount`           | `ViewModels/NightsListViewModel.FormatRoundCount`        |
+| `formatAverage`              | `career.ToString("0.00", sv-SE)` i Total­score-VM:erna    |
 | `renderWinners`              | `ViewModels/NightsListViewModel.BuildWinnersText`        |
+| `renderTotalscore`           | `Views/TotalscoreTable.xaml` + `HistoryStatsViewModel`   |
+| `renderPlacementsTable`      | `Views/PlacementsTable.xaml` + `HistoryStatsViewModel`   |
 | `PLAYER_COLORS`              | `Services/PlayerColors.cs` (`HexByName`)                 |
+
+**`buildHistory` gör en enda pass** över seed + live och speglar
+`CalculateHistory`:
+
+- **Totalscore-counts** (1:or/2:or/3:or/4:or) = `HistoricalPositionTotalsSnapshot`
+  (auktoritativ historisk bas) + live kompletta omgångars competition-ranking-
+  placeringar. Historiska `HistoricalRoundPlacements` räknas **inte** in i
+  counts (snapshot inkluderar dem redan — annars dubbelräkning).
+- **Karriärsnitt** = `(Σ historiska banpoäng + Σ live banpoäng) / (Σ historiska
+  banor + Σ live banor)`, viktat per bana. Banor = summan av de fyra
+  positionsräknarna (även för historiska aggregat — **inte** `TotalTracks`-
+  kolumnen). Detta är Totalscore-tabbens formel, **inte** karriärgrafens
+  oviktade löpande medel (skiva 24).
+- **Placeringsserien** = seed-kvällar (asc `NightNumber`, etikett "Kväll N")
+  följt av live-kvällar (asc `PlayedOn`, etikett sv-SE-datum). Endast live-
+  kvällar med minst en omgång tas med (appen filtrerar `Rounds.Count > 0`).
+  Placeringscell = `, `-separerade positioner, tie märks med `*` (t.ex.
+  `1*, 2`); tom cell om spelaren saknar placeringar den kvällen.
+- **Ordning i UI:** Placeringar och Översiktens senaste-4 visas **nyaste
+  först** (serien reverseras vid render). Appen visar dem stigande med
+  auto-scroll till botten — se avvikelse-noten i skiva 23:s PR.
 
 ### ⚠️ Spelarfärger
 
@@ -42,7 +70,8 @@ ställena. Nuvarande palett:
 
 ```
 web/
-  index.html      Sidstruktur: header + Kvällar + placeholder-sektioner
+  index.html      Sidstruktur: header + Kvällar + Översikt + Placeringar
+                  + placeholder-sektioner (Kvällsgraf, Karriärgraf)
   style.css       Mörkt tema, matchar appen
   app.js          Huvudlogik (ES-modul): laddar db, beräknar, renderar
   appicon.png     Kopia av appens Resources/AppIcon/appicon.png
@@ -73,9 +102,9 @@ web/
     Cachas av browsern efter första besöket. Väl under 3 s första render på
     mobil-4G.
 - **Baloo 2** som font (Google Fonts) — matchar appen (`Baloo2`/`Baloo2Bold`).
-- **Chart.js** kommer användas för grafer i **skiva 23** (Kvällsgraf +
+- **Chart.js** kommer användas för grafer i **skiva 24** (Kvällsgraf +
   Karriärgraf). Inte inkluderat än — hämta **inte** ett konkurrerande
-  graf-lib.
+  graf-lib. (Översikt + Placeringar-tabellerna byggdes i skiva 23.)
 
 ## Design-konventioner
 
