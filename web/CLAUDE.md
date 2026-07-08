@@ -139,7 +139,10 @@ web/
                   registrerar service worker
   sw.js           Service worker: offline-cache (stale-while-revalidate)
   manifest.webmanifest  PWA-manifest (installerbar, standalone)
-  appicon.png     Kopia av appens Resources/AppIcon/appicon.png (1254×1254)
+  appicon.png     Kopia av appens Resources/AppIcon/appicon.png (1254×1254);
+                  favicon + apple-touch-icon
+  icons/          PWA-ikoner: icon-192, icon-512, icon-512-maskable (från
+                  appicon.png via sharp)
   data/
     db.sqlite     Databasen (manuellt uppladdad — se "Uppdatera databasen")
   CLAUDE.md       Det här dokumentet
@@ -255,10 +258,20 @@ service worker.
   riskerar att blockera skiva 24:s `screen.orientation.lock('landscape')` för
   graf-helskärm i en installerad PWA på vissa Android-byggen. `"any"` garanterar
   att helskärms-rotationen funkar; telefonen hålls ändå porträtt naturligt.
-- `icons`: 192 + 512 pekar **båda på samma `appicon.png`** (1254×1254, ≥512 så
-  browsern skalar ned). Ingen bild-tooling fanns för att generera exakta
-  storlekar, och det är sanktionerat. 512-entryn är `"purpose": "any maskable"`
-  (appens svarta bakgrund absorberar adaptiv safe-zone-padding).
+- `icons`: **tre riktiga filer i `web/icons/`** (skiva 26 ikon-fix) — inte
+  `appicon.png` skalad. Chromes install-check är strikt: att deklarera 192/512
+  men leverera en 1254×1254-fil gav size-mismatch-warnings och `"any maskable"`
+  på en entry avråds. Därför:
+  - `icons/icon-192.png` (192×192, `purpose: any`)
+  - `icons/icon-512.png` (512×512, `purpose: any`)
+  - `icons/icon-512-maskable.png` (512×512, `purpose: maskable`) — motivet
+    nedskalat till 400 px och centrerat med ~11 % svart padding runtom, så
+    Android-maskning aldrig klipper i illustrationen (padding osynlig mot den
+    svarta bakgrunden).
+  Genererade med **`sharp`** (lanczos3) i en isolerad scratchpad — ingen
+  projekt-dep tillkom. `appicon.png` (1254×1254) behålls som favicon +
+  `apple-touch-icon` i `index.html`. Behöver de regenereras: skala från
+  `appicon.png` till exakt 192/512, maskable med padding, och bumpa cachen.
 
 ### Service worker (`sw.js`)
 
@@ -267,15 +280,17 @@ service worker.
   laddning. Gäller allt: app-skal, `data/db.sqlite`, CDN-deps. En ny db.sqlite
   på servern syns alltså vid näst-nästa besök, inte omedelbart — medvetet enkelt
   (ingen "ny data, refresha?"-prompt).
-- **Cache-namn med version: `dds-cache-v1`.** `activate` raderar alla caches med
-  annat namn. **Bumpa versionen** (`v1` → `v2`…) när kod, assets eller de pinnade
-  CDN-versionerna ändras — annars serveras gammal cache.
+- **Cache-namn med version: `dds-cache-v2`.** `activate` raderar alla caches med
+  annat namn. **Bumpa versionen** när kod, assets eller de pinnade CDN-
+  versionerna ändras — annars serveras gammal cache. Historik: `v1` (första
+  PWA), `v2` (ikon-fix: tre riktiga ikon-storlekar). **Nästa bump blir `v3`.**
 - **CDN-deps precachas** (jsDelivr tillåter det: verifierat `Access-Control-
   Allow-Origin: *`, `Cache-Control: immutable`, `Cross-Origin-Resource-Policy:
   cross-origin` — ingen `no-store`). Precache-listan är komplett: sqlite-wasm
   `.mjs`+`.wasm`, Chart.js `auto/+esm`, och Chart.js enda sub-dep
-  `@kurkle/color@0.3.4/+esm`. **Uppgraderas sqlite-wasm eller Chart.js: uppdatera
-  URL:erna i `sw.js` (och i `app.js`) OCH bumpa `dds-cache-v1`.**
+  `@kurkle/color@0.3.4/+esm`. De tre ikonerna i `web/icons/` precachas också.
+  **Uppgraderas sqlite-wasm eller Chart.js: uppdatera URL:erna i `sw.js` (och i
+  `app.js`) OCH bumpa cache-versionen.**
 - Registreras från `app.js` vid `window.load`: `navigator.serviceWorker
   .register("sw.js", { scope: "./" })` (best-effort). `sw.js` ligger i webbroten
   → scope `/DoubleDashScore/`, ingen `Service-Worker-Allowed`-header behövs.
