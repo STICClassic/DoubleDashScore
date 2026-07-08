@@ -135,8 +135,11 @@ web/
   index.html      App-skal: header + inre tabbar + panel-container (en panel
                   per tabb) + huvudtabbar nederst + helskärms-overlay
   style.css       Mörkt tema, matchar appen
-  app.js          Huvudlogik (ES-modul): laddar db, beräknar, renderar
-  appicon.png     Kopia av appens Resources/AppIcon/appicon.png
+  app.js          Huvudlogik (ES-modul): laddar db, beräknar, renderar,
+                  registrerar service worker
+  sw.js           Service worker: offline-cache (stale-while-revalidate)
+  manifest.webmanifest  PWA-manifest (installerbar, standalone)
+  appicon.png     Kopia av appens Resources/AppIcon/appicon.png (1254×1254)
   data/
     db.sqlite     Databasen (manuellt uppladdad — se "Uppdatera databasen")
   CLAUDE.md       Det här dokumentet
@@ -232,6 +235,70 @@ App-skalet (`app.js`, `initTabs`/`selectMain`/`selectInner`, `navState`):
 - **Helskärm** (`#fs-overlay`, `position:fixed; z-index:1000`) täcker både
   huvud- och inre tabbar — verifierat även för iOS CSS-rotations-fallbacken
   (overlayn ligger över allt i normalflödet).
+
+## PWA + offline (skiva 26)
+
+Webben är en installerbar PWA med offline-cache. Ingen ny UI — bara metadata +
+service worker.
+
+### Manifest (`manifest.webmanifest`)
+
+- `start_url` + `scope` = `"./"` (relativa → funkar under GitHub Pages
+  sub-path `/DoubleDashScore/`).
+- `display: "standalone"` → körs utan browser-chrome när installerad.
+- `background_color: "#000000"` (svart splash-bakgrund), `theme_color:
+  "#FB923C"` (tinter Android-statusbaren orange; samma värde i
+  `<meta name="theme-color">`). **OBS:** detta avviker medvetet från MAUI-appens
+  **svarta** statusbar — orange theme_color var explicit önskat för webben i
+  skiva 26.
+- `orientation: "any"` — **inte** `"portrait"`. Ett porträtt-låst manifest
+  riskerar att blockera skiva 24:s `screen.orientation.lock('landscape')` för
+  graf-helskärm i en installerad PWA på vissa Android-byggen. `"any"` garanterar
+  att helskärms-rotationen funkar; telefonen hålls ändå porträtt naturligt.
+- `icons`: 192 + 512 pekar **båda på samma `appicon.png`** (1254×1254, ≥512 så
+  browsern skalar ned). Ingen bild-tooling fanns för att generera exakta
+  storlekar, och det är sanktionerat. 512-entryn är `"purpose": "any maskable"`
+  (appens svarta bakgrund absorberar adaptiv safe-zone-padding).
+
+### Service worker (`sw.js`)
+
+- **Strategi: stale-while-revalidate.** Cachad version serveras direkt (snabb +
+  offline), färsk hämtas i bakgrunden och skrivs till cachen för **nästa**
+  laddning. Gäller allt: app-skal, `data/db.sqlite`, CDN-deps. En ny db.sqlite
+  på servern syns alltså vid näst-nästa besök, inte omedelbart — medvetet enkelt
+  (ingen "ny data, refresha?"-prompt).
+- **Cache-namn med version: `dds-cache-v1`.** `activate` raderar alla caches med
+  annat namn. **Bumpa versionen** (`v1` → `v2`…) när kod, assets eller de pinnade
+  CDN-versionerna ändras — annars serveras gammal cache.
+- **CDN-deps precachas** (jsDelivr tillåter det: verifierat `Access-Control-
+  Allow-Origin: *`, `Cache-Control: immutable`, `Cross-Origin-Resource-Policy:
+  cross-origin` — ingen `no-store`). Precache-listan är komplett: sqlite-wasm
+  `.mjs`+`.wasm`, Chart.js `auto/+esm`, och Chart.js enda sub-dep
+  `@kurkle/color@0.3.4/+esm`. **Uppgraderas sqlite-wasm eller Chart.js: uppdatera
+  URL:erna i `sw.js` (och i `app.js`) OCH bumpa `dds-cache-v1`.**
+- Registreras från `app.js` vid `window.load`: `navigator.serviceWorker
+  .register("sw.js", { scope: "./" })` (best-effort). `sw.js` ligger i webbroten
+  → scope `/DoubleDashScore/`, ingen `Service-Worker-Allowed`-header behövs.
+- **Offline utan cachad db:** `app.js` visar "Ingen internetanslutning och ingen
+  cachad databas" (via `navigator.onLine`) i stället för ett tekniskt fel.
+  `fetch("data/db.sqlite")` kör **utan** `cache: no-store` numera — SW:n sköter
+  färskheten.
+
+### Plattformsbeteende
+
+- **Android Chrome:** Chrome visar själv en installations-prompt när sidan
+  besökts tillräckligt (vi triggar den inte). Installerad → ikon i app-lådan,
+  standalone-fullscreen, orange statusbar (theme_color), svart splash
+  (background_color + ikon).
+- **iOS Safari:** ingen auto-prompt — användaren väljer "Lägg till på
+  hemskärmen" i dela-menyn. `apple-mobile-web-app-capable: yes` ger fullscreen,
+  `apple-mobile-web-app-status-bar-style: black-translucent` låter innehållet gå
+  under statusbaren (headern har redan `safe-area-inset-top`),
+  `apple-mobile-web-app-title` sätter ikon-namnet.
+- **iOS splash-skärm:** `apple-touch-startup-image` är **inte** inkluderat — det
+  kräver en separat bild per iOS-modell/upplösning (med media queries), vilket är
+  utanför skiva 26. iOS visar en enkel launch-yta; svart bakgrund + status-bar-
+  style gör den acceptabel. Lägg till startup-images senare om det behövs.
 
 ## Poängsystem (spegling)
 
