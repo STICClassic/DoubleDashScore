@@ -132,8 +132,8 @@ ställena. Nuvarande palett:
 
 ```
 web/
-  index.html      Sidstruktur: header + Kvällar + Kvällsgraf + Översikt
-                  + Placeringar + Karriärgraf (alla sektioner byggda)
+  index.html      App-skal: header + inre tabbar + panel-container (en
+                  panel per tabb) + bottom-tabbar + helskärms-overlay
   style.css       Mörkt tema, matchar appen
   app.js          Huvudlogik (ES-modul): laddar db, beräknar, renderar
   appicon.png     Kopia av appens Resources/AppIcon/appicon.png
@@ -179,10 +179,47 @@ skiva 20). Värdena speglar `Resources/Styles/Colors.xaml`.
   `rgba(255,255,255,.5)`.
 - **Kort:** `rgba(255,255,255,.05)`, radie 12 px.
 - **Font:** Baloo 2 (400/500/600/700).
-- Layouten är **en enda scrollsida** (ingen navigation): header →
-  Kvällar → Kvällsgraf → Översikt → Placeringar → Karriärgraf.
+- Layouten är **tabb-baserad** (skiva 25), inte en scrollsida — se
+  "Navigation" nedan.
 - **Read-only-skillnader mot appen:** ingen "Lägg till ny kväll"-knapp,
   ingen papperskorgs-ikon, ingen hamburgermeny, ingen tap/edit/delete.
+
+## Navigation (skiva 25)
+
+**Tvånivå-tabbar**, inte scroll. Speglar appens Shell-struktur:
+
+- **Huvudtabbar nederst** (`.bottom-tabs`, `data-main`): **Kvällar | Statistik**.
+- **Inre Statistik-tabbar** (`#inner-tabs`, `data-inner`, syns bara i Statistik):
+  **Totalscore | Placeringar | Kvällsgraf | Karriärgraf | Översikt** (appens
+  ordning, Totalscore först).
+- **Översikt bor som femte inre Statistik-tabb** — skillnad mot appen, där
+  Översikt är en separat `ToolbarItem`-sida. På webben saknas toolbar, så det
+  enklaste är en tabb. Totalscore-tabellen renderas därför i **två** paneler
+  (fristående "Totalscore" + överst i "Översikt") som två oberoende instanser.
+
+App-skalet (`app.js`, `initTabs`/`selectMain`/`selectInner`, `navState`):
+
+- **Layout:** `body` är en flex-kolumn på `100dvh` (`overflow:hidden`): header
+  → (ev.) inre tabbar → `#content` (scroll-region) → bottom-tabbar. `100dvh`
+  följer iOS Safaris dynamiska viewport. Bottom-tabbarna är **sista flex-barnet**
+  (inte `position:fixed`) — samma "fast i botten"-resultat men utan
+  padding-bottom-överlapp; `padding-bottom: env(safe-area-inset-bottom)` håller
+  etiketterna ovanför iOS home-indicator.
+- **En panel åt gången:** varje `.panel` är `position:absolute; inset:0;
+  overflow-y:auto` i `#content`. Tabb-byte togglar `hidden`-attributet
+  (`display:none`). DOM + Chart.js-instanser lever kvar, och browsern **bevarar
+  varje panels `scrollTop`** över hide/show → scroll-läge per tabb gratis, ingen
+  ommontering.
+- **Inre tabbar som fast krom:** valdes framför `position:sticky` (som har
+  iOS-quirks med transform/overflow-förfäder) — de ligger ovanför scroll-regionen
+  och scrollar aldrig bort, samma "förblir synliga"-resultat. Horisontell scroll
+  om de inte får plats.
+- **Graf-resize vid tabb-byte:** en graf som skapats i en dold panel har 0
+  storlek; `resizeGraphPanel()` kör `chart.resize()` när Kvällsgraf/Karriärgraf
+  visas (och efter att datan landat om tabben redan var aktiv).
+- **Helskärm** (`#fs-overlay`, `position:fixed; z-index:1000`) täcker både
+  bottom- och inre tabbar — verifierat även för iOS CSS-rotations-fallbacken
+  (overlayn ligger över allt i normalflödet).
 
 ## Poängsystem (spegling)
 
@@ -231,8 +268,11 @@ tomma platshållaren (0 byte).
 - Kvällar-sektionen renderar alla kvällar (nyaste först) med datum,
   omgångsantal, ev. anteckning och vinnare per komplett omgång i rätt
   spelarfärger.
-- Alla sektioner byggda: Kvällar, Kvällsgraf, Översikt, Placeringar,
-  Karriärgraf — inga placeholder-headings kvar.
+- Tabb-navigation: Kvällar/Statistik-huvudtabbar + de fem inre Statistik-
+  tabbarna, aktiv tabb accent-orange, scroll-läge bevaras per tabb, bottom-
+  tabbar respekterar `safe-area-inset-bottom`.
+- Alla sektioner byggda: Kvällar, Totalscore, Placeringar, Kvällsgraf,
+  Karriärgraf, Översikt.
 - Graferna: rätt spelarfärger, Y-axel låst 1–4, scrub uppdaterar legenden,
   spelartoggle döljer linje utan att skalan hoppar, ⛶ → helskärm (landscape
   på Android, CSS-rotation på iOS).

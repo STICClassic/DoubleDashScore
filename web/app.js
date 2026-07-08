@@ -480,13 +480,18 @@ function renderPlacementsTable(container, rows, players) {
 function renderStatistics(history) {
     if (history.series.length === 0 && history.totalsRows.every(r => r.firsts === 0
         && r.seconds === 0 && r.thirds === 0 && r.fourths === 0)) {
+        setSectionStatus("totalscore-status", "Ingen statistik än.", false);
         setSectionStatus("oversikt-status", "Ingen statistik än.", false);
         setSectionStatus("placeringar-status", "Inga kvällar än.", false);
         return;
     }
+    setSectionStatus("totalscore-status", null, false);
     setSectionStatus("oversikt-status", null, false);
     setSectionStatus("placeringar-status", null, false);
 
+    // Totalscore-tabellen visas i två tabbar: fristående "Totalscore" och
+    // överst i "Översikt". Två oberoende instanser (var sin karriärsnitt-toggle).
+    renderTotalscore(document.getElementById("totalscore-table"), history.totalsRows);
     renderTotalscore(document.getElementById("oversikt-totalscore"), history.totalsRows);
     // Senaste 4 kvällarna = sista 4 i den kronologiska serien, nyaste först.
     renderPlacementsTable(
@@ -624,6 +629,7 @@ const graphState = {
     hidden: new Set(),
     controllers: [],
     labels: [],
+    inline: null, // { night, career } — inline-controllers, för resize vid tabb-byte
 };
 
 // Vertikal markörlinje vid vald kväll — Chart.js-plugin per graf.
@@ -864,16 +870,17 @@ function renderGraphs(graphs) {
     const nightBlock = document.querySelector('.chart-block[data-graph="night"]');
     const careerBlock = document.querySelector('.chart-block[data-graph="career"]');
 
-    createController(
+    const nightController = createController(
         nightBlock.querySelector("canvas"),
         nightBlock.querySelector(".chart-legend"),
         nightBlock.querySelector(".chart-selected-label"),
         "night", graphs);
-    createController(
+    const careerController = createController(
         careerBlock.querySelector("canvas"),
         careerBlock.querySelector(".chart-legend"),
         careerBlock.querySelector(".chart-selected-label"),
         "career", graphs);
+    graphState.inline = { night: nightController, career: careerController };
 
     nightBlock.querySelector(".chart-fullscreen")
         .addEventListener("click", () => openFullscreen("night", graphs));
@@ -886,6 +893,70 @@ function renderGraphs(graphs) {
 
     // Initiera legend/label/markör på default-kvällen.
     setSelectedIndex(graphState.selectedIndex);
+
+    // Charts skapades i (troligen) dolda paneler → 0 storlek. Om en graf-tabb
+    // redan är aktiv när datan landar, mät om den nu.
+    if (navState.main === "statistik") resizeGraphPanel(navState.inner);
+}
+
+// --- tabb-navigation -------------------------------------------------------
+
+// Två-nivå-navigation som speglar appen: huvudtabbar (Kvällar | Statistik) +
+// inre Statistik-tabbar (Totalscore | Placeringar | Kvällsgraf | Karriärgraf
+// | Översikt). Panelbyte sker via display:none (attributet `hidden`) — DOM och
+// Chart.js-instanser lever kvar och varje panels scroll-läge bevaras av
+// browsern. En graf som skapats i en dold panel har 0 storlek tills den visas,
+// därför resize() vid tabb-byte.
+const navState = { main: "kvallar", inner: "totalscore" };
+
+function showPanel(name) {
+    for (const panel of document.querySelectorAll(".panel")) {
+        panel.hidden = panel.dataset.panel !== name;
+    }
+}
+
+// Mät om rätt inline-graf när dess tabb visas (0-storlek-fix + dvh-ändringar).
+function resizeGraphPanel(name) {
+    const kind = name === "kvallsgraf" ? "night" : name === "karriargraf" ? "career" : null;
+    if (!kind || !graphState.inline) return;
+    const controller = graphState.inline[kind];
+    if (controller) requestAnimationFrame(() => controller.chart.resize());
+}
+
+function selectMain(main) {
+    navState.main = main;
+    for (const btn of document.querySelectorAll(".main-tab")) {
+        btn.classList.toggle("is-active", btn.dataset.main === main);
+    }
+    const innerTabs = document.getElementById("inner-tabs");
+    if (main === "kvallar") {
+        innerTabs.hidden = true;
+        showPanel("kvallar");
+    } else {
+        innerTabs.hidden = false;
+        showPanel(navState.inner);
+        resizeGraphPanel(navState.inner);
+    }
+}
+
+function selectInner(inner) {
+    navState.inner = inner;
+    for (const btn of document.querySelectorAll(".inner-tab")) {
+        btn.classList.toggle("is-active", btn.dataset.inner === inner);
+    }
+    showPanel(inner);
+    resizeGraphPanel(inner);
+}
+
+function initTabs() {
+    for (const btn of document.querySelectorAll(".main-tab")) {
+        btn.addEventListener("click", () => selectMain(btn.dataset.main));
+    }
+    for (const btn of document.querySelectorAll(".inner-tab")) {
+        btn.addEventListener("click", () => selectInner(btn.dataset.inner));
+    }
+    // Startläge: Kvällar aktiv; inre default Totalscore (dold tills Statistik).
+    selectMain("kvallar");
 }
 
 // --- start -----------------------------------------------------------------
@@ -936,6 +1007,7 @@ async function main() {
             renderStatistics(buildHistory(db));
         } catch (statErr) {
             console.error(statErr);
+            setSectionStatus("totalscore-status", "Kunde inte beräkna statistik.", true);
             setSectionStatus("oversikt-status", "Kunde inte beräkna statistik.", true);
             setSectionStatus("placeringar-status", "Kunde inte beräkna statistik.", true);
         }
@@ -956,4 +1028,7 @@ async function main() {
     }
 }
 
+// Tabb-navigationen är ren DOM och ska funka oavsett om datan laddar — init
+// den direkt, kör sen dataladdningen.
+initTabs();
 main();
