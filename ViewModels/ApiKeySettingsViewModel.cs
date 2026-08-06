@@ -12,15 +12,18 @@ public partial class ApiKeySettingsViewModel : ObservableObject
 
     private readonly IApiKeyStore _keys;
     private readonly BackupService _backup;
+    private readonly GitHubWebSyncService _webSync;
     private readonly IServiceProvider _services;
 
     public ApiKeySettingsViewModel(
         IApiKeyStore keys,
         BackupService backup,
+        GitHubWebSyncService webSync,
         IServiceProvider services)
     {
         _keys = keys;
         _backup = backup;
+        _webSync = webSync;
         _services = services;
     }
 
@@ -42,12 +45,49 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasBackups;
 
+    [ObservableProperty]
+    private string _gitHubTokenText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowChangeTokenLink))]
+    private bool _hasGitHubToken;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowChangeTokenLink))]
+    private bool _showGitHubTokenEntry = true;
+
+    /// <summary>"Byt token" är bara meningsfullt när fältet är dolt.</summary>
+    public bool ShowChangeTokenLink => HasGitHubToken && !ShowGitHubTokenEntry;
+
+    [ObservableProperty]
+    private string _webSyncSubtitle = NoTokenSubtitle;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PublishButtonText))]
+    private bool _isPublishing;
+
+    public string PublishButtonText => IsPublishing ? "Uppdaterar…" : "Uppdatera hemsidan";
+
+    private const string NoTokenSubtitle = "Uppdatera hemsidan när du lagt in nya kvällar.";
+
+    private static readonly string HasTokenSubtitle =
+        $"Uppdaterar {GitHubWebSyncService.SiteUrl}";
+
     public async Task LoadAsync(CancellationToken ct = default)
     {
         var existing = await _keys.GetAsync(ct).ConfigureAwait(true);
         CurrentStatus = FormatStatus(existing);
         EntryText = string.Empty;
         RefreshBackupInfo();
+        await RefreshWebSyncStateAsync(ct).ConfigureAwait(true);
+    }
+
+    private async Task RefreshWebSyncStateAsync(CancellationToken ct = default)
+    {
+        HasGitHubToken = await _webSync.HasTokenAsync(ct).ConfigureAwait(true);
+        ShowGitHubTokenEntry = !HasGitHubToken;
+        GitHubTokenText = string.Empty;
+        WebSyncSubtitle = HasGitHubToken ? HasTokenSubtitle : NoTokenSubtitle;
     }
 
     private void RefreshBackupInfo()
@@ -118,6 +158,75 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveGitHubTokenAsync()
+    {
+        var token = GitHubTokenText?.Trim();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            await Shell.Current.CurrentPage.DisplayAlertAsync(
+                "Tom token",
+                "Skriv in en GitHub-token innan du sparar.",
+                "OK").ConfigureAwait(true);
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            await _webSync.SaveTokenAsync(token).ConfigureAwait(true);
+            await RefreshWebSyncStateAsync().ConfigureAwait(true);
+            await Shell.Current.CurrentPage.DisplayAlertAsync(
+                "Sparad",
+                "GitHub-tokenen är lagrad säkert på enheten.",
+                "OK").ConfigureAwait(true);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private void ChangeGitHubToken()
+    {
+        GitHubTokenText = string.Empty;
+        ShowGitHubTokenEntry = true;
+    }
+
+    [RelayCommand]
+    private async Task PublishWebsiteAsync()
+    {
+        var confirm = await Shell.Current.CurrentPage.DisplayAlertAsync(
+            "Uppdatera hemsidan",
+            "Publicera nuvarande databas till hemsidan?",
+            "Ja",
+            "Avbryt").ConfigureAwait(true);
+        if (!confirm) return;
+
+        IsPublishing = true;
+        try
+        {
+            var result = await _webSync.PublishDatabaseAsync().ConfigureAwait(true);
+
+            if (result.TokenRejected)
+            {
+                // Tokenen dög inte — visa inmatningsfältet igen direkt.
+                GitHubTokenText = string.Empty;
+                ShowGitHubTokenEntry = true;
+            }
+
+            await Shell.Current.CurrentPage.DisplayAlertAsync(
+                result.Success ? "Klart" : "Kunde inte uppdatera",
+                result.Message,
+                "OK").ConfigureAwait(true);
+        }
+        finally
+        {
+            IsPublishing = false;
         }
     }
 

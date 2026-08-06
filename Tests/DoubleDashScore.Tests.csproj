@@ -32,6 +32,8 @@
 		<Compile Include="..\Services\ClaudeVisionOcrService.cs" LinkBase="Services" />
 		<Compile Include="..\Services\BackupService.cs" LinkBase="Services" />
 		<Compile Include="..\Services\BackupFileNaming.cs" LinkBase="Services" />
+		<Compile Include="..\Services\IGitHubTokenStore.cs" LinkBase="Services" />
+		<Compile Include="..\Services\GitHubWebSyncService.cs" LinkBase="Services" />
 		<Compile Include="..\Services\ChartTransferStore.cs" LinkBase="Services" />
 		<Compile Include="..\Services\NightScrubberSlice.cs" LinkBase="Services" />
 	</ItemGroup>

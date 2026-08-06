@@ -53,7 +53,12 @@ public static class MauiProgram
         builder.Services.AddSingleton<PhotoStorageService>();
         builder.Services.AddSingleton<OcrFlowContext>();
         builder.Services.AddSingleton<IApiKeyStore, SecureStorageApiKeyStore>();
+        builder.Services.AddSingleton<IGitHubTokenStore, SecureStorageGitHubTokenStore>();
         builder.Services.AddSingleton(_ => new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
+        builder.Services.AddSingleton(sp => new GitHubWebSyncService(
+            sp.GetRequiredService<HttpClient>(),
+            sp.GetRequiredService<IGitHubTokenStore>(),
+            DatabaseService.DatabasePath));
 #if ANDROID
         builder.Services.AddSingleton<IOcrService, ClaudeVisionOcrService>();
 #else

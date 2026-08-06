@@ -9,6 +9,59 @@
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="14">
 
+            <Label Text="Hemsida"
+                   FontAttributes="Bold"
+                   FontSize="16" />
+
+            <Label Text="{Binding WebSyncSubtitle}"
+                   FontSize="13"
+                   Opacity="0.75" />
+
+            <!-- Primär action, samma stil som "Lägg till ny kväll" i Kvällar-vyn.
+                 Syns först när en token är sparad. -->
+            <Button Text="{Binding PublishButtonText}"
+                    Command="{Binding PublishWebsiteCommand}"
+                    IsVisible="{Binding HasGitHubToken}"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="Black"
+                    FontFamily="Baloo2Bold"
+                    FontSize="16"
+                    CornerRadius="12"
+                    HeightRequest="52"
+                    Margin="0,8,0,0" />
+
+            <ActivityIndicator IsRunning="{Binding IsPublishing}"
+                               IsVisible="{Binding IsPublishing}"
+                               HorizontalOptions="Center" />
+
+            <Label Text="Byt token"
+                   FontSize="13"
+                   TextColor="{StaticResource Primary}"
+                   TextDecorations="Underline"
+                   HorizontalOptions="Start"
+                   IsVisible="{Binding ShowChangeTokenLink}">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ChangeGitHubTokenCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding ShowGitHubTokenEntry}">
+                <Label Text="GitHub Personal Access Token"
+                       FontAttributes="Bold"
+                       Margin="0,8,0,0" />
+                <Entry Text="{Binding GitHubTokenText, Mode=TwoWay}"
+                       IsPassword="True"
+                       Placeholder="github_pat_..."
+                       Keyboard="Default" />
+                <Button Text="Spara token"
+                        Command="{Binding SaveGitHubTokenCommand}"
+                        HorizontalOptions="Start" />
+            </VerticalStackLayout>
+
+            <BoxView HeightRequest="1"
+                     Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}"
+                     Margin="0,16" />
+
             <Label Text="Anthropic API-nyckel"
                    FontAttributes="Bold"
                    FontSize="16" />
