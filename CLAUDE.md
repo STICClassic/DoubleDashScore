@@ -118,6 +118,8 @@ som redan finns innan något byggs om eller dupliceras:
 - **CSV-export** per kväll
 - **.db-import/-export** via dela-intent (Skiva 8)
 - **Automatisk rullande .db-backup** vid varje databasändring (Skiva 10)
+- **"Uppdatera hemsidan"** i Inställningar — pushar databasen till
+  `web/data/db.sqlite` på GitHub via REST API (Skiva 27)
 - **Återställ från auto-backup** i Inställningar (Skiva 11)
 - **Statistik-tabbar:** Totalscore / Placeringar / Kvällsgraf / Karriärgraf
 - **Spelartoggle** (av-/påvälj spelarlinjer) + legend-snitt under graferna
@@ -323,6 +325,36 @@ peta i databas-, backup- eller graf-systemen.
   kan evicta äldsta auto-backup-filen, och om användaren av misstag valde
   just den som källa förstörs importen utan temp-skydd.
 
+### Web-sync ("Uppdatera hemsidan")
+
+Hemsidan (`web/`) synkas från appen via **"Uppdatera hemsidan"-knappen i
+Inställningar** — inget manuellt exportera/döp-om/ladda-upp längre.
+
+- **`Services/GitHubWebSyncService.cs`** äger allt GitHub-specifikt. Repo-ägare
+  (`STICClassic`), repo (`DoubleDashScore`) och målsökväg (`web/data/db.sqlite`)
+  är konstanter där — hårdkoda dem inte någon annanstans.
+- **GitHub REST API v3, Contents-endpointen** (`/repos/{owner}/{repo}/contents/
+  {path}`): `GET` för att hämta befintlig fils `sha`, sedan `PUT` med base64-
+  encodat filinnehåll + `sha`. Ger `GET` 404 skickas `PUT` **utan** `sha`-fältet
+  (skapar filen). Commit-meddelandet är alltid "Uppdatera databas från appen".
+- **Obligatoriska headers:** `Authorization: Bearer <token>`,
+  `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`
+  och `User-Agent` — GitHub svarar **403 utan User-Agent**.
+- **Token i SecureStorage** med key `github_pat`, bakom `IGitHubTokenStore`
+  (samma mönster som `IApiKeyStore`/`SecureStorageApiKeyStore`). Interfacet
+  finns för att hålla servicen fri från MAUI-beroenden så den kan enhetstestas
+  med en fake `HttpMessageHandler`.
+- **Databasfilen läses via `DatabaseService.DatabasePath`** med
+  `FileShare.ReadWrite` (SQLite-anslutningen är öppen mot samma fil; journal
+  mode `DELETE` gör att filen är komplett på disk).
+- **`SyncResult`** (record: `Success`, `Message`, `TokenRejected`) bär färdiga
+  sv-SE-meddelanden. `TokenRejected` (401) får vyn att visa token-fältet igen.
+  Statuskod → meddelande ligger i den rena `DescribeFailure`.
+- **Inställningar-sidan heter `ApiKeySettingsPage`/`ApiKeySettingsViewModel`**
+  (titel "Inställningar") och samlar numera tre sektioner: Hemsida, Anthropic
+  API-nyckel, Auto-backup. Skapa inte en separat `SettingsPage` — lägg nya
+  inställningar som en sektion här.
+
 ### `DatabaseImportedMessage` (in-place reload)
 
 Vid databasimport eller -återställning broadcastar `DatabaseImported-
@@ -524,6 +556,8 @@ Sånt som tog tid att lista ut. Dokumenterat så vi inte rör i det igen.
                        (WeakReferenceMessenger)
                      ChartTransferStore, NightScrubberSlice
                      IApiKeyStore, SecureStorageApiKeyStore
+                     GitHubWebSyncService, IGitHubTokenStore,
+                       SecureStorageGitHubTokenStore
                    (Ingen MailService — mail sker via share sheet, inte
                    programmatiskt. Ingen generisk "OcrService" — det
                    konkreta namnet är ClaudeVisionOcrService bakom
