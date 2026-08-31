@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -24,12 +25,13 @@ public sealed class ClaudeVisionOcrService : IOcrService
         _keys = keys;
     }
 
-    public async Task<ParsedCounters> RecognizeAsync(Stream image, CancellationToken ct = default)
+    public async Task<OcrResult> RecognizeAsync(Stream image, CancellationToken ct = default)
     {
         var apiKey = await _keys.GetAsync(ct).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            throw new InvalidOperationException("API-nyckel saknas. Sätt i Inställningar.");
+            Log("no API key stored");
+            return OcrResult.Fail(MissingKeyMessage);
         }
 
         using var ms = new MemoryStream();
@@ -75,32 +77,154 @@ public sealed class ClaudeVisionOcrService : IOcrService
         {
             response = await _http.SendAsync(request, ct).ConfigureAwait(false);
         }
-        catch (HttpRequestException ex)
+        catch (Exception ex) when (IsNetworkFailure(ex, ct))
         {
-            throw new InvalidOperationException("Kunde inte nå API. Försök igen.", ex);
-        }
-        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
-        {
-            throw new InvalidOperationException("Tidsgräns nåddes. Försök igen.");
+            Log($"network failure: {ex.GetType().Name}: {ex.Message}");
+            return OcrResult.Fail(NetworkErrorMessage);
         }
 
-        var bodyText = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        using (response)
+        {
+            var status = (int)response.StatusCode;
 
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            throw new InvalidOperationException("Ogiltig API-nyckel. Kontrollera i Inställningar.");
-        }
-        if ((int)response.StatusCode == 429)
-        {
-            throw new InvalidOperationException("För många förfrågningar. Vänta lite.");
-        }
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"API-fel ({(int)response.StatusCode}). Försök igen.");
-        }
+            string bodyText;
+            try
+            {
+                bodyText = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (IsNetworkFailure(ex, ct))
+            {
+                Log($"network failure while reading body (HTTP {status}): {ex.GetType().Name}: {ex.Message}");
+                return OcrResult.Fail(NetworkErrorMessage);
+            }
 
-        return ParseApiResponse(bodyText);
+            if (!response.IsSuccessStatusCode)
+            {
+                Log($"HTTP {status} from Anthropic. Body: {bodyText}");
+                return OcrResult.Fail(DescribeFailure(status, bodyText));
+            }
+
+            try
+            {
+                return OcrResult.Ok(ParseApiResponse(bodyText));
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Ovanligt: 200 OK men innehållet gick inte att tolka. Logga hela
+                // svaret — det är enda spåret vi har om formatet ändras.
+                Log($"HTTP 200 but unparsable response: {ex.Message}. Body: {bodyText}");
+                return OcrResult.Fail(UnexpectedResponseMessage);
+            }
+        }
     }
+
+    internal const string MissingKeyMessage =
+        "OCR-nyckeln saknas. Ange din Anthropic API-nyckel i Inställningar.";
+
+    internal const string QuotaMessage =
+        "OCR:n är slut på kvot. Fyll på ditt Anthropic-konto på console.anthropic.com " +
+        "och försök igen.";
+
+    internal const string InvalidKeyMessage =
+        "OCR-nyckeln accepterades inte. Kontrollera API-nyckeln i Inställningar.";
+
+    internal const string RateLimitMessage =
+        "För många OCR-förfrågningar just nu. Vänta en minut och försök igen.";
+
+    internal const string NetworkErrorMessage =
+        "Ingen internetanslutning eller timeout. Kontrollera nätet och försök igen. " +
+        "Alternativt: fyll i resultaten manuellt.";
+
+    internal const string UnexpectedResponseMessage =
+        "OCR:n misslyckades. Fyll i resultaten manuellt. " +
+        "Tekniskt fel: oväntat svar från API.";
+
+    /// <summary>Max antal tecken av API:ns felmeddelande som bäddas in i popup:en.</summary>
+    private const int TechnicalDetailLength = 100;
+
+    /// <summary>
+    /// Ord som pekar på ett betalnings-/kvotproblem. Anthropic svarar ibland 400
+    /// (invalid_request_error) i stället för 402 när saldot är slut, så texten
+    /// i error.type/error.message får avgöra.
+    /// </summary>
+    private static readonly string[] BillingMarkers =
+    {
+        "credit", "billing", "quota", "balance", "payment", "insufficient", "funds",
+    };
+
+    private static bool IsNetworkFailure(Exception ex, CancellationToken ct) =>
+        ex is HttpRequestException ||
+        (ex is TaskCanceledException && !ct.IsCancellationRequested);
+
+    /// <summary>
+    /// Statuskod + Anthropics felbody → svenskt meddelande. Ren funktion, testad
+    /// separat mot alla HTTP-koder utan att API:t behöver anropas.
+    /// </summary>
+    internal static string DescribeFailure(int status, string? responseBody)
+    {
+        var error = ReadApiError(responseBody);
+
+        return status switch
+        {
+            402 => QuotaMessage,
+            401 => InvalidKeyMessage,
+            429 => RateLimitMessage,
+            400 when LooksLikeBillingProblem(error) => QuotaMessage,
+            _ => BuildTechnicalMessage(status, error.Message),
+        };
+    }
+
+    private static string BuildTechnicalMessage(int status, string? apiMessage)
+    {
+        var detail = string.IsNullOrWhiteSpace(apiMessage)
+            ? string.Empty
+            : " " + Truncate(apiMessage!.Trim(), TechnicalDetailLength);
+        return $"OCR:n misslyckades. Fyll i resultaten manuellt. Tekniskt fel: {status}{detail}";
+    }
+
+    private static string Truncate(string text, int max) =>
+        text.Length <= max ? text : text[..max] + "…";
+
+    private static bool LooksLikeBillingProblem((string? Type, string? Message) error)
+    {
+        var haystack = $"{error.Type} {error.Message}".ToLowerInvariant();
+        return BillingMarkers.Any(marker => haystack.Contains(marker));
+    }
+
+    /// <summary>
+    /// Plockar ut error.type och error.message ur Anthropics felformat:
+    /// <c>{ "type": "error", "error": { "type": "...", "message": "..." } }</c>.
+    /// Icke-JSON eller oväntad form ger (null, null) — då faller meddelandet
+    /// tillbaka på enbart statuskoden.
+    /// </summary>
+    internal static (string? Type, string? Message) ReadApiError(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return (null, null);
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return (null, null);
+            if (!doc.RootElement.TryGetProperty("error", out var error)) return (null, null);
+            if (error.ValueKind != JsonValueKind.Object) return (null, null);
+            return (ReadString(error, "type"), ReadString(error, "message"));
+        }
+        catch (JsonException)
+        {
+            return (null, null);
+        }
+    }
+
+    private static string? ReadString(JsonElement obj, string property)
+    {
+        if (!obj.TryGetProperty(property, out var element)) return null;
+        if (element.ValueKind != JsonValueKind.String) return null;
+        var value = element.GetString();
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    /// <summary>Rå felinfo till VS Output — enda spåret när OCR fallerar i fält.</summary>
+    private static void Log(string message) =>
+        Debug.WriteLine($"[ClaudeVisionOcr] {message}");
 
     internal static ParsedCounters ParseApiResponse(string apiBody)
     {
