@@ -35,3 +35,6 @@ packages/
 *.aab
 *.keystore
 *.jks
+
+## Claude
+.claude/
