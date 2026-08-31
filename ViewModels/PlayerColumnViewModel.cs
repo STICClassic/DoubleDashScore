@@ -5,14 +5,32 @@ namespace DoubleDashScore.ViewModels;
 
 public partial class PlayerColumnViewModel : ObservableObject
 {
-    public PlayerColumnViewModel(int playerId, string playerName)
+    public PlayerColumnViewModel(int playerId, string playerName, int slotIndex = 0)
     {
         PlayerId = playerId;
-        PlayerName = playerName;
+        _playerName = playerName;
+        SlotIndex = slotIndex;
     }
 
-    public int PlayerId { get; }
-    public string PlayerName { get; }
+    /// <summary>GameCube-position 0-3 (P1-P4). Bär vilken kolumn ett tap gjordes på.</summary>
+    public int SlotIndex { get; }
+
+    /// <summary>
+    /// Sättbar: i OCR-förhandsgranskningen kan användaren byta vilken spelare
+    /// som satt på positionen, och då ska rubriken följa med.
+    /// </summary>
+    [ObservableProperty]
+    private int _playerId;
+
+    [ObservableProperty]
+    private string _playerName;
+
+    /// <summary>
+    /// Spelarfärg för rubriken, från <see cref="PlayerColors"/>. Null = tema-default
+    /// (manuell inmatning sätter ingen färg).
+    /// </summary>
+    [ObservableProperty]
+    private Color? _nameColor;
 
     [ObservableProperty]
     private string _firstPlacesText = "0";

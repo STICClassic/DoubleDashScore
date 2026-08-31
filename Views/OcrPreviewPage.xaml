@@ -2,7 +2,6 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:DoubleDashScore.ViewModels"
-             xmlns:models="clr-namespace:DoubleDashScore.Models"
              xmlns:vws="clr-namespace:DoubleDashScore.Views"
              x:Class="DoubleDashScore.Views.OcrPreviewPage"
              x:DataType="vm:OcrPreviewViewModel"
@@ -20,32 +19,14 @@
                    TextColor="{AppThemeBinding Light=#B45309, Dark=#FBBF24}"
                    IsVisible="{Binding WarningsBanner, Converter={StaticResource StringNotEmptyConverter}}" />
 
-            <Grid ColumnDefinitions="64,*,*,*,*" ColumnSpacing="8">
-                <Label Grid.Column="0" Text="" />
-                <Picker Grid.Column="1"
-                        Title="Välj spelare"
-                        ItemsSource="{Binding AvailablePlayers}"
-                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
-                        SelectedItem="{Binding SelectedPlayer0, Mode=TwoWay}" />
-                <Picker Grid.Column="2"
-                        Title="Välj spelare"
-                        ItemsSource="{Binding AvailablePlayers}"
-                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
-                        SelectedItem="{Binding SelectedPlayer1, Mode=TwoWay}" />
-                <Picker Grid.Column="3"
-                        Title="Välj spelare"
-                        ItemsSource="{Binding AvailablePlayers}"
-                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
-                        SelectedItem="{Binding SelectedPlayer2, Mode=TwoWay}" />
-                <Picker Grid.Column="4"
-                        Title="Välj spelare"
-                        ItemsSource="{Binding AvailablePlayers}"
-                        ItemDisplayBinding="{Binding Name, x:DataType=models:Player}"
-                        SelectedItem="{Binding SelectedPlayer3, Mode=TwoWay}" />
-            </Grid>
+            <Label Text="Tappa ett namn för att byta vem som satt på den positionen."
+                   FontSize="12"
+                   TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}" />
 
             <vws:RoundMatrixView Players="{Binding Players}"
-                                 TrackCountText="{Binding TrackCountText, Mode=TwoWay}" />
+                                 TrackCountText="{Binding TrackCountText, Mode=TwoWay}"
+                                 IsNamePickerEnabled="True"
+                                 NameTapCommand="{Binding PickPlayerCommand}" />
 
             <Label Text="{Binding ValidationMessage}"
                    FontSize="13"

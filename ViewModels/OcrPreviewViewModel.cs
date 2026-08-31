@@ -13,15 +13,18 @@ public partial class OcrPreviewViewModel : ObservableObject
     private readonly PlayerRepository _playersRepo;
     private readonly RoundRepository _rounds;
     private readonly OcrFlowContext _context;
+    private readonly IOcrMappingStore _mappingStore;
 
     public OcrPreviewViewModel(
         PlayerRepository players,
         RoundRepository rounds,
-        OcrFlowContext context)
+        OcrFlowContext context,
+        IOcrMappingStore mappingStore)
     {
         _playersRepo = players;
         _rounds = rounds;
         _context = context;
+        _mappingStore = mappingStore;
     }
 
     [ObservableProperty]
@@ -74,6 +77,10 @@ public partial class OcrPreviewViewModel : ObservableObject
         nameof(PlayerColumnViewModel.SecondPlaceHasError),
         nameof(PlayerColumnViewModel.ThirdPlaceHasError),
         nameof(PlayerColumnViewModel.FourthPlaceHasError),
+        // Rubrikbytet hanteras av AssignPlayer, inte av cell-handlern.
+        nameof(PlayerColumnViewModel.PlayerId),
+        nameof(PlayerColumnViewModel.PlayerName),
+        nameof(PlayerColumnViewModel.NameColor),
     };
 
     public bool IsValid
@@ -109,18 +116,21 @@ public partial class OcrPreviewViewModel : ObservableObject
                 return;
             }
 
-            var defaultMapping = PlayerSlotMapper.Map(active);
-            SelectedPlayer0 = defaultMapping[0];
-            SelectedPlayer1 = defaultMapping[1];
-            SelectedPlayer2 = defaultMapping[2];
-            SelectedPlayer3 = defaultMapping[3];
+            // Mappningen från förra scanningen om den fortfarande går att
+            // applicera, annars namn-defaulten Claes/Robin/Aleksi/Jonas.
+            var mapping = PlayerSlotMapper.Resolve(active, _mappingStore.Get());
+            SelectedPlayer0 = mapping[0];
+            SelectedPlayer1 = mapping[1];
+            SelectedPlayer2 = mapping[2];
+            SelectedPlayer3 = mapping[3];
 
             var newPlayers = new List<PlayerColumnViewModel>(4);
             for (int i = 0; i < 4; i++)
             {
                 var slot = parsed.Slots[i];
-                var col = new PlayerColumnViewModel(0, $"P{i + 1}")
+                var col = new PlayerColumnViewModel(mapping[i].Id, mapping[i].Name, i)
                 {
+                    NameColor = ColorForPlayer(mapping[i]),
                     FirstPlacesText = slot.FirstPlaces.ToString(),
                     SecondPlacesText = slot.SecondPlaces.ToString(),
                     ThirdPlacesText = slot.ThirdPlaces.ToString(),
@@ -258,6 +268,74 @@ public partial class OcrPreviewViewModel : ObservableObject
     private IReadOnlyList<Player?> CurrentSelections() =>
         new[] { SelectedPlayer0, SelectedPlayer1, SelectedPlayer2, SelectedPlayer3 };
 
+    private static Color? ColorForPlayer(Player player) =>
+        PlayerColors.HexByName.TryGetValue(player.Name, out var hex)
+            ? Color.FromArgb(hex)
+            : null;
+
+    /// <summary>
+    /// Tap på ett spelarnamn i rubrikraden: välj vem som satt på positionen.
+    /// </summary>
+    [RelayCommand]
+    private async Task PickPlayerAsync(PlayerColumnViewModel? column)
+    {
+        if (column is null) return;
+        if (AvailablePlayers.Count != 4) return;
+
+        var page = Shell.Current.CurrentPage;
+        var names = AvailablePlayers.Select(p => p.Name).ToArray();
+        var choice = await page.DisplayActionSheetAsync(
+            $"Vem satt på P{column.SlotIndex + 1}?",
+            "Avbryt",
+            null,
+            names).ConfigureAwait(true);
+
+        var chosen = AvailablePlayers.FirstOrDefault(p => p.Name == choice);
+        if (chosen is null) return;
+
+        AssignPlayer(column.SlotIndex, chosen);
+    }
+
+    /// <summary>
+    /// Sätter spelaren på positionen. Satt hen redan på en annan position byter
+    /// de två plats (se <see cref="PlayerSlotMapper.Assign"/>).
+    /// </summary>
+    private void AssignPlayer(int slotIndex, Player chosen)
+    {
+        var next = PlayerSlotMapper.Assign(CurrentSelections(), slotIndex, chosen);
+
+        _suppressDirtyTracking = true;
+        try
+        {
+            SelectedPlayer0 = next[0];
+            SelectedPlayer1 = next[1];
+            SelectedPlayer2 = next[2];
+            SelectedPlayer3 = next[3];
+        }
+        finally
+        {
+            _suppressDirtyTracking = false;
+        }
+
+        SyncColumnHeaders();
+        HasUnsavedChanges = true;
+        UpdateValidation();
+    }
+
+    private void SyncColumnHeaders()
+    {
+        if (Players.Count != 4) return;
+        var selections = CurrentSelections();
+        for (int i = 0; i < 4; i++)
+        {
+            var player = selections[i];
+            if (player is null) continue;
+            Players[i].PlayerId = player.Id;
+            Players[i].PlayerName = player.Name;
+            Players[i].NameColor = ColorForPlayer(player);
+        }
+    }
+
     [RelayCommand]
     private async Task SaveAsync()
     {
@@ -283,6 +361,10 @@ public partial class OcrPreviewViewModel : ObservableObject
                 trackCount,
                 inputs,
                 photoPath: _context.PhotoPath).ConfigureAwait(true);
+
+            // Nästa scan öppnar med samma position-till-spelare-mappning.
+            _mappingStore.Set(selections.Select(p => p!.Id).ToList());
+
             _context.Clear();
             HasUnsavedChanges = false;
             await Shell.Current.GoToAsync("..").ConfigureAwait(true);
