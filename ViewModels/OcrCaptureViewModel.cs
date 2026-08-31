@@ -1,7 +1,6 @@
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
-using DoubleDashScore.Models;
 using DoubleDashScore.Services;
-using DoubleDashScore.Views;
 
 namespace DoubleDashScore.ViewModels;
 
@@ -11,6 +10,8 @@ public partial class OcrCaptureViewModel : ObservableObject
     private readonly PhotoStorageService _photos;
     private readonly OcrFlowContext _context;
     private readonly IApiKeyStore _keys;
+
+    internal const string OcrFailureTitle = "OCR misslyckades";
 
     public OcrCaptureViewModel(
         IOcrService ocr,
@@ -77,35 +78,44 @@ public partial class OcrCaptureViewModel : ObservableObject
             photoPath = await _photos.SaveAsync(stream, pick.FileName, ct).ConfigureAwait(true);
         }
 
-        ParsedCounters parsed;
+        OcrResult result;
         try
         {
             onOcrLoading?.Invoke(true);
             try
             {
                 await using var stream = File.OpenRead(photoPath);
-                parsed = await _ocr.RecognizeAsync(stream, ct).ConfigureAwait(true);
+                result = await _ocr.RecognizeAsync(stream, ct).ConfigureAwait(true);
             }
             finally
             {
+                // Alltid av — även vid fel — så vyn aldrig fastnar i loading.
                 onOcrLoading?.Invoke(false);
             }
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            parsed = new ParsedCounters(
-                Enumerable.Range(0, 4).Select(i => new PlayerSlotCounters(i, 0, 0, 0, 0)).ToList(),
-                0,
-                new List<string> { ex.Message });
+            // Servicen kategoriserar allt den kan; hamnar vi här är det något
+            // oväntat utanför HTTP-lagret (t.ex. fil-I/O på fotot).
+            Debug.WriteLine($"[OcrCapture] unexpected {ex.GetType().Name}: {ex.Message}");
+            result = OcrResult.Fail(
+                "OCR:n misslyckades. Fyll i resultaten manuellt. " +
+                $"Tekniskt fel: {ex.GetType().Name} {ex.Message}");
         }
-        catch (PlatformNotSupportedException ex)
+
+        if (!result.Success || result.Counters is null)
         {
-            await page.DisplayAlertAsync("OCR ej tillgängligt", ex.Message, "OK").ConfigureAwait(true);
+            // Ingen navigering vidare: användaren stannar kvar på kvällsvyn och
+            // kan starta om skanningen eller mata in omgången manuellt.
+            await page.DisplayAlertAsync(
+                OcrFailureTitle,
+                result.ErrorMessage ?? "OCR:n misslyckades. Fyll i resultaten manuellt.",
+                "OK").ConfigureAwait(true);
             return;
         }
 
         _context.GameNightId = gameNightId;
-        _context.Pending = parsed;
+        _context.Pending = result.Counters;
         _context.PhotoPath = photoPath;
 
         await Shell.Current.GoToAsync("OcrPreviewPage").ConfigureAwait(true);
