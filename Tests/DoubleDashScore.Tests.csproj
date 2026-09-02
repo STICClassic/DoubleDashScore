@@ -28,6 +28,7 @@
 		<Compile Include="..\Services\PlayerPositionMappingStore.cs" LinkBase="Services" />
 		<Compile Include="..\Services\MappingValidator.cs" LinkBase="Services" />
 		<Compile Include="..\Services\MappingPersistenceRule.cs" LinkBase="Services" />
+		<Compile Include="..\Services\RoundSlotOrder.cs" LinkBase="Services" />
 		<Compile Include="..\Services\MatrixErrorDetector.cs" LinkBase="Services" />
 		<Compile Include="..\Services\IApiKeyStore.cs" LinkBase="Services" />
 		<Compile Include="..\Services\IOcrService.cs" LinkBase="Services" />

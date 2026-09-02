@@ -541,6 +541,19 @@ ställena (`OcrPreviewViewModel` och `RoundEntryViewModel`).
   längre finns bland de aktiva spelarna ogiltigförklarar **hela** mappningen —
   halvt applicerad mappning vore värre än en känd default. Manuell inmatning
   läste tidigare spelarna rakt av i `DisplayOrder`; den vägen finns inte kvar.
+- **Två källor till headern, beroende på kontext** (`RoundSlotOrder.SlotIdsFor`):
+  en **ny** omgång (manuell eller OCR) tar den globala mappningen; **redigering**
+  av en befintlig omgång tar omgångens *egna* resultatrader. Omgångens data är
+  sanningen för just den omgången — annars kan headern visa default-ordningen
+  ovanför siffror som sparades i en annan ordning, alltså en vy som ljuger.
+- **Positionen finns inte som kolumn i `RoundResult`** — den ligger i radernas
+  **insättningsordning**. `CreateRoundAsync` och `UpdateRoundAsync` infogar en
+  rad per kolumn i P1–P4-ordning, så stigande `RoundResult.Id` bland omgångens
+  levande rader *är* positionsordningen. `RoundSlotOrder.FromResults` sorterar
+  själv på `Id` (förlitar sig inte på query-ordning) och förkastar hela
+  härledningen om raderna inte är exakt fyra unika spelare — då tar
+  `Resolve`:s namn-default över. Ändrar du insättningsordningen i repository:t,
+  ändra `RoundSlotOrder` samtidigt.
 - **Databasen är oförändrad.** `RoundResult` har alltid lagrats på spelar-Id,
   inte position; det enda som ändrats är hur vyn väljer vilket Id som hör till
   vilken kolumn. Historik och webben påverkas inte.

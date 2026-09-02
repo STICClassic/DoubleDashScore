@@ -122,9 +122,12 @@ public partial class RoundEntryViewModel : ObservableObject
                 TrackCountText = "16";
             }
 
-            // Mappningen från senaste inmatningen (manuell eller OCR) om den
-            // fortfarande går att applicera, annars namn-defaulten.
-            var mapping = PlayerSlotMapper.Resolve(activePlayers, _mappingStore.Get());
+            // Ny omgång: den globala mappningen från senaste inmatningen
+            // (manuell eller OCR). Redigering: omgångens egna resultatrader —
+            // deras ordning är sanningen för just den omgången, annars skulle
+            // headern ljuga om vems siffror som står i kolumnen.
+            var slotIds = RoundSlotOrder.SlotIdsFor(existing?.Results, _mappingStore.Get());
+            var mapping = PlayerSlotMapper.Resolve(activePlayers, slotIds);
             _slots = mapping.Cast<Player?>().ToList();
 
             var newPlayers = new List<PlayerColumnViewModel>(4);
