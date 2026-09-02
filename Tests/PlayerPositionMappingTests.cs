@@ -5,9 +5,9 @@ using Xunit;
 namespace DoubleDashScore.Tests;
 
 /// <summary>
-/// Skiva 29: position-till-spelare-mappningen (delad av OCR-förhandsgranskningen
-/// och manuell inmatning) —
-/// persistens (codec), återläsning (Resolve) och auto-swap (Assign).
+/// Skiva 29: position-till-spelare-mappningen, delad av OCR-förhandsgranskningen
+/// och manuell inmatning — persistens (codec), återläsning (Resolve) och
+/// auto-swap (Assign).
 /// </summary>
 public class PlayerPositionMappingTests
 {

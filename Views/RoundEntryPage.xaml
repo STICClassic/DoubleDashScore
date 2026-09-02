@@ -14,8 +14,14 @@
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="14">
 
+            <Label Text="Tappa ett namn för att byta vem som satt på den positionen."
+                   FontSize="12"
+                   TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}" />
+
             <vws:RoundMatrixView Players="{Binding Players}"
-                                 TrackCountText="{Binding TrackCountText, Mode=TwoWay}" />
+                                 TrackCountText="{Binding TrackCountText, Mode=TwoWay}"
+                                 IsNamePickerEnabled="True"
+                                 NameTapCommand="{Binding PickPlayerCommand}" />
 
             <Label Text="{Binding ValidationMessage}" FontSize="13" TextColor="{AppThemeBinding Light=#B45309, Dark=#FBBF24}" />
 

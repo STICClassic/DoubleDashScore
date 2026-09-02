@@ -493,38 +493,53 @@ Stabila beslut andra PR:s måste känna till:
   `NightsListViewModel.PlayerColorsByName` adapterar dem till MAUI-`Color`.
   Lägg inte tillbaka en egen hex-lista här — se "Tema och design".
 
-### OCR: position-till-spelare-mappning
+### Position-till-spelare-mappning (OCR + manuell inmatning)
 
-Poängtavlan i bilden är positionsbaserad (P1–P4 = controller-plats), inte
-personbaserad. Vem som satt på vilken plats kan variera mellan kvällar, så
-mappningen är **redigerbar och persistent** sedan Skiva 29:
+Poängtavlan är positionsbaserad (P1–P4 = controller-plats), inte personbaserad.
+Vem som satt på vilken plats varierar mellan kvällar, så mappningen är
+**redigerbar och persistent** — sedan Skiva 29 i OCR-förhandsgranskningen, och
+sedan följdcommiten även i manuell inmatning. **Båda flödena delar samma
+mekanik och samma sparade mappning**; ändrar du beteendet, ändra det på båda
+ställena (`OcrPreviewViewModel` och `RoundEntryViewModel`).
 
-- **`OcrPreviewPage` visar spelarnamnen** — inte "P1..P4" — som rubrikrad
-  ovanför siffror-blocken, varje namn i sin `PlayerColors`-färg. Det finns
-  ingen separat spelarväljar-rad; namnen är enda stället mappningen syns.
-  Tap på ett namn öppnar en `DisplayActionSheet` med de fyra spelarna.
+- **Rubrikraden visar spelarnamnen** — inte "P1..P4" — ovanför siffror-blocken,
+  varje namn i sin `PlayerColors`-färg. Det finns ingen separat spelarväljar-rad;
+  namnen är enda stället mappningen syns. Tap på ett namn öppnar en
+  `DisplayActionSheet` med de fyra spelarna. Gäller både `OcrPreviewPage` och
+  `RoundEntryPage`.
+- **Siffrorna står kvar i kolumnen, namnet flyttar sig.** Poängen matas in i
+  den ordning de står på TV-skärmen; mappningen fixas efteråt. Även vid
+  *redigering* av en befintlig omgång betyder ett byte att kolumnens siffror
+  får en ny ägare — det är avsikten, inte en bugg.
 - **Auto-swap:** väljs en spelare som redan sitter på en annan position byter
   de två plats. `PlayerSlotMapper.Assign` (ren funktion) garanterar att
   mappningen alltid förblir en permutation, så `MappingValidator` aldrig kan
   se dubbletter. Ingen bekräftelsedialog — swap är säkerhetsnät, inte en
   medveten åtgärd.
 - **Persistens:** vid lyckad spara skrivs mappningen som JSON-array av 4
-  spelar-Id i P1–P4-ordning via `IPlayerPositionMappingStore` (`PreferencesPlayerPositionMappingStore`,
-  `Preferences`-nyckel `ocr_player_mapping`). Nästa scan öppnar med samma
-  mappning — vanliga fall kräver noll klick. Detta är appens **enda**
+  spelar-Id i P1–P4-ordning via `IPlayerPositionMappingStore`
+  (`PreferencesPlayerPositionMappingStore`, `Preferences`-nyckel
+  `ocr_player_mapping`). Nyckelnamnet är kvar från Skiva 29 trots
+  omdöpningen av typerna — byt det inte, då tappas mappningen som redan
+  ligger sparad på telefonen. Nästa inmatning **oavsett flöde** öppnar med
+  samma mappning; vanliga fall kräver noll klick. Detta är appens **enda**
   `Preferences`-användning; hemligheter går fortsatt via `SecureStorage`.
-- **`PlayerSlotMapper.Resolve(active, savedIds)`** avgör startmappningen:
-  sparad om den fortfarande går att applicera fullt ut, annars namn-defaulten
-  `Claes/Robin/Aleksi/Jonas` (`Map`). Ett sparat Id som inte längre finns bland
-  de aktiva spelarna ogiltigförklarar **hela** mappningen — halvt applicerad
-  mappning vore värre än en känd default.
+- **`PlayerSlotMapper.Resolve(active, savedIds)`** avgör startmappningen i
+  båda flödena: sparad om den fortfarande går att applicera fullt ut, annars
+  namn-defaulten `Claes/Robin/Aleksi/Jonas` (`Map`). Ett sparat Id som inte
+  längre finns bland de aktiva spelarna ogiltigförklarar **hela** mappningen —
+  halvt applicerad mappning vore värre än en känd default. Manuell inmatning
+  läste tidigare spelarna rakt av i `DisplayOrder`; den vägen finns inte kvar.
 - **Databasen är oförändrad.** `RoundResult` har alltid lagrats på spelar-Id,
-  inte position; det enda som ändrats är hur preview-vyn väljer vilket Id som
-  hör till vilken kolumn. Historik och webben påverkas inte.
-- **`RoundMatrixView` delas med `RoundEntryPage`.** Rubrikradens interaktivitet
-  är opt-in via bindable properties `NameTapCommand` + `IsNamePickerEnabled` —
-  sätts bara av `OcrPreviewPage`. Manuell inmatning har oförändrad, icke-tapbar
-  rubrikrad utan färg (`PlayerColumnViewModel.NameColor` = null → tema-default).
+  inte position; det enda som ändrats är hur vyn väljer vilket Id som hör till
+  vilken kolumn. Historik och webben påverkas inte.
+- **`RoundMatrixView` delas av båda sidorna** och sätts numera upp likadant av
+  båda: `NameTapCommand="{Binding PickPlayerCommand}"` +
+  `IsNamePickerEnabled="True"`. Bindable-properties:arna är kvar som opt-in för
+  framtida konsumenter som vill ha en icke-interaktiv rubrikrad.
+- **`PlayerColors.MauiColorFor(name)`** är den delade adaptern hex → MAUI-`Color`
+  för en enskild spelare (null vid okänt namn → tema-default). Bygg inte en
+  egen `Color.FromArgb`-slagning i en ny VM.
 
 ## MAUI-gotchas och plattformsbeslut
 
