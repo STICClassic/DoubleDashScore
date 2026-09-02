@@ -177,8 +177,9 @@ som redan finns innan något byggs om eller dupliceras:
   Skiva 1 förblir oförändrad eftersom ties uppstår på *omgångsnivå* (samma
   totalpoäng), inte på *banenivå*.
 - `NightStatsPage` (per kväll, nås via toolbar på `NightDetailPage`):
-  kvällssnitt per spelare, kvällsplacering per spelare, samt en per-omgång-tabell
-  som visar varje spelares placering och total banpoäng per komplett omgång.
+  kvällssnitt per spelare, kvällsplacering per spelare, en per-omgång-tabell
+  över **alla** omgångar (se "Kvällens statistik-vy" nedan) och en
+  totalpoängsrad för kvällen.
 - `HistoryStatsPage` (alla kvällar, nås via toolbar på `NightsListPage`):
   totalscore-tabell med kolumnerna `1:or`, `2:or`, `3:or`, `4:or`, `Karriärsnitt`,
   plus en linjegraf med kvällssnitt över tid (en linje per spelare, sorterat
@@ -416,6 +417,30 @@ i helskärm. Stuget för att inte krocka:
   Anledning: historisk seed-data har inga banantal per kväll, så viktat
   snitt går inte att räkna. Oviktat funkar för seed + live, värdena är
   nästan identiska i praktiken (kvällar är typiskt 16 banor).
+
+### Kvällens statistik-vy (`NightStatsPage`)
+
+Sedan Skiva 30 visar per-omgång-tabellen **alla** omgångar, inte bara
+kompletta. Poängen från partiella omgångar räknades redan in i kvällssnittet —
+att gömma raderna gjorde bara vyn svårläst.
+
+- **Partiella omgångar renderas identiskt** med kompletta, enda skillnaden är
+  rubriken: `Omgång 3 (inkomplett)`. Ingen dimning, ingen specialfärg.
+- **`NightStats.RoundPositions`** (ersätter `CompleteRoundPositions`) innehåller
+  en post per omgång med `IsComplete` på posten. För en partiell omgång är
+  `PositionByPlayer` en rangordning på omgångens poäng **enbart för visning** —
+  den är ingen omgångsplacering. `PlacementsByPlayer`, totalscore-listan och
+  Kvällar-vyns vinnarrad räknar fortsatt **bara** kompletta omgångar; rör inte
+  den gränsen. Publika `StatsCalculator.CalculateRoundPositions` kastar därför
+  fortfarande för en partiell omgång — visningsrangordningen går via den
+  privata `RankByPoints`.
+- **`NightStats.TotalPointsByPlayer`** är kvällens totala banpoäng per spelare
+  över alla omgångar, kompletta som partiella (samma underlag som
+  kvällssnittet). Värdet beräknades redan internt i `CalculateNightStats` och
+  exponeras nu i stället för att räknas om någon annanstans. Renderas som
+  "Totalt för kvällen": namnen i `PlayerColors`-färg, bäst först, byggt som
+  `FormattedString` med färgade spans — samma mönster som vinnarraden i
+  `NightsListViewModel`.
 
 ### Delade UI-komponenter mellan Statistik och Översikt
 

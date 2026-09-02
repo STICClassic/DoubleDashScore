@@ -49,19 +49,22 @@ public static class StatsCalculator
         var placementsByPlayer = activePlayerIds.ToDictionary(
             id => id,
             _ => (IReadOnlyList<int>)new List<int>());
-        var completeRoundPositions = new List<RoundPositionsResult>();
+        var roundPositions = new List<RoundPositionsResult>();
 
-        foreach (var round in night.Rounds.Where(r => r.IsComplete))
+        // Alla omgångar rangordnas så kvällsvyn kan visa även de partiella,
+        // men bara kompletta omgångar ger kvällsplaceringar.
+        foreach (var round in night.Rounds)
         {
-            var positions = CalculateRoundPositions(round, activePlayerIds);
-            completeRoundPositions.Add(positions);
+            var positions = RankByPoints(round);
+            roundPositions.Add(positions);
+            if (!round.IsComplete) continue;
             foreach (var id in activePlayerIds)
             {
                 ((List<int>)placementsByPlayer[id]).Add(positions.PositionByPlayer[id]);
             }
         }
 
-        return new NightStats(averageByPlayer, placementsByPlayer, completeRoundPositions);
+        return new NightStats(averageByPlayer, placementsByPlayer, totalPoints, roundPositions);
     }
 
     public static RoundPositionsResult CalculateRoundPositions(RoundDetail round, IReadOnlyList<int> activePlayerIds)
@@ -75,6 +78,16 @@ public static class StatsCalculator
         }
         ValidateRoundsHaveAllPlayers(new[] { round }, activePlayerIds, round.Round.GameNightId);
 
+        return RankByPoints(round);
+    }
+
+    /// <summary>
+    /// Rangordnar omgångens spelare på banpoäng (tied ranking). Utan
+    /// komplett-kravet i <see cref="CalculateRoundPositions"/> — för en partiell
+    /// omgång är resultatet enbart visningsdata, aldrig en omgångsplacering.
+    /// </summary>
+    private static RoundPositionsResult RankByPoints(RoundDetail round)
+    {
         var totalPoints = round.Results.ToDictionary(r => r.PlayerId, PointsFor);
 
         var sorted = totalPoints
@@ -98,6 +111,7 @@ public static class StatsCalculator
         return new RoundPositionsResult(
             round.Round.Id,
             round.Round.RoundNumber,
+            round.IsComplete,
             positions,
             totalPoints);
     }

@@ -52,7 +52,7 @@
                 <CollectionView ItemsSource="{Binding RoundSections}"
                                 SelectionMode="None">
                     <CollectionView.EmptyView>
-                        <Label Text="Inga kompletta omgångar än."
+                        <Label Text="Inga omgångar än."
                                Opacity="0.7"
                                HorizontalOptions="Start" />
                     </CollectionView.EmptyView>
@@ -88,6 +88,13 @@
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasData}">
+                <Label Text="Totalt för kvällen" FontAttributes="Bold" FontSize="18" />
+                <Label FormattedText="{Binding NightTotals}"
+                       FontSize="15"
+                       LineBreakMode="WordWrap" />
             </VerticalStackLayout>
 
         </VerticalStackLayout>
