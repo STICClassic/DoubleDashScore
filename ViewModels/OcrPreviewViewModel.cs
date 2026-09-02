@@ -357,7 +357,9 @@ public partial class OcrPreviewViewModel : ObservableObject
                 inputs,
                 photoPath: _context.PhotoPath).ConfigureAwait(true);
 
-            // Nästa scan öppnar med samma position-till-spelare-mappning.
+            // Nästa inmatning öppnar med samma position-till-spelare-mappning.
+            // OCR-flödet skapar alltid en ny omgång, så villkoret i
+            // MappingPersistenceRule är alltid uppfyllt här — ingen kontroll behövs.
             _mappingStore.Set(selections.Select(p => p!.Id).ToList());
 
             _context.Clear();

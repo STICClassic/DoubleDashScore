@@ -187,6 +187,23 @@ public class RoundRepository
         _backup.RequestBackup();
     }
 
+    /// <summary>
+    /// Id för den senast skapade omgången i hela databasen, soft-deletade
+    /// bortfiltrerade, eller null om ingen omgång finns. <c>Id</c> är
+    /// AutoIncrement, så högsta Id är alltid den senast skapade — oberoende av
+    /// kvällens datum och av klockan i <c>CreatedAt</c>.
+    /// </summary>
+    public async Task<int?> GetLatestRoundIdAsync(CancellationToken ct = default)
+    {
+        var conn = await _db.GetConnectionAsync(ct).ConfigureAwait(false);
+        var round = await conn.Table<Round>()
+            .Where(r => r.DeletedAt == null)
+            .OrderByDescending(r => r.Id)
+            .FirstOrDefaultAsync()
+            .ConfigureAwait(false);
+        return round?.Id;
+    }
+
     public async Task<RoundDetail?> GetMostRecentRoundForNightAsync(int gameNightId, CancellationToken ct = default)
     {
         var conn = await _db.GetConnectionAsync(ct).ConfigureAwait(false);

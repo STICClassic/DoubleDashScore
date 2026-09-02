@@ -325,7 +325,10 @@ public partial class RoundEntryViewModel : ObservableObject
             }
 
             // Nästa inmatning — manuell eller OCR — öppnar med samma mappning.
-            if (_slots.All(p => p is not null))
+            // Bara ny omgång eller redigering av senaste omgången får skriva om
+            // den; en gammal omgångs mappning är historisk (se
+            // MappingPersistenceRule).
+            if (_slots.All(p => p is not null) && await ShouldPersistMappingAsync().ConfigureAwait(true))
             {
                 _mappingStore.Set(_slots.Select(p => p!.Id).ToList());
             }
@@ -337,6 +340,13 @@ public partial class RoundEntryViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    private async Task<bool> ShouldPersistMappingAsync()
+    {
+        if (RoundId <= 0) return true;
+        var latestRoundId = await _rounds.GetLatestRoundIdAsync().ConfigureAwait(true);
+        return MappingPersistenceRule.ShouldPersist(RoundId, latestRoundId);
     }
 
     public async Task<bool> ConfirmDiscardAsync()

@@ -524,6 +524,17 @@ ställena (`OcrPreviewViewModel` och `RoundEntryViewModel`).
   ligger sparad på telefonen. Nästa inmatning **oavsett flöde** öppnar med
   samma mappning; vanliga fall kräver noll klick. Detta är appens **enda**
   `Preferences`-användning; hemligheter går fortsatt via `SecureStorage`.
+- **Persistering är avsiktligt begränsad:** bara en **ny omgång** eller en
+  redigering av databasens **senaste** omgång får skriva om mappningen.
+  Redigerar man en äldre omgång sparas bara den omgångens data — dagens
+  mappning rörs inte. Utan regeln skulle en rättning i en gammal kväll
+  ("Aleksi satt på P1 den gången") tyst skriva över var Aleksi sitter ikväll.
+  Villkoret bor i den rena `MappingPersistenceRule.ShouldPersist(editedRoundId,
+  latestRoundId)`; "senaste" avgörs av högsta `Round.Id` bland icke-soft-
+  deletade omgångar (`RoundRepository.GetLatestRoundIdAsync`) — `Id` är
+  AutoIncrement och därmed oberoende av kvällsdatum och klockskev i
+  `CreatedAt`. OCR-flödet skapar alltid en ny omgång och behöver därför
+  ingen kontroll.
 - **`PlayerSlotMapper.Resolve(active, savedIds)`** avgör startmappningen i
   båda flödena: sparad om den fortfarande går att applicera fullt ut, annars
   namn-defaulten `Claes/Robin/Aleksi/Jonas` (`Map`). Ett sparat Id som inte
