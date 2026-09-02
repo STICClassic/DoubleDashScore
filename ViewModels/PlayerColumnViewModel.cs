@@ -16,8 +16,9 @@ public partial class PlayerColumnViewModel : ObservableObject
     public int SlotIndex { get; }
 
     /// <summary>
-    /// Sättbar: i OCR-förhandsgranskningen kan användaren byta vilken spelare
-    /// som satt på positionen, och då ska rubriken följa med.
+    /// Sättbar: i både OCR-förhandsgranskningen och manuell inmatning kan
+    /// användaren byta vilken spelare som satt på positionen, och då ska
+    /// rubriken följa med.
     /// </summary>
     [ObservableProperty]
     private int _playerId;
@@ -27,7 +28,7 @@ public partial class PlayerColumnViewModel : ObservableObject
 
     /// <summary>
     /// Spelarfärg för rubriken, från <see cref="PlayerColors"/>. Null = tema-default
-    /// (manuell inmatning sätter ingen färg).
+    /// (okänt spelarnamn).
     /// </summary>
     [ObservableProperty]
     private Color? _nameColor;

@@ -5,10 +5,11 @@ using Xunit;
 namespace DoubleDashScore.Tests;
 
 /// <summary>
-/// Skiva 29: position-till-spelare-mappningen i OCR-förhandsgranskningen —
-/// persistens (codec), återläsning (Resolve) och auto-swap (Assign).
+/// Skiva 29: position-till-spelare-mappningen, delad av OCR-förhandsgranskningen
+/// och manuell inmatning — persistens (codec), återläsning (Resolve) och
+/// auto-swap (Assign).
 /// </summary>
-public class OcrPlayerMappingTests
+public class PlayerPositionMappingTests
 {
     private static Player P(int id, string name, int order) =>
         new() { Id = id, Name = name, DisplayOrder = order };
@@ -21,14 +22,14 @@ public class OcrPlayerMappingTests
         P(4, "Jonas", 3),
     };
 
-    // --- OcrMappingCodec ------------------------------------------------
+    // --- PlayerPositionMappingCodec ------------------------------------------------
 
     [Fact]
     public void Codec_RoundTrip_BevararOrdning()
     {
-        var json = OcrMappingCodec.Serialize(new[] { 3, 1, 4, 2 });
+        var json = PlayerPositionMappingCodec.Serialize(new[] { 3, 1, 4, 2 });
 
-        var ids = OcrMappingCodec.TryDeserialize(json);
+        var ids = PlayerPositionMappingCodec.TryDeserialize(json);
 
         Assert.NotNull(ids);
         Assert.Equal(new[] { 3, 1, 4, 2 }, ids!);
@@ -47,7 +48,7 @@ public class OcrPlayerMappingTests
     [InlineData("[-1,2,3,4]")]
     public void Codec_OgiltigInput_GerNull(string? json)
     {
-        Assert.Null(OcrMappingCodec.TryDeserialize(json));
+        Assert.Null(PlayerPositionMappingCodec.TryDeserialize(json));
     }
 
     // --- PlayerSlotMapper.Resolve ---------------------------------------
@@ -162,8 +163,8 @@ public class OcrPlayerMappingTests
         var players = Four();
         var swapped = PlayerSlotMapper.Assign(players.Cast<Player?>().ToList(), 0, players[1]);
 
-        var json = OcrMappingCodec.Serialize(swapped.Select(p => p!.Id).ToList());
-        var restored = PlayerSlotMapper.Resolve(players, OcrMappingCodec.TryDeserialize(json));
+        var json = PlayerPositionMappingCodec.Serialize(swapped.Select(p => p!.Id).ToList());
+        var restored = PlayerSlotMapper.Resolve(players, PlayerPositionMappingCodec.TryDeserialize(json));
 
         Assert.Equal(swapped.Select(p => p!.Name), restored.Select(p => p.Name));
         Assert.Equal("Robin", restored[0].Name);

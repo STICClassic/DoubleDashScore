@@ -19,8 +19,8 @@ public partial class RoundMatrixView : ContentView
 
     /// <summary>
     /// Kommando som körs när ett spelarnamn i rubrikraden tap:as. Parametern är
-    /// kolumnens <see cref="PlayerColumnViewModel"/>. Null (manuell inmatning)
-    /// = raden är inte interaktiv.
+    /// kolumnens <see cref="PlayerColumnViewModel"/>. Null = raden är inte
+    /// interaktiv.
     /// </summary>
     public static readonly BindableProperty NameTapCommandProperty = BindableProperty.Create(
         nameof(NameTapCommand),

@@ -4,11 +4,13 @@ namespace DoubleDashScore.Services;
 
 /// <summary>
 /// Lagrar vilken spelare som satt på vilken GameCube-position (P1–P4) vid
-/// senaste OCR-inmatningen, så nästa scan öppnar med samma mappning.
+/// senaste inmatningen, så nästa inmatning öppnar med samma mappning.
+/// Delas av OCR-förhandsgranskningen och den manuella inmatningen — det är
+/// samma "vem sitter var ikväll"-koncept i båda flödena.
 /// Interfacet finns för att hålla ViewModel:en fri från MAUI-beroenden —
 /// samma mönster som <see cref="IApiKeyStore"/>/<see cref="IGitHubTokenStore"/>.
 /// </summary>
-public interface IOcrMappingStore
+public interface IPlayerPositionMappingStore
 {
     /// <summary>Sparade spelar-Id i P1–P4-ordning, eller null om inget sparats.</summary>
     IReadOnlyList<int>? Get();
@@ -20,7 +22,7 @@ public interface IOcrMappingStore
 /// JSON-kodning av mappningen: en array av 4 spelar-Id i P1–P4-ordning.
 /// Ren funktion, separerad från lagringen så den kan enhetstestas.
 /// </summary>
-public static class OcrMappingCodec
+public static class PlayerPositionMappingCodec
 {
     public const int SlotCount = 4;
 

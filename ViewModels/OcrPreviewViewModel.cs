@@ -13,13 +13,13 @@ public partial class OcrPreviewViewModel : ObservableObject
     private readonly PlayerRepository _playersRepo;
     private readonly RoundRepository _rounds;
     private readonly OcrFlowContext _context;
-    private readonly IOcrMappingStore _mappingStore;
+    private readonly IPlayerPositionMappingStore _mappingStore;
 
     public OcrPreviewViewModel(
         PlayerRepository players,
         RoundRepository rounds,
         OcrFlowContext context,
-        IOcrMappingStore mappingStore)
+        IPlayerPositionMappingStore mappingStore)
     {
         _playersRepo = players;
         _rounds = rounds;
@@ -130,7 +130,7 @@ public partial class OcrPreviewViewModel : ObservableObject
                 var slot = parsed.Slots[i];
                 var col = new PlayerColumnViewModel(mapping[i].Id, mapping[i].Name, i)
                 {
-                    NameColor = ColorForPlayer(mapping[i]),
+                    NameColor = PlayerColors.MauiColorFor(mapping[i].Name),
                     FirstPlacesText = slot.FirstPlaces.ToString(),
                     SecondPlacesText = slot.SecondPlaces.ToString(),
                     ThirdPlacesText = slot.ThirdPlaces.ToString(),
@@ -268,11 +268,6 @@ public partial class OcrPreviewViewModel : ObservableObject
     private IReadOnlyList<Player?> CurrentSelections() =>
         new[] { SelectedPlayer0, SelectedPlayer1, SelectedPlayer2, SelectedPlayer3 };
 
-    private static Color? ColorForPlayer(Player player) =>
-        PlayerColors.HexByName.TryGetValue(player.Name, out var hex)
-            ? Color.FromArgb(hex)
-            : null;
-
     /// <summary>
     /// Tap på ett spelarnamn i rubrikraden: välj vem som satt på positionen.
     /// </summary>
@@ -332,7 +327,7 @@ public partial class OcrPreviewViewModel : ObservableObject
             if (player is null) continue;
             Players[i].PlayerId = player.Id;
             Players[i].PlayerName = player.Name;
-            Players[i].NameColor = ColorForPlayer(player);
+            Players[i].NameColor = PlayerColors.MauiColorFor(player.Name);
         }
     }
 
@@ -362,7 +357,9 @@ public partial class OcrPreviewViewModel : ObservableObject
                 inputs,
                 photoPath: _context.PhotoPath).ConfigureAwait(true);
 
-            // Nästa scan öppnar med samma position-till-spelare-mappning.
+            // Nästa inmatning öppnar med samma position-till-spelare-mappning.
+            // OCR-flödet skapar alltid en ny omgång, så villkoret i
+            // MappingPersistenceRule är alltid uppfyllt här — ingen kontroll behövs.
             _mappingStore.Set(selections.Select(p => p!.Id).ToList());
 
             _context.Clear();

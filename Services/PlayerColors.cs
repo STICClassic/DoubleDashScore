@@ -16,6 +16,11 @@ public static class PlayerColors
             ["Jonas"]  = "#B8860B",  // mörk gul/guld
         };
 
+    // MAUI-färg för ett spelarnamn, eller null för ett okänt namn (då tar
+    // tema-defaulten över). Delas av vyerna som färgar en enskild spelare.
+    public static Color? MauiColorFor(string playerName) =>
+        HexByName.TryGetValue(playerName, out var hex) ? Color.FromArgb(hex) : null;
+
     // RGB-byte-trippel för en hex-sträng i "#RRGGBB"-form. För konsumenter
     // som bygger en icke-MAUI färgtyp (t.ex. OxyColor) och inte kan parsa
     // hex själva.
