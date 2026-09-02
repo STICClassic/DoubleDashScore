@@ -509,7 +509,7 @@ mappningen är **redigerbar och persistent** sedan Skiva 29:
   se dubbletter. Ingen bekräftelsedialog — swap är säkerhetsnät, inte en
   medveten åtgärd.
 - **Persistens:** vid lyckad spara skrivs mappningen som JSON-array av 4
-  spelar-Id i P1–P4-ordning via `IOcrMappingStore` (`PreferencesOcrMappingStore`,
+  spelar-Id i P1–P4-ordning via `IPlayerPositionMappingStore` (`PreferencesPlayerPositionMappingStore`,
   `Preferences`-nyckel `ocr_player_mapping`). Nästa scan öppnar med samma
   mappning — vanliga fall kräver noll klick. Detta är appens **enda**
   `Preferences`-användning; hemligheter går fortsatt via `SecureStorage`.
@@ -584,8 +584,8 @@ Sånt som tog tid att lista ut. Dokumenterat så vi inte rör i det igen.
                      PhotoStorageService, OcrFlowContext
                      MatrixErrorDetector, RoundMatrixValidator, MappingValidator,
                      PlayerSlotMapper
-                     IOcrMappingStore + OcrMappingCodec,
-                       PreferencesOcrMappingStore
+                     IPlayerPositionMappingStore + PlayerPositionMappingCodec,
+                       PreferencesPlayerPositionMappingStore
                      BackupService, BackupFileNaming
                      DatabaseImportedMessage, GameNightNoteUpdatedMessage
                        (WeakReferenceMessenger)

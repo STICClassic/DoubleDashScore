@@ -13,13 +13,13 @@ public partial class OcrPreviewViewModel : ObservableObject
     private readonly PlayerRepository _playersRepo;
     private readonly RoundRepository _rounds;
     private readonly OcrFlowContext _context;
-    private readonly IOcrMappingStore _mappingStore;
+    private readonly IPlayerPositionMappingStore _mappingStore;
 
     public OcrPreviewViewModel(
         PlayerRepository players,
         RoundRepository rounds,
         OcrFlowContext context,
-        IOcrMappingStore mappingStore)
+        IPlayerPositionMappingStore mappingStore)
     {
         _playersRepo = players;
         _rounds = rounds;
