@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using DoubleDashScore.ViewModels;
 
 namespace DoubleDashScore.Views;
@@ -15,6 +16,35 @@ public partial class RoundMatrixView : ContentView
         typeof(RoundMatrixView),
         defaultValue: "16",
         defaultBindingMode: BindingMode.TwoWay);
+
+    /// <summary>
+    /// Kommando som körs när ett spelarnamn i rubrikraden tap:as. Parametern är
+    /// kolumnens <see cref="PlayerColumnViewModel"/>. Null (manuell inmatning)
+    /// = raden är inte interaktiv.
+    /// </summary>
+    public static readonly BindableProperty NameTapCommandProperty = BindableProperty.Create(
+        nameof(NameTapCommand),
+        typeof(ICommand),
+        typeof(RoundMatrixView));
+
+    /// <summary>Visar en liten pil efter varje namn som affordans för att raden går att tappa.</summary>
+    public static readonly BindableProperty IsNamePickerEnabledProperty = BindableProperty.Create(
+        nameof(IsNamePickerEnabled),
+        typeof(bool),
+        typeof(RoundMatrixView),
+        defaultValue: false);
+
+    public ICommand? NameTapCommand
+    {
+        get => (ICommand?)GetValue(NameTapCommandProperty);
+        set => SetValue(NameTapCommandProperty, value);
+    }
+
+    public bool IsNamePickerEnabled
+    {
+        get => (bool)GetValue(IsNamePickerEnabledProperty);
+        set => SetValue(IsNamePickerEnabledProperty, value);
+    }
 
     public IReadOnlyList<PlayerColumnViewModel>? Players
     {

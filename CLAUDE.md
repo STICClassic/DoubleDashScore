@@ -493,6 +493,39 @@ Stabila beslut andra PR:s måste känna till:
   `NightsListViewModel.PlayerColorsByName` adapterar dem till MAUI-`Color`.
   Lägg inte tillbaka en egen hex-lista här — se "Tema och design".
 
+### OCR: position-till-spelare-mappning
+
+Poängtavlan i bilden är positionsbaserad (P1–P4 = controller-plats), inte
+personbaserad. Vem som satt på vilken plats kan variera mellan kvällar, så
+mappningen är **redigerbar och persistent** sedan Skiva 29:
+
+- **`OcrPreviewPage` visar spelarnamnen** — inte "P1..P4" — som rubrikrad
+  ovanför siffror-blocken, varje namn i sin `PlayerColors`-färg. Det finns
+  ingen separat spelarväljar-rad; namnen är enda stället mappningen syns.
+  Tap på ett namn öppnar en `DisplayActionSheet` med de fyra spelarna.
+- **Auto-swap:** väljs en spelare som redan sitter på en annan position byter
+  de två plats. `PlayerSlotMapper.Assign` (ren funktion) garanterar att
+  mappningen alltid förblir en permutation, så `MappingValidator` aldrig kan
+  se dubbletter. Ingen bekräftelsedialog — swap är säkerhetsnät, inte en
+  medveten åtgärd.
+- **Persistens:** vid lyckad spara skrivs mappningen som JSON-array av 4
+  spelar-Id i P1–P4-ordning via `IOcrMappingStore` (`PreferencesOcrMappingStore`,
+  `Preferences`-nyckel `ocr_player_mapping`). Nästa scan öppnar med samma
+  mappning — vanliga fall kräver noll klick. Detta är appens **enda**
+  `Preferences`-användning; hemligheter går fortsatt via `SecureStorage`.
+- **`PlayerSlotMapper.Resolve(active, savedIds)`** avgör startmappningen:
+  sparad om den fortfarande går att applicera fullt ut, annars namn-defaulten
+  `Claes/Robin/Aleksi/Jonas` (`Map`). Ett sparat Id som inte längre finns bland
+  de aktiva spelarna ogiltigförklarar **hela** mappningen — halvt applicerad
+  mappning vore värre än en känd default.
+- **Databasen är oförändrad.** `RoundResult` har alltid lagrats på spelar-Id,
+  inte position; det enda som ändrats är hur preview-vyn väljer vilket Id som
+  hör till vilken kolumn. Historik och webben påverkas inte.
+- **`RoundMatrixView` delas med `RoundEntryPage`.** Rubrikradens interaktivitet
+  är opt-in via bindable properties `NameTapCommand` + `IsNamePickerEnabled` —
+  sätts bara av `OcrPreviewPage`. Manuell inmatning har oförändrad, icke-tapbar
+  rubrikrad utan färg (`PlayerColumnViewModel.NameColor` = null → tema-default).
+
 ## MAUI-gotchas och plattformsbeslut
 
 Sånt som tog tid att lista ut. Dokumenterat så vi inte rör i det igen.
@@ -551,6 +584,8 @@ Sånt som tog tid att lista ut. Dokumenterat så vi inte rör i det igen.
                      PhotoStorageService, OcrFlowContext
                      MatrixErrorDetector, RoundMatrixValidator, MappingValidator,
                      PlayerSlotMapper
+                     IOcrMappingStore + OcrMappingCodec,
+                       PreferencesOcrMappingStore
                      BackupService, BackupFileNaming
                      DatabaseImportedMessage, GameNightNoteUpdatedMessage
                        (WeakReferenceMessenger)

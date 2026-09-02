@@ -24,10 +24,62 @@
               ColumnSpacing="8">
 
             <Label Grid.Row="0" Grid.Column="0" Text="" />
-            <Label Grid.Row="0" Grid.Column="1" Text="{Binding Players[0].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-            <Label Grid.Row="0" Grid.Column="2" Text="{Binding Players[1].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-            <Label Grid.Row="0" Grid.Column="3" Text="{Binding Players[2].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-            <Label Grid.Row="0" Grid.Column="4" Text="{Binding Players[3].PlayerName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <HorizontalStackLayout Grid.Row="0" Grid.Column="1" Spacing="3" HorizontalOptions="Center">
+                <HorizontalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding NameTapCommand}" CommandParameter="{Binding Players[0]}" />
+                </HorizontalStackLayout.GestureRecognizers>
+                <Label Text="{Binding Players[0].PlayerName}"
+                       FontAttributes="Bold"
+                       TextColor="{Binding Players[0].NameColor}"
+                       VerticalOptions="Center" />
+                <Label Text="&#x25BE;"
+                       FontSize="11"
+                       VerticalOptions="Center"
+                       IsVisible="{Binding IsNamePickerEnabled}"
+                       TextColor="{Binding Players[0].NameColor}" />
+            </HorizontalStackLayout>
+            <HorizontalStackLayout Grid.Row="0" Grid.Column="2" Spacing="3" HorizontalOptions="Center">
+                <HorizontalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding NameTapCommand}" CommandParameter="{Binding Players[1]}" />
+                </HorizontalStackLayout.GestureRecognizers>
+                <Label Text="{Binding Players[1].PlayerName}"
+                       FontAttributes="Bold"
+                       TextColor="{Binding Players[1].NameColor}"
+                       VerticalOptions="Center" />
+                <Label Text="&#x25BE;"
+                       FontSize="11"
+                       VerticalOptions="Center"
+                       IsVisible="{Binding IsNamePickerEnabled}"
+                       TextColor="{Binding Players[1].NameColor}" />
+            </HorizontalStackLayout>
+            <HorizontalStackLayout Grid.Row="0" Grid.Column="3" Spacing="3" HorizontalOptions="Center">
+                <HorizontalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding NameTapCommand}" CommandParameter="{Binding Players[2]}" />
+                </HorizontalStackLayout.GestureRecognizers>
+                <Label Text="{Binding Players[2].PlayerName}"
+                       FontAttributes="Bold"
+                       TextColor="{Binding Players[2].NameColor}"
+                       VerticalOptions="Center" />
+                <Label Text="&#x25BE;"
+                       FontSize="11"
+                       VerticalOptions="Center"
+                       IsVisible="{Binding IsNamePickerEnabled}"
+                       TextColor="{Binding Players[2].NameColor}" />
+            </HorizontalStackLayout>
+            <HorizontalStackLayout Grid.Row="0" Grid.Column="4" Spacing="3" HorizontalOptions="Center">
+                <HorizontalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding NameTapCommand}" CommandParameter="{Binding Players[3]}" />
+                </HorizontalStackLayout.GestureRecognizers>
+                <Label Text="{Binding Players[3].PlayerName}"
+                       FontAttributes="Bold"
+                       TextColor="{Binding Players[3].NameColor}"
+                       VerticalOptions="Center" />
+                <Label Text="&#x25BE;"
+                       FontSize="11"
+                       VerticalOptions="Center"
+                       IsVisible="{Binding IsNamePickerEnabled}"
+                       TextColor="{Binding Players[3].NameColor}" />
+            </HorizontalStackLayout>
 
             <Label Grid.Row="1" Grid.Column="0" Text="1:or" VerticalOptions="Center" />
             <Entry Grid.Row="1" Grid.Column="1" Text="{Binding Players[0].FirstPlacesText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="Center">
