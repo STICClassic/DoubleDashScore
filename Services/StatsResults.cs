@@ -1,13 +1,28 @@
 namespace DoubleDashScore.Services;
 
+/// <param name="TotalPointsByPlayer">
+/// Kvällens totala banpoäng per spelare över <b>alla</b> omgångar, kompletta
+/// som partiella — samma underlag som kvällssnittet.
+/// </param>
+/// <param name="RoundPositions">
+/// En post per omgång, partiella inkluderade (se <c>IsComplete</c> på posten).
+/// <see cref="PlacementsByPlayer"/> räknar däremot bara kompletta omgångar.
+/// </param>
 public sealed record NightStats(
     IReadOnlyDictionary<int, decimal> AverageByPlayer,
     IReadOnlyDictionary<int, IReadOnlyList<int>> PlacementsByPlayer,
-    IReadOnlyList<RoundPositionsResult> CompleteRoundPositions);
+    IReadOnlyDictionary<int, int> TotalPointsByPlayer,
+    IReadOnlyList<RoundPositionsResult> RoundPositions);
 
+/// <param name="IsComplete">
+/// Falskt för en partiell omgång. <see cref="PositionByPlayer"/> är då en
+/// rangordning på omgångens poäng <b>enbart för visning</b> — den är ingen
+/// omgångsplacering och räknas aldrig in i kvällsplaceringar eller totalscore.
+/// </param>
 public sealed record RoundPositionsResult(
     int RoundId,
     int RoundNumber,
+    bool IsComplete,
     IReadOnlyDictionary<int, int> PositionByPlayer,
     IReadOnlyDictionary<int, int> TotalPointsByPlayer);
 

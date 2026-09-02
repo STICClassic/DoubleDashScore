@@ -246,7 +246,94 @@ public class StatsCalculatorTests
         Assert.Equal(new[] { 2, 1 }, stats.PlacementsByPlayer[2]);
         Assert.Equal(new[] { 3, 3 }, stats.PlacementsByPlayer[3]);
         Assert.Equal(new[] { 4, 4 }, stats.PlacementsByPlayer[4]);
-        Assert.Equal(2, stats.CompleteRoundPositions.Count);
+        Assert.Equal(2, stats.RoundPositions.Count(r => r.IsComplete));
+    }
+
+    [Fact]
+    public void NightStats_RoundPositions_IncludePartialRoundsFlagged()
+    {
+        // r1 komplett (16 banor), r2 partiell (4 banor). Båda ska med i listan
+        // som kvällsvyn renderar, den partiella markerad.
+        var r1 = MakeRound(
+            1, 1, 1, 16,
+            (1, 16, 0, 0, 0),
+            (2, 0, 16, 0, 0),
+            (3, 0, 0, 16, 0),
+            (4, 0, 0, 0, 16));
+        var r2 = MakeRound(
+            2, 1, 2, 4,
+            (1, 0, 0, 0, 4),
+            (2, 0, 0, 4, 0),
+            (3, 0, 4, 0, 0),
+            (4, 4, 0, 0, 0));
+        var night = new NightWithRounds(MakeNight(1, "2026-01-15"), new[] { r1, r2 });
+
+        var stats = StatsCalculator.CalculateNightStats(night, Players);
+
+        Assert.Equal(new[] { 1, 2 }, stats.RoundPositions.Select(r => r.RoundNumber));
+        Assert.Equal(new[] { true, false }, stats.RoundPositions.Select(r => r.IsComplete));
+
+        // Den partiella omgångens rangordning är visningsdata: P4 vann de 4 banorna.
+        var partial = stats.RoundPositions.Single(r => !r.IsComplete);
+        Assert.Equal(1, partial.PositionByPlayer[4]);
+        Assert.Equal(4, partial.PositionByPlayer[1]);
+        Assert.Equal(16, partial.TotalPointsByPlayer[4]);
+
+        // ... men den ger inga kvällsplaceringar.
+        Assert.Equal(new[] { 1 }, stats.PlacementsByPlayer[1]);
+    }
+
+    [Fact]
+    public void NightStats_TotalPoints_SumAllRoundsIncludingPartial()
+    {
+        // P1: 16 ettor (64 p) + 4 ettor (16 p) = 80. P4: 16 fyror (16 p) + 4 fyror (4 p) = 20.
+        var r1 = MakeRound(
+            1, 1, 1, 16,
+            (1, 16, 0, 0, 0),
+            (2, 0, 16, 0, 0),
+            (3, 0, 0, 16, 0),
+            (4, 0, 0, 0, 16));
+        var r2 = MakeRound(
+            2, 1, 2, 4,
+            (1, 4, 0, 0, 0),
+            (2, 0, 4, 0, 0),
+            (3, 0, 0, 4, 0),
+            (4, 0, 0, 0, 4));
+        var night = new NightWithRounds(MakeNight(1, "2026-01-15"), new[] { r1, r2 });
+
+        var stats = StatsCalculator.CalculateNightStats(night, Players);
+
+        Assert.Equal(80, stats.TotalPointsByPlayer[1]);
+        Assert.Equal(60, stats.TotalPointsByPlayer[2]);
+        Assert.Equal(40, stats.TotalPointsByPlayer[3]);
+        Assert.Equal(20, stats.TotalPointsByPlayer[4]);
+    }
+
+    [Fact]
+    public void NightStats_TotalPoints_PartialRoundsOnly()
+    {
+        // Kväll med bara partiella omgångar: totalen räknar dem, placeringarna inte.
+        var r1 = MakeRound(
+            1, 1, 1, 8,
+            (1, 8, 0, 0, 0),
+            (2, 0, 8, 0, 0),
+            (3, 0, 0, 8, 0),
+            (4, 0, 0, 0, 8));
+        var r2 = MakeRound(
+            2, 1, 2, 2,
+            (1, 2, 0, 0, 0),
+            (2, 0, 2, 0, 0),
+            (3, 0, 0, 2, 0),
+            (4, 0, 0, 0, 2));
+        var night = new NightWithRounds(MakeNight(1, "2026-01-15"), new[] { r1, r2 });
+
+        var stats = StatsCalculator.CalculateNightStats(night, Players);
+
+        Assert.Equal(40, stats.TotalPointsByPlayer[1]);
+        Assert.Equal(10, stats.TotalPointsByPlayer[4]);
+        Assert.Equal(2, stats.RoundPositions.Count);
+        Assert.All(stats.RoundPositions, r => Assert.False(r.IsComplete));
+        Assert.Empty(stats.PlacementsByPlayer[1]);
     }
 
     [Fact]

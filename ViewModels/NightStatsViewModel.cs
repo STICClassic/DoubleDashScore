@@ -12,6 +12,9 @@ public partial class NightStatsViewModel : ObservableObject, IRecipient<Database
 {
     private static readonly CultureInfo SvSe = CultureInfo.GetCultureInfo("sv-SE");
 
+    // Dämpad separator som fungerar mot både ljus och mörk bakgrund (50 % grå).
+    private static readonly Color SeparatorColor = Color.FromArgb("#80808080");
+
     private readonly GameNightRepository _nights;
     private readonly RoundRepository _rounds;
     private readonly PlayerRepository _players;
@@ -54,6 +57,10 @@ public partial class NightStatsViewModel : ObservableObject, IRecipient<Database
     public ObservableCollection<PlayerNightOverviewRow> Overview { get; } = new();
     public ObservableCollection<RoundStatsSection> RoundSections { get; } = new();
 
+    /// <summary>Kvällens totalpoäng per spelare, bäst först, namnen i spelarfärg.</summary>
+    [ObservableProperty]
+    private FormattedString? _nightTotals;
+
     public async Task LoadAsync(CancellationToken ct = default)
     {
         if (NightId <= 0) return;
@@ -62,6 +69,7 @@ public partial class NightStatsViewModel : ObservableObject, IRecipient<Database
         {
             Overview.Clear();
             RoundSections.Clear();
+            NightTotals = null;
             HasData = false;
             StatusMessage = string.Empty;
 
@@ -105,21 +113,21 @@ public partial class NightStatsViewModel : ObservableObject, IRecipient<Database
                     placementsText));
             }
 
-            foreach (var positions in stats.CompleteRoundPositions)
+            // Partiella omgångar visas också — deras poäng räknas redan in i
+            // kvällssnittet, så att gömma dem gjorde bara vyn svårläst.
+            foreach (var positions in stats.RoundPositions)
             {
                 var rows = orderedIds.Select(id => new RoundPlayerRow(
                     nameById[id],
                     positions.PositionByPlayer[id].ToString(SvSe),
                     positions.TotalPointsByPlayer[id].ToString(SvSe))).ToList();
-                RoundSections.Add(new RoundStatsSection(
-                    $"Omgång {positions.RoundNumber}",
-                    rows));
+                var heading = positions.IsComplete
+                    ? $"Omgång {positions.RoundNumber}"
+                    : $"Omgång {positions.RoundNumber} (inkomplett)";
+                RoundSections.Add(new RoundStatsSection(heading, rows));
             }
 
-            if (RoundSections.Count == 0)
-            {
-                StatusMessage = "Inga kompletta omgångar än — per-omgång-tabellen visas när minst en omgång har 16 banor.";
-            }
+            NightTotals = BuildNightTotals(stats.TotalPointsByPlayer, nameById, orderedIds);
 
             HasData = true;
         }
@@ -131,6 +139,35 @@ public partial class NightStatsViewModel : ObservableObject, IRecipient<Database
         {
             IsBusy = false;
         }
+    }
+
+    // "Aleksi 79, Claes 62, ..." — bäst först, varje namn i sin spelarfärg.
+    // Samma FormattedString-mönster som vinnarraden i NightsListViewModel:
+    // en Label med färgade spans i stället för en layout per spelare.
+    private static FormattedString BuildNightTotals(
+        IReadOnlyDictionary<int, int> totalPointsByPlayer,
+        IReadOnlyDictionary<int, string> nameById,
+        IReadOnlyList<int> orderedIds)
+    {
+        var fs = new FormattedString();
+        var ranked = orderedIds
+            .OrderByDescending(id => totalPointsByPlayer[id])
+            .ToList();
+
+        for (int i = 0; i < ranked.Count; i++)
+        {
+            if (i > 0)
+            {
+                fs.Spans.Add(new Span { Text = ", ", TextColor = SeparatorColor });
+            }
+            var name = nameById[ranked[i]];
+            var span = new Span { Text = $"{name} {totalPointsByPlayer[ranked[i]].ToString(SvSe)}" };
+            // Okänt namn: lämna färgen osatt så tema-defaulten gäller.
+            if (PlayerColors.MauiColorFor(name) is { } color) span.TextColor = color;
+            fs.Spans.Add(span);
+        }
+
+        return fs;
     }
 }
 
